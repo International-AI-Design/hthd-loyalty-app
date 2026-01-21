@@ -1,0 +1,5 @@
+Add share function for referral code.. on iPhone brings up share tray, similar feature for android.  Must work across safari, chrome, and whatever the third most popular browser is...
+
+
+There doesn't seem to be a way right now for a referral code to be applied to anything.  So we'd need a way for the referral code to be shared from customer to prospect.  Then what does the prospect do with the referral code?  How does that get back to the customer's loyalty profile? 
+

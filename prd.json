@@ -1,0 +1,637 @@
+{
+  "project": "Happy Tail Happy Dog Loyalty Program",
+  "branchName": "ralph/happy-tail-loyalty-v2",
+  "description": "Customer loyalty app for Happy Tail Happy Dog - earn points on purchases, redeem for grooming discounts. V2 adds Gingr integration and referral tracking.",
+  "version": "2.0",
+  "mvpComplete": true,
+  "v2Features": ["Gingr CSV Import", "Referral Credit Tracking", "Production Deployment"],
+  "styleGuide": {
+    "file": "SKILL.md",
+    "note": "ALL UI work MUST follow the brand guidelines in SKILL.md. This includes color palette (Teal #5BBFBA primary, Navy #1B365D text), typography (Playfair Display headings, Open Sans body), voice and tone, and component styles.",
+    "appliesTo": ["customer-app", "admin-app"],
+    "critical": true
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Initialize project structure and database schema",
+      "description": "As a developer, I need the project scaffolded with the database schema so development can begin.",
+      "acceptanceCriteria": [
+        "Create project structure: customer-app/, admin-app/, server/ directories",
+        "Initialize React + Vite + Tailwind for customer-app",
+        "Initialize React + Vite + Tailwind for admin-app",
+        "Initialize Express.js server with Prisma ORM",
+        "Create Prisma schema with tables: customers, dogs, points_transactions, redemptions, staff_users, audit_log",
+        "Run initial migration successfully",
+        "Docker Compose file for local PostgreSQL",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed. Docker Compose ready for PostgreSQL. Migration runs when Docker is available. Prisma 7 schema validated."
+    },
+    {
+      "id": "US-002",
+      "title": "Implement customer registration API",
+      "description": "As a customer, I want to register with my phone/email and password so I can track my loyalty points.",
+      "acceptanceCriteria": [
+        "POST /api/auth/register endpoint accepts: phone, email, password, first_name, last_name",
+        "Password hashed with bcrypt before storing",
+        "Unique referral_code generated for each customer",
+        "Returns JWT token on successful registration",
+        "Validates required fields with Zod",
+        "Returns appropriate error for duplicate email/phone",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed. Auth routes in server/src/routes/auth.ts. JWT 7-day expiry. Referral codes use HT-XXXXXX format."
+    },
+    {
+      "id": "US-003",
+      "title": "Implement customer login API",
+      "description": "As a customer, I want to log in with my email/phone and password so I can access my account.",
+      "acceptanceCriteria": [
+        "POST /api/auth/login endpoint accepts email or phone + password",
+        "Compares password hash with bcrypt",
+        "Returns JWT token (7 day expiry) on success",
+        "Returns 401 for invalid credentials",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Completed. Login endpoint accepts email OR phone with password. Uses Zod refine for validation."
+    },
+    {
+      "id": "US-021",
+      "title": "Add JWT authentication middleware",
+      "description": "As a developer, I need authentication middleware to protect API routes.",
+      "acceptanceCriteria": [
+        "Middleware extracts and verifies JWT from Authorization header",
+        "Attaches decoded user to request object",
+        "Returns 401 for missing/invalid/expired tokens",
+        "Separate middleware for customer vs staff routes",
+        "Role-based authorization for admin routes",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Completed. Middleware in server/src/middleware/auth.ts. Exports authenticateCustomer, authenticateStaff, requireRoles, requireAdmin. Uses typed request interfaces."
+    },
+    {
+      "id": "US-004",
+      "title": "Implement customer profile API",
+      "description": "As a customer, I want to view my profile and points balance.",
+      "acceptanceCriteria": [
+        "GET /api/customers/me returns current customer profile",
+        "Response includes: id, first_name, last_name, email, phone, points_balance, referral_code",
+        "Requires valid JWT token",
+        "Returns 401 if not authenticated",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Completed. Customer routes in server/src/routes/customers.ts. Uses authenticateCustomer middleware for JWT validation."
+    },
+    {
+      "id": "US-005",
+      "title": "Implement points transaction history API",
+      "description": "As a customer, I want to see my points history so I understand how I earned and spent points.",
+      "acceptanceCriteria": [
+        "GET /api/customers/me/transactions returns paginated transaction history",
+        "Each transaction shows: date, type, points_amount, description",
+        "Supports pagination with limit/offset query params",
+        "Ordered by most recent first",
+        "Requires valid JWT token",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Completed. Transaction history at /api/customers/me/transactions with limit/offset pagination. Response includes pagination metadata (total, has_more)."
+    },
+    {
+      "id": "US-009",
+      "title": "Implement staff authentication API",
+      "description": "As a staff member, I need to log in to the admin panel.",
+      "acceptanceCriteria": [
+        "POST /api/admin/auth/login accepts username + password",
+        "Returns JWT with role claim (admin/staff/groomer)",
+        "Token expires in 8 hours",
+        "Returns 401 for invalid credentials",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Completed. Staff auth routes in server/src/routes/admin/auth.ts. JWT includes role claim and expires in 8 hours. Returns 401 for invalid credentials or deactivated accounts."
+    },
+    {
+      "id": "US-011",
+      "title": "Implement customer lookup API (staff)",
+      "description": "As a staff member, I want to look up customers by phone or email to add points.",
+      "acceptanceCriteria": [
+        "GET /api/admin/customers/search?q={query} searches by phone, email, or name",
+        "Returns list of matching customers with id, name, phone, email, points_balance",
+        "Partial match supported (contains search)",
+        "Requires staff JWT token",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Completed. Customer search at /api/admin/customers/search with case-insensitive partial matching. Uses authenticateStaff middleware. Returns up to 50 results ordered by name."
+    },
+    {
+      "id": "US-010",
+      "title": "Implement add points API (staff)",
+      "description": "As a staff member, I want to add points to a customer's account when they make a purchase.",
+      "acceptanceCriteria": [
+        "POST /api/admin/points/add accepts: customer_id, dollar_amount, service_type",
+        "Calculates points: 1 point per dollar, 1.5x for grooming",
+        "Creates points_transaction record with type 'purchase'",
+        "Updates customer points_balance",
+        "Requires staff JWT token",
+        "Logs action to audit_log",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Completed. Points routes in server/src/routes/admin/points.ts. Uses Math.floor for point calculation. Transaction, balance update, and audit log created atomically with Prisma.$transaction."
+    },
+    {
+      "id": "US-014",
+      "title": "Implement customer redemption request API",
+      "description": "As a customer, I want to request a points redemption so I can get a discount on grooming.",
+      "acceptanceCriteria": [
+        "POST /api/redemptions/request accepts: reward_tier (100/250/500)",
+        "Validates customer has sufficient points",
+        "Creates redemption record with status 'pending'",
+        "Generates unique redemption_code",
+        "Does NOT deduct points yet (deducted on completion)",
+        "Returns redemption details with code",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Completed. Redemption routes in server/src/routes/redemptions.ts. Redemption codes use RD-XXXXXX format. Reward tiers: 100=$10, 250=$25, 500=$50. Points not deducted until completion."
+    },
+    {
+      "id": "US-015",
+      "title": "Implement staff redemption completion API",
+      "description": "As a staff member, I want to complete a redemption when a customer uses their code.",
+      "acceptanceCriteria": [
+        "POST /api/admin/redemptions/complete accepts: redemption_code",
+        "Validates redemption exists and status is 'pending'",
+        "Deducts points from customer balance",
+        "Updates redemption status to 'completed'",
+        "Records approved_by staff user",
+        "Logs to audit_log",
+        "Returns success with redemption details",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Completed. Staff redemption routes in server/src/routes/admin/redemptions.ts. Uses Prisma.$transaction for atomic update of redemption status, points transaction, customer balance, and audit log."
+    },
+    {
+      "id": "US-016",
+      "title": "Implement staff-initiated redemption API",
+      "description": "As a staff member, I want to process a redemption directly for a customer at checkout.",
+      "acceptanceCriteria": [
+        "POST /api/admin/redemptions/create accepts: customer_id, reward_tier",
+        "Validates customer has sufficient points",
+        "Creates redemption record with status 'completed' immediately",
+        "Deducts points from customer balance",
+        "Generates redemption_code for records",
+        "Records approved_by staff user",
+        "Logs to audit_log",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Completed. Staff-initiated redemption at /api/admin/redemptions/create. Creates redemption with status 'completed' immediately, deducts points atomically using Prisma.$transaction. Returns discount_to_apply for staff to apply at checkout."
+    },
+    {
+      "id": "US-022",
+      "title": "Add API security middleware",
+      "description": "As a developer, I need security middleware to protect the API.",
+      "acceptanceCriteria": [
+        "Rate limiting: 100 requests per 15 minutes per IP",
+        "CORS configured for customer-app and admin-app origins",
+        "Helmet.js for secure HTTP headers",
+        "Request logging with Winston",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Completed. Security middleware in server/src/middleware/security.ts. Rate limiting (100/15min), Helmet.js for headers, CORS for app origins, Winston for structured logging. All middleware applied in index.ts."
+    },
+    {
+      "id": "US-006",
+      "title": "Build customer registration page",
+      "description": "As a customer, I want a registration form so I can create my loyalty account.",
+      "acceptanceCriteria": [
+        "Registration form with fields: first name, last name, email, phone, password, confirm password",
+        "Client-side validation with React Hook Form + Zod",
+        "Shows loading state during submission",
+        "Redirects to dashboard on success",
+        "Displays error messages for validation/server errors",
+        "Mobile-responsive design with Tailwind",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "Completed. Registration form with all fields, React Hook Form + Zod validation, mobile-responsive Tailwind design. Components in customer-app/src/pages/RegisterPage.tsx. Shared UI components in customer-app/src/components/ui/."
+    },
+    {
+      "id": "US-007",
+      "title": "Build customer login page",
+      "description": "As a customer, I want a login form so I can access my account.",
+      "acceptanceCriteria": [
+        "Login form with email/phone and password fields",
+        "Remember me checkbox option",
+        "Link to registration page",
+        "Shows loading state during submission",
+        "Redirects to dashboard on success",
+        "Displays error for invalid credentials",
+        "Mobile-responsive design",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "Completed. Login form with email/phone field, password, remember me checkbox. Uses React Hook Form + Zod validation. Mobile-responsive design. Added Checkbox UI component."
+    },
+    {
+      "id": "US-008",
+      "title": "Build customer dashboard with points display",
+      "description": "As a customer, I want to see my points balance and recent activity on a dashboard.",
+      "acceptanceCriteria": [
+        "Large, prominent points balance display",
+        "Shows available redemption tiers (100/$10, 250/$25, 500/$50)",
+        "Highlights which tiers customer qualifies for",
+        "Recent transactions list (last 5-10)",
+        "Pull-to-refresh or refresh button",
+        "Mobile-responsive design",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Completed. Dashboard shows large points balance, reward tiers (green border/bg for affordable, grayed out for unaffordable), recent transactions list with loading states, and refresh button. Added customerApi.getTransactions to api.ts."
+    },
+    {
+      "id": "US-017",
+      "title": "Build customer redemption request UI",
+      "description": "As a customer, I want to request a redemption from my dashboard.",
+      "acceptanceCriteria": [
+        "Redeem Points section on dashboard",
+        "Shows available tiers with points required and discount value",
+        "Tiers customer can't afford are grayed out",
+        "Click tier to request redemption",
+        "Confirmation dialog before requesting",
+        "Shows redemption code after successful request",
+        "Code displayed prominently for showing at checkout",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "Completed. Redeem Points section with clickable tier buttons. Modal component for confirmation dialog. Success modal displays redemption code prominently with RD-XXXXXX format. Uses customerApi.requestRedemption to call /api/redemptions/request."
+    },
+    {
+      "id": "US-018",
+      "title": "Build customer active redemptions view",
+      "description": "As a customer, I want to see my pending redemption codes so I can use them at checkout.",
+      "acceptanceCriteria": [
+        "Section showing active/pending redemptions",
+        "Each shows: code, discount value, date requested, status",
+        "Pending codes prominently displayed",
+        "Completed redemptions shown in history",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": "Completed. GET /api/redemptions returns pending and completed redemptions. Dashboard shows Active Redemption Codes section with yellow-bordered cards for pending codes, and Redemption History section for completed redemptions."
+    },
+    {
+      "id": "US-012",
+      "title": "Build admin login page",
+      "description": "As a staff member, I want to log in to the admin panel.",
+      "acceptanceCriteria": [
+        "Login form with username and password",
+        "Redirects to admin dashboard on success",
+        "Displays error for invalid credentials",
+        "Happy Tail branding",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": "Completed. Admin login page with username/password form, Happy Tail branding (green color scheme), React Hook Form + Zod validation. Auth context stores staff info in localStorage. Redirects to dashboard on success."
+    },
+    {
+      "id": "US-013",
+      "title": "Build admin customer lookup and points entry",
+      "description": "As a staff member, I want to search for a customer and add points for their purchase.",
+      "acceptanceCriteria": [
+        "Search bar to find customer by phone/email/name",
+        "Search results show customer name, phone, current points",
+        "Click customer to select them",
+        "Form to enter: dollar amount, service type dropdown (daycare/boarding/grooming)",
+        "Shows calculated points before confirming (with 1.5x indicator for grooming)",
+        "Success confirmation with new balance",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 20,
+      "passes": true,
+      "notes": "Completed. Customer search with table view, select customer, points entry form with dollar amount and service type dropdown. Shows calculated points preview with 1.5x indicator for grooming. Success confirmation shows new balance. Created Select UI component."
+    },
+    {
+      "id": "US-019",
+      "title": "Build admin redemption lookup and completion",
+      "description": "As a staff member, I want to look up and complete redemption codes at checkout.",
+      "acceptanceCriteria": [
+        "Input field to enter/scan redemption code",
+        "Shows redemption details: customer name, discount value, status",
+        "Complete Redemption button for pending redemptions",
+        "Confirmation before completing",
+        "Success message with discount amount to apply",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 21,
+      "passes": true,
+      "notes": "Completed. GET /api/admin/redemptions/lookup?code={code} endpoint for code lookup. Redemption lookup section in admin dashboard with code input, details display, and Complete Redemption button. Confirmation modal before completing. Success message shows discount amount to apply."
+    },
+    {
+      "id": "US-020",
+      "title": "Build admin direct redemption flow",
+      "description": "As a staff member, I want to process a redemption directly for a customer without a code.",
+      "acceptanceCriteria": [
+        "After selecting customer, option to Redeem Points",
+        "Shows available tiers customer qualifies for",
+        "Select tier and confirm",
+        "Points deducted, confirmation shown",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 22,
+      "passes": true,
+      "notes": "Completed. Redeem Points section added to admin dashboard after Add Points section. Shows reward tier buttons (100/$10, 250/$25, 500/$50) with green styling for affordable tiers and gray/disabled for unaffordable. Confirmation modal shows customer, balance, points to deduct, and discount to apply. Success message displays discount amount. Uses POST /api/admin/redemptions/create endpoint."
+    },
+    {
+      "id": "US-024",
+      "title": "Build admin customer list view",
+      "description": "As a staff member, I want to see a list of all customers and their points.",
+      "acceptanceCriteria": [
+        "Table view of all customers",
+        "Columns: name, phone, email, points balance, join date",
+        "Sortable by columns",
+        "Search/filter functionality",
+        "Click row to view customer details",
+        "Pagination for large lists",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 23,
+      "passes": true,
+      "notes": "Completed. GET /api/admin/customers endpoint with pagination, sorting, and filtering. CustomersPage.tsx shows sortable table with name, phone, email, points balance, join date columns. Search/filter with debounce. Pagination with Previous/Next buttons. Click row navigates to /customers/:id (placeholder until US-025)."
+    },
+    {
+      "id": "US-025",
+      "title": "Build admin customer detail view",
+      "description": "As a staff member, I want to see a customer's full profile and history.",
+      "acceptanceCriteria": [
+        "Shows customer profile information",
+        "Shows current points balance prominently",
+        "Lists all points transactions",
+        "Lists all redemptions (pending and completed)",
+        "Quick action buttons: Add Points, Process Redemption",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 24,
+      "passes": true,
+      "notes": "Completed. CustomerDetailPage.tsx shows customer profile (name, email, phone, join date, referral code) with prominent points balance. GET /api/admin/customers/:id/transactions and GET /api/admin/customers/:id/redemptions endpoints added. Transactions list with load more pagination. Redemptions split into pending (yellow) and completed (gray). Add Points and Process Redemption modals with full flows."
+    },
+    {
+      "id": "US-023",
+      "title": "Create seed data script",
+      "description": "As a developer, I need seed data for testing and demos.",
+      "acceptanceCriteria": [
+        "Script creates sample staff users (admin, staff roles)",
+        "Creates 10+ sample customers with realistic data",
+        "Creates points transaction history for customers",
+        "Creates sample pending and completed redemptions",
+        "Idempotent (can run multiple times safely)",
+        "Typecheck passes"
+      ],
+      "priority": 25,
+      "passes": true,
+      "notes": "Completed. Seed script at server/prisma/seed.ts. Run with `npm run seed` or `npx prisma db seed`. Creates 3 staff users (admin/staff/groomer), 12 customers with realistic data, 3-6 transactions per customer with varied service types, pending and completed redemptions. Idempotent via upsert and existence checks. Test credentials: admin/admin123, staff1/staff123, john.smith@email.com/password123."
+    },
+    {
+      "id": "US-026",
+      "title": "Implement Gingr API integration for points sync",
+      "description": "As a staff member, I need to sync completed invoices from Gingr so that points are automatically applied to enrolled customers.",
+      "acceptanceCriteria": [
+        "Server stores Gingr API credentials securely (API key in environment variable)",
+        "GET /api/admin/gingr/sync endpoint triggers sync of recent invoices",
+        "Fetch completed invoices from Gingr API: GET {subdomain}.gingrapp.com/api/v1/invoices?complete=true",
+        "Match Gingr owner to loyalty customer by name (first_name + last_name)",
+        "Apply points: 1 pt per dollar from invoice total",
+        "Track synced invoice IDs to prevent duplicate points",
+        "Return sync summary: invoices_processed, customers_matched, points_applied, customers_not_found",
+        "Store sync history with timestamp, invoices synced, results",
+        "Log each sync to audit_log",
+        "Handle API errors gracefully with retry logic",
+        "Typecheck passes"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": "DEPENDS ON US-031 (schema updates). REQUIRES: Ted & Julian to generate API key in Gingr (Reports & More → Users → Edit User → API Keys) and enable 'Can Access API' permission.",
+      "dataSource": {
+        "vendor": "Gingr",
+        "website": "https://www.gingrapp.com",
+        "apiDocs": "https://api-docs.gingrapp.com/",
+        "apiType": "REST API (read-only)",
+        "authentication": "API Key (per-user, from Gingr admin)",
+        "endpoints": {
+          "invoices": "GET /api/v1/invoices?complete=true&closed_only=true",
+          "owners": "GET /api/v1/owners",
+          "animals": "GET /api/v1/animals"
+        },
+        "setupRequired": [
+          "1. Ted/Julian: Go to Reports & More → Users → Edit User → API Keys",
+          "2. Ensure user has 'Can Access API' permission (Reports & More → Groups)",
+          "3. Generate API key and provide to Johnny",
+          "4. Store as GINGR_API_KEY and GINGR_SUBDOMAIN in .env"
+        ],
+        "matchStrategy": "Match Gingr owner name to Customer (first_name + last_name)",
+        "limitations": [
+          "API is read-only - cannot write back to Gingr",
+          "Service type may not be in invoice data - confirm with API testing",
+          "MVP: Apply 1 pt per dollar flat if service type unavailable"
+        ]
+      },
+      "fallback": {
+        "method": "PDF Import",
+        "when": "If API access is unavailable or costs extra",
+        "sampleFile": "hthdendofdayreport.pdf",
+        "note": "Parse 'Charges Full Results' section from End of Day Report PDF"
+      }
+    },
+    {
+      "id": "US-027",
+      "title": "Build Gingr sync UI in admin panel",
+      "description": "As a staff member, I want a simple interface to sync points from Gingr and review results.",
+      "acceptanceCriteria": [
+        "MUST follow brand guidelines in SKILL.md (colors, typography, component styles)",
+        "New 'Sync Points' section in admin panel navigation",
+        "'Sync from Gingr' button triggers API sync",
+        "Show sync progress indicator while fetching",
+        "Display sync summary after processing: X invoices processed, Y customers matched, Z points applied, W not found",
+        "Show list of unmatched Gingr owners for manual review",
+        "Show sync history table: date, synced_by, invoices_processed, points_applied, errors",
+        "Click history row to see full details of that sync",
+        "Status indicator showing last successful sync time",
+        "Error state if Gingr API credentials not configured",
+        "Mobile-responsive design",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": "Simpler than file upload - just a sync button. Staff clicks daily to pull new invoices."
+    },
+    {
+      "id": "US-028",
+      "title": "Implement referral credit tracking API",
+      "description": "As a customer who referred someone, I need to automatically receive credit when my referral signs up and makes purchases.",
+      "acceptanceCriteria": [
+        "POST /api/auth/register accepts optional referral_code field",
+        "If valid referral code provided, link new customer to referrer via referred_by_id",
+        "Award referral bonus points to referrer on new customer signup (configurable, default 50 pts)",
+        "Create points_transaction for referrer with type 'referral_bonus' and description showing who they referred",
+        "GET /api/customers/me/referrals returns list of customers referred by current user",
+        "Include total referrals count and total bonus points earned from referrals",
+        "Invalid referral codes are silently ignored (don't block registration)",
+        "Typecheck passes"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Build referral tracking UI for customers",
+      "description": "As a customer, I want to see my referral stats and share my referral code easily.",
+      "acceptanceCriteria": [
+        "MUST follow brand guidelines in SKILL.md (colors, typography, component styles)",
+        "Referral section on customer dashboard",
+        "Display referral code prominently with copy-to-clipboard button",
+        "Show referral stats: X friends referred, Y bonus points earned",
+        "List referred customers (first name only for privacy) with signup date",
+        "Share button that opens native share sheet (mobile) or copies shareable message",
+        "Shareable message includes referral code and brief value prop",
+        "Mobile-responsive design",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-030",
+      "title": "Update registration form with referral code field",
+      "description": "As a new customer, I want to enter a referral code when signing up so my friend gets credit.",
+      "acceptanceCriteria": [
+        "MUST follow brand guidelines in SKILL.md (colors, typography, component styles)",
+        "Optional 'Referral Code' field added to registration form",
+        "Field accepts HT-XXXXXX format codes",
+        "Visual feedback when valid code format entered",
+        "If code is invalid/not found, registration still succeeds (warning only)",
+        "If code is valid, show 'Referred by [Friend's First Name]' confirmation",
+        "Support pre-filling referral code from URL query param (?ref=HT-XXXXXX)",
+        "Typecheck passes",
+        "Verify in browser using Playwright MCP tools"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-031",
+      "title": "Database schema updates for v2 features",
+      "description": "As a developer, I need the database schema updated to support Gingr imports and referral tracking.",
+      "acceptanceCriteria": [
+        "Add referred_by_id field to Customer table (nullable, self-referential FK)",
+        "Create GingrImport table: id, uploaded_by (staff FK), file_name, uploaded_at, customers_matched, customers_not_found, total_points_applied",
+        "Create GingrImportRow table: id, import_id (FK), original_data (JSON), customer_id (nullable FK), status (matched/unmatched), points_applied",
+        "Add 'referral_bonus' to PointsTransaction type enum",
+        "Run migration successfully",
+        "Update seed script to include sample referral relationships",
+        "Typecheck passes"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": "MUST RUN FIRST - prerequisite for US-026 through US-030. This is the first v2 story RALPH should execute."
+    },
+    {
+      "id": "US-032",
+      "title": "Production environment configuration",
+      "description": "As a developer, I need production environment configs ready for deployment to Axon server.",
+      "acceptanceCriteria": [
+        "Create .env.production template with all required variables",
+        "Document each environment variable and its purpose",
+        "Configure CORS for production domain(s)",
+        "Configure rate limiting appropriate for production traffic",
+        "Configure Winston logging for production (file rotation, error alerting)",
+        "Configure Prisma for production PostgreSQL connection",
+        "Update CORS origins to include production URLs",
+        "Typecheck passes"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-033",
+      "title": "Create deployment documentation",
+      "description": "As a developer, I need deployment docs so the app can be deployed to Axon server.",
+      "acceptanceCriteria": [
+        "Document server requirements (Node version, PostgreSQL version, etc.)",
+        "Document environment setup steps",
+        "Document database migration process",
+        "Document build and start commands for all three apps",
+        "Document PM2 ecosystem config for process management",
+        "Document Nginx/Caddy config for reverse proxy and SSL",
+        "Document backup and restore procedures",
+        "Document monitoring and log access"
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-034",
+      "title": "Create client training materials",
+      "description": "As a staff member at Happy Tail, I need training materials to learn how to use the loyalty system.",
+      "acceptanceCriteria": [
+        "Quick Start Guide: How to add points at checkout (1 page)",
+        "Quick Start Guide: How to process redemptions (1 page)",
+        "Quick Start Guide: How to import Gingr report (1 page)",
+        "Customer FAQ: Common questions customers will ask",
+        "Troubleshooting Guide: What to do when things go wrong",
+        "All guides include screenshots",
+        "All guides written in plain language (no tech jargon)"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": "Create after all features are complete and tested"
+    }
+  ]
+}

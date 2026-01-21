@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id              String              @id @default(uuid())
+  email           String              @unique
+  phone           String              @unique
+  passwordHash    String              @map("password_hash")
+  firstName       String              @map("first_name")
+  lastName        String              @map("last_name")
+  pointsBalance   Int                 @default(0) @map("points_balance")
+  referralCode    String              @unique @map("referral_code")
+  referredById    String?             @map("referred_by_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  dogs            Dog[]
+  transactions    PointsTransaction[]
+  redemptions     Redemption[]
+  referredBy      Customer?           @relation("CustomerReferrals", fields: [referredById], references: [id])
+  referrals       Customer[]          @relation("CustomerReferrals")
+  gingrImportRows GingrImportRow[]
+
+  @@map("customers")
+}
+
+model Dog {
+  id         String    @id @default(uuid())
+  customerId String    @map("customer_id")
+  name       String
+  breed      String?
+  birthDate  DateTime? @map("birth_date")
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("dogs")
+}
+
+model PointsTransaction {
+  id           String   @id @default(uuid())
+  customerId   String   @map("customer_id")
+  type         String // 'purchase', 'redemption', 'adjustment', 'referral'
+  amount       Int // positive for earned, negative for spent
+  description  String?
+  serviceType  String?  @map("service_type") // 'daycare', 'boarding', 'grooming'
+  dollarAmount Decimal? @map("dollar_amount") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("points_transactions")
+}
+
+model Redemption {
+  id             String     @id @default(uuid())
+  customerId     String     @map("customer_id")
+  redemptionCode String     @unique @map("redemption_code")
+  rewardTier     Int        @map("reward_tier") // 100, 250, 500
+  discountValue  Decimal    @map("discount_value") @db.Decimal(10, 2) // $10, $25, $50
+  status         String     @default("pending") // 'pending', 'completed', 'expired', 'cancelled'
+  approvedBy     String?    @map("approved_by")
+  approvedAt     DateTime?  @map("approved_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  customer       Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  approver       StaffUser? @relation(fields: [approvedBy], references: [id])
+
+  @@map("redemptions")
+}
+
+model StaffUser {
+  id           String        @id @default(uuid())
+  username     String        @unique
+  passwordHash String        @map("password_hash")
+  role         String        @default("staff") // 'admin', 'staff', 'groomer'
+  firstName    String        @map("first_name")
+  lastName     String        @map("last_name")
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  auditLogs    AuditLog[]
+  redemptions  Redemption[]
+  gingrImports GingrImport[]
+
+  @@map("staff_users")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  staffUserId String    @map("staff_user_id")
+  action      String // 'add_points', 'complete_redemption', 'create_redemption', etc.
+  entityType  String    @map("entity_type") // 'customer', 'redemption', etc.
+  entityId    String    @map("entity_id")
+  details     Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  staffUser   StaffUser @relation(fields: [staffUserId], references: [id])
+
+  @@map("audit_log")
+}
+
+model GingrImport {
+  id                 String           @id @default(uuid())
+  uploadedBy         String           @map("uploaded_by")
+  syncedAt           DateTime         @default(now()) @map("synced_at")
+  invoicesProcessed  Int              @default(0) @map("invoices_processed")
+  customersMatched   Int              @default(0) @map("customers_matched")
+  customersNotFound  Int              @default(0) @map("customers_not_found")
+  totalPointsApplied Int              @default(0) @map("total_points_applied")
+  staffUser          StaffUser        @relation(fields: [uploadedBy], references: [id])
+  rows               GingrImportRow[]
+
+  @@map("gingr_imports")
+}
+
+model GingrImportRow {
+  id             String       @id @default(uuid())
+  importId       String       @map("import_id")
+  gingrInvoiceId String       @unique @map("gingr_invoice_id")
+  ownerName      String       @map("owner_name")
+  invoiceTotal   Decimal      @map("invoice_total") @db.Decimal(10, 2)
+  customerId     String?      @map("customer_id")
+  status         String // 'matched', 'unmatched', 'skipped'
+  pointsApplied  Int          @default(0) @map("points_applied")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  import         GingrImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+
+  @@map("gingr_import_rows")
+}
