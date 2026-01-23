@@ -57,3 +57,11 @@ Check `prd.json` for all user stories and acceptance criteria. Use this as sourc
 - React Hook Form for form state
 - Atomic Prisma transactions for multi-step operations
 - AuditLog entries for all staff actions
+
+## Session Management
+- Archive sessions before shutdown to `archive/sessions/YYYY-MM-DD_HH-MM_session.md`
+- Update `CHANGELOG.md` with user-facing changes
+- Keep session summaries concise but complete
+
+## Project Log
+All significant changes tracked in `CHANGELOG.md` at project root.

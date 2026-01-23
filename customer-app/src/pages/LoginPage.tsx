@@ -34,15 +34,24 @@ export function LoginPage() {
   const onSubmit = async (formData: LoginFormData) => {
     setServerError(null);
 
-    // Determine if identifier is email or phone
-    const isEmail = formData.identifier.includes('@');
-    const loginData = isEmail
-      ? { email: formData.identifier, password: formData.password }
-      : { phone: formData.identifier, password: formData.password };
+    // Trim whitespace from identifier (handles copy/paste issues)
+    const identifier = formData.identifier.trim();
 
-    const { data, error } = await authApi.login(loginData);
+    // Determine if identifier is email or phone
+    const isEmail = identifier.includes('@');
+    const loginData = isEmail
+      ? { email: identifier, password: formData.password }
+      : { phone: identifier, password: formData.password };
+
+    const { data, error, details } = await authApi.login(loginData);
 
     if (error) {
+      // Check if this is an unclaimed account error
+      const errorDetails = details as { unclaimed?: boolean; redirect?: string } | undefined;
+      if (errorDetails?.unclaimed) {
+        navigate('/claim');
+        return;
+      }
       setServerError(error);
       return;
     }
@@ -102,6 +111,15 @@ export function LoginPage() {
               Create one
             </Link>
           </p>
+
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-center text-gray-600">
+              Received an invite?{' '}
+              <Link to="/claim" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+                Claim your account
+              </Link>
+            </p>
+          </div>
         </div>
 
         <p className="mt-4 text-center text-sm text-gray-500">

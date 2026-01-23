@@ -225,8 +225,19 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Check if account is unclaimed (no password set)
+    if (!customer.passwordHash || customer.accountStatus === 'unclaimed') {
+      res.status(403).json({
+        error: 'Account not yet claimed',
+        message: 'Your account is waiting to be set up. Please claim your account to get started.',
+        redirect: '/claim',
+        unclaimed: true,
+      });
+      return;
+    }
+
     // Compare password hash
-    const isPasswordValid = await bcrypt.compare(password, customer.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, customer.passwordHash)
     if (!isPasswordValid) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface ApiError {
   error: string;
@@ -159,4 +159,45 @@ export const customerApi = {
     api.post<RedemptionResponse>('/redemptions/request', { reward_tier: String(rewardTier) }),
   getRedemptions: () => api.get<RedemptionsListResponse>('/redemptions'),
   getReferralStats: () => api.get<ReferralStatsResponse>('/customers/me/referrals'),
+};
+
+// Claim API for pre-imported customers
+export interface ClaimLookupResponse {
+  found: boolean;
+  customer: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email_masked: string;
+    points_balance: number;
+  };
+}
+
+export interface ClaimSendCodeResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ClaimVerifyResponse {
+  success: boolean;
+  message: string;
+  token: string;
+  customer: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    points_balance: number;
+    referral_code: string;
+  };
+}
+
+export const claimApi = {
+  lookup: (identifier: string) =>
+    api.post<ClaimLookupResponse>('/claim/lookup', { identifier }),
+  sendCode: (customerId: string) =>
+    api.post<ClaimSendCodeResponse>('/claim/send-code', { customer_id: customerId }),
+  verify: (customerId: string, code: string, password: string) =>
+    api.post<ClaimVerifyResponse>('/claim/verify', { customer_id: customerId, code, password }),
 };

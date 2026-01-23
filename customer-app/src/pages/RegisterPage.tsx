@@ -44,13 +44,14 @@ export function RegisterPage() {
   const onSubmit = async (formData: RegisterFormData) => {
     setServerError(null);
 
+    // Trim whitespace from text fields (handles copy/paste issues)
     const { data, error } = await authApi.register({
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
-      phone: formData.phone,
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
       password: formData.password,
-      referral_code: formData.referral_code || undefined,
+      referral_code: formData.referral_code?.trim() || undefined,
     });
 
     if (error) {

@@ -70,7 +70,7 @@ export async function testConnection(): Promise<ConnectionTestResult> {
   if (workingAuthFormat) {
     try {
       const url = workingAuthFormat.useQueryParam
-        ? `${GINGR_BASE_URL}/owners?api_key=${GINGR_API_KEY}&limit=1`
+        ? `${GINGR_BASE_URL}/owners?key=${GINGR_API_KEY}&limit=1`
         : `${GINGR_BASE_URL}/owners?limit=1`;
 
       const response = await fetch(url, {
@@ -93,7 +93,7 @@ export async function testConnection(): Promise<ConnectionTestResult> {
   for (const authFormat of AUTH_FORMATS) {
     try {
       const url = authFormat.useQueryParam
-        ? `${GINGR_BASE_URL}/owners?api_key=${GINGR_API_KEY}&limit=1`
+        ? `${GINGR_BASE_URL}/owners?key=${GINGR_API_KEY}&limit=1`
         : `${GINGR_BASE_URL}/owners?limit=1`;
 
       logger.info(`Testing Gingr connection with ${authFormat.name}...`);
@@ -140,7 +140,7 @@ async function fetchInvoices(since?: Date): Promise<GingrInvoice[]> {
       url += `&created_after=${since.toISOString()}`;
     }
     if (workingAuthFormat?.useQueryParam) {
-      url += `&api_key=${GINGR_API_KEY}`;
+      url += `&key=${GINGR_API_KEY}`;
     }
 
     const response = await fetch(url, {
@@ -439,6 +439,356 @@ export async function getSyncHistory(limit: number = 10) {
           lastName: true,
         },
       },
+    },
+  });
+}
+
+// ============================================
+// Customer Import Functions
+// ============================================
+
+interface ImportedCustomer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  pointsBalance: number;
+  invoiceCount: number;
+}
+
+interface CustomerImportResult {
+  success: boolean;
+  customersImported: number;
+  customersSkipped: number;
+  totalPointsApplied: number;
+  importedCustomers: ImportedCustomer[];
+  skippedCustomers: Array<{
+    email?: string;
+    phone?: string;
+    reason: string;
+  }>;
+  error?: string;
+}
+
+/**
+ * Generate unique referral code
+ */
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'HT-';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+/**
+ * Fetch invoices for import (last 90 days by default)
+ */
+async function fetchInvoicesForImport(daysBack: number = 90): Promise<GingrInvoice[]> {
+  if (!workingAuthFormat) {
+    const test = await testConnection();
+    if (!test.connected) {
+      throw new Error(test.error || 'Unable to connect to Gingr');
+    }
+  }
+
+  const since = new Date();
+  since.setDate(since.getDate() - daysBack);
+
+  try {
+    let url = `${GINGR_BASE_URL}/invoices?status=completed&limit=500&created_after=${since.toISOString()}`;
+    if (workingAuthFormat?.useQueryParam) {
+      url += `&key=${GINGR_API_KEY}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(workingAuthFormat?.getHeaders() || {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.invoices || data || [];
+  } catch (error) {
+    logger.error('Failed to fetch Gingr invoices for import:', error);
+    throw error;
+  }
+}
+
+/**
+ * Import customers from Gingr invoices
+ * Creates unclaimed accounts for customers not already in the system
+ */
+export async function importCustomers(staffId: string, daysBack: number = 90): Promise<CustomerImportResult> {
+  const importedCustomers: ImportedCustomer[] = [];
+  const skippedCustomers: CustomerImportResult['skippedCustomers'] = [];
+
+  try {
+    // Fetch invoices from Gingr
+    const invoices = await fetchInvoicesForImport(daysBack);
+
+    if (invoices.length === 0) {
+      return {
+        success: true,
+        customersImported: 0,
+        customersSkipped: 0,
+        totalPointsApplied: 0,
+        importedCustomers: [],
+        skippedCustomers: [],
+      };
+    }
+
+    // Group invoices by customer (using email as primary key, fall back to phone)
+    const customerInvoices = new Map<string, {
+      ownerName: string;
+      email?: string;
+      phone?: string;
+      invoices: GingrInvoice[];
+    }>();
+
+    for (const invoice of invoices) {
+      // Determine unique key (prefer email)
+      const email = invoice.owner_email?.toLowerCase().trim();
+      const phone = invoice.owner_phone?.replace(/\D/g, '');
+
+      // Skip invoices without contact info
+      if (!email && !phone) {
+        logger.warn(`Skipping invoice ${invoice.id} - no email or phone`);
+        continue;
+      }
+
+      const key = email || phone!;
+
+      if (!customerInvoices.has(key)) {
+        customerInvoices.set(key, {
+          ownerName: invoice.owner_name,
+          email: email,
+          phone: phone,
+          invoices: [],
+        });
+      }
+
+      customerInvoices.get(key)!.invoices.push(invoice);
+    }
+
+    logger.info(`Found ${customerInvoices.size} unique customers in ${invoices.length} invoices`);
+
+    let totalPointsApplied = 0;
+
+    // Process each unique customer
+    for (const [key, data] of customerInvoices) {
+      try {
+        // Check if customer already exists
+        let existingCustomer = null;
+
+        if (data.email) {
+          existingCustomer = await prisma.customer.findUnique({
+            where: { email: data.email },
+            select: { id: true, email: true },
+          });
+        }
+
+        if (!existingCustomer && data.phone) {
+          existingCustomer = await prisma.customer.findFirst({
+            where: { phone: { contains: data.phone.slice(-10) } },
+            select: { id: true, email: true },
+          });
+        }
+
+        if (existingCustomer) {
+          skippedCustomers.push({
+            email: data.email,
+            phone: data.phone,
+            reason: 'Already registered',
+          });
+          continue;
+        }
+
+        // Parse name
+        const nameParts = data.ownerName.trim().split(/\s+/);
+        const firstName = nameParts[0] || 'Customer';
+        const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+
+        // Require email for account creation
+        if (!data.email) {
+          skippedCustomers.push({
+            phone: data.phone,
+            reason: 'No email address - required for account',
+          });
+          continue;
+        }
+
+        // Require phone for account creation
+        if (!data.phone || data.phone.length < 10) {
+          skippedCustomers.push({
+            email: data.email,
+            reason: 'No valid phone number - required for account',
+          });
+          continue;
+        }
+
+        // Calculate total points from all invoices
+        let customerPoints = 0;
+        for (const invoice of data.invoices) {
+          const { points } = calculatePoints(invoice);
+          customerPoints += points;
+        }
+
+        // Cap imported points to prevent immediate large redemptions
+        // This gives new imports a head start without breaking the bank
+        const IMPORT_POINTS_CAP = 50;
+        const uncappedPoints = customerPoints;
+        customerPoints = Math.min(customerPoints, IMPORT_POINTS_CAP);
+
+        // Generate unique referral code
+        let referralCode = generateReferralCode();
+        let attempts = 0;
+        while (attempts < 5) {
+          const existing = await prisma.customer.findUnique({
+            where: { referralCode },
+          });
+          if (!existing) break;
+          referralCode = generateReferralCode();
+          attempts++;
+        }
+
+        // Create unclaimed customer with points
+        const customer = await prisma.$transaction(async (tx) => {
+          const newCustomer = await tx.customer.create({
+            data: {
+              email: data.email!,
+              phone: data.phone!,
+              firstName,
+              lastName,
+              referralCode,
+              pointsBalance: customerPoints,
+              accountStatus: 'unclaimed',
+              source: 'gingr_import',
+              // No passwordHash - account is unclaimed
+            },
+          });
+
+          // Create points transaction for the initial import
+          if (customerPoints > 0) {
+            const cappedNote = uncappedPoints > IMPORT_POINTS_CAP
+              ? ` (capped from ${uncappedPoints})`
+              : '';
+            await tx.pointsTransaction.create({
+              data: {
+                customerId: newCustomer.id,
+                type: 'purchase',
+                amount: customerPoints,
+                description: `Imported from Gingr: ${data.invoices.length} invoice(s)${cappedNote}`,
+                serviceType: 'daycare', // Default, actual breakdown not tracked
+              },
+            });
+          }
+
+          // Create audit log
+          await tx.auditLog.create({
+            data: {
+              staffUserId: staffId,
+              action: 'gingr_import_customer',
+              entityType: 'customer',
+              entityId: newCustomer.id,
+              details: {
+                source: 'gingr',
+                invoiceCount: data.invoices.length,
+                pointsApplied: customerPoints,
+              },
+            },
+          });
+
+          return newCustomer;
+        });
+
+        importedCustomers.push({
+          id: customer.id,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone,
+          pointsBalance: customer.pointsBalance,
+          invoiceCount: data.invoices.length,
+        });
+
+        totalPointsApplied += customerPoints;
+
+      } catch (error) {
+        logger.error(`Failed to import customer ${key}:`, error);
+        skippedCustomers.push({
+          email: data.email,
+          phone: data.phone,
+          reason: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Create audit log for the overall import
+    await prisma.auditLog.create({
+      data: {
+        staffUserId: staffId,
+        action: 'gingr_customer_import',
+        entityType: 'system',
+        entityId: 'gingr_import',
+        details: {
+          customersImported: importedCustomers.length,
+          customersSkipped: skippedCustomers.length,
+          totalPointsApplied,
+          daysBack,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      customersImported: importedCustomers.length,
+      customersSkipped: skippedCustomers.length,
+      totalPointsApplied,
+      importedCustomers,
+      skippedCustomers,
+    };
+
+  } catch (error) {
+    logger.error('Gingr customer import failed:', error);
+    return {
+      success: false,
+      customersImported: 0,
+      customersSkipped: 0,
+      totalPointsApplied: 0,
+      importedCustomers: [],
+      skippedCustomers: [],
+      error: error instanceof Error ? error.message : 'Unknown error during import',
+    };
+  }
+}
+
+/**
+ * Get list of unclaimed customers (imported but not yet claimed)
+ */
+export async function getUnclaimedCustomers(limit: number = 50) {
+  return prisma.customer.findMany({
+    where: {
+      accountStatus: 'unclaimed',
+    },
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      pointsBalance: true,
+      source: true,
+      createdAt: true,
     },
   });
 }

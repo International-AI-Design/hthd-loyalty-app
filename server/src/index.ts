@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth';
+import claimRoutes from './routes/claim';
 import customersRoutes from './routes/customers';
 import redemptionsRoutes from './routes/redemptions';
 import referralsRoutes from './routes/referrals';
@@ -37,6 +38,9 @@ app.get('/api/health', (req, res) => {
 // Auth routes
 app.use('/api/auth', authRoutes);
 
+// Claim routes (for pre-imported customers)
+app.use('/api/claim', claimRoutes);
+
 // Customer routes
 app.use('/api/customers', customersRoutes);
 
@@ -52,6 +56,12 @@ app.use('/api/admin/customers', adminCustomersRoutes);
 app.use('/api/admin/points', adminPointsRoutes);
 app.use('/api/admin/redemptions', adminRedemptionsRoutes);
 app.use('/api/admin/gingr', adminGingrRoutes);
+
+// Global error handler - catches unhandled errors to prevent crashes
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);

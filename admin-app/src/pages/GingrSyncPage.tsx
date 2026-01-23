@@ -7,6 +7,8 @@ import type {
   GingrStatusResponse,
   GingrSyncResponse,
   GingrHistoryItem,
+  GingrImportResponse,
+  GingrUnclaimedCustomer,
 } from '../lib/api';
 
 export function GingrSyncPage() {
@@ -26,6 +28,15 @@ export function GingrSyncPage() {
   // History state
   const [history, setHistory] = useState<GingrHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // Import state
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<GingrImportResponse | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Unclaimed customers state
+  const [unclaimedCustomers, setUnclaimedCustomers] = useState<GingrUnclaimedCustomer[]>([]);
+  const [isLoadingUnclaimed, setIsLoadingUnclaimed] = useState(true);
 
   const handleLogout = () => {
     logout();
@@ -59,10 +70,23 @@ export function GingrSyncPage() {
     setIsLoadingHistory(false);
   }, []);
 
+  const loadUnclaimedCustomers = useCallback(async () => {
+    setIsLoadingUnclaimed(true);
+
+    const { data } = await adminGingrApi.unclaimedCustomers();
+
+    if (data) {
+      setUnclaimedCustomers(data.customers);
+    }
+
+    setIsLoadingUnclaimed(false);
+  }, []);
+
   useEffect(() => {
     checkStatus();
     loadHistory();
-  }, [checkStatus, loadHistory]);
+    loadUnclaimedCustomers();
+  }, [checkStatus, loadHistory, loadUnclaimedCustomers]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -82,6 +106,26 @@ export function GingrSyncPage() {
     }
 
     setIsSyncing(false);
+  };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+    setImportError(null);
+    setImportResult(null);
+
+    const { data, error } = await adminGingrApi.importCustomers(90);
+
+    if (error) {
+      setImportError(error);
+    } else if (data) {
+      setImportResult(data);
+      if (data.success) {
+        // Refresh unclaimed customers after successful import
+        loadUnclaimedCustomers();
+      }
+    }
+
+    setIsImporting(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -202,6 +246,67 @@ export function GingrSyncPage() {
           </Button>
         </div>
 
+        {/* Import Customers Card */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Import Customers</h2>
+          <p className="text-gray-600 mb-6">
+            Import customers from Gingr invoices (last 90 days) and create unclaimed loyalty accounts.
+            Customers can later claim their accounts at <span className="font-mono text-sm bg-gray-100 px-1 rounded">/claim</span> using their email or phone.
+          </p>
+
+          {importError && (
+            <Alert variant="error" className="mb-4">{importError}</Alert>
+          )}
+
+          {importResult && importResult.success && (
+            <Alert variant="success" className="mb-4">
+              <div className="space-y-2">
+                <p className="font-medium">Import completed successfully!</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                  <div className="bg-white bg-opacity-50 rounded p-2 text-center">
+                    <p className="text-2xl font-bold text-green-700">{importResult.customers_imported}</p>
+                    <p className="text-sm">Imported</p>
+                  </div>
+                  <div className="bg-white bg-opacity-50 rounded p-2 text-center">
+                    <p className="text-2xl font-bold text-orange-600">{importResult.customers_skipped}</p>
+                    <p className="text-sm">Skipped</p>
+                  </div>
+                  <div className="bg-white bg-opacity-50 rounded p-2 text-center">
+                    <p className="text-2xl font-bold text-blue-600">+{importResult.total_points_applied.toLocaleString()}</p>
+                    <p className="text-sm">Points Applied</p>
+                  </div>
+                </div>
+              </div>
+            </Alert>
+          )}
+
+          {importResult && importResult.skipped_customers.length > 0 && (
+            <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <h3 className="font-medium text-orange-800 mb-2">
+                Skipped ({importResult.skipped_customers.length})
+              </h3>
+              <div className="max-h-32 overflow-y-auto text-sm text-orange-700 space-y-1">
+                {importResult.skipped_customers.map((c, idx) => (
+                  <p key={idx}>
+                    {c.email || c.phone || 'Unknown'}: {c.reason}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={handleImport}
+            isLoading={isImporting}
+            disabled={!status?.connected || isImporting}
+            size="lg"
+            variant="outline"
+            className="w-full md:w-auto"
+          >
+            {isImporting ? 'Importing...' : 'Import Customers from Gingr'}
+          </Button>
+        </div>
+
         {/* Unmatched Customers Card */}
         {syncResult && syncResult.unmatched_customers.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -247,6 +352,96 @@ export function GingrSyncPage() {
             </div>
           </div>
         )}
+
+        {/* Unclaimed Customers Card */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Unclaimed Accounts ({unclaimedCustomers.length})
+            </h2>
+            <Button variant="outline" size="sm" onClick={loadUnclaimedCustomers} disabled={isLoadingUnclaimed}>
+              {isLoadingUnclaimed ? 'Loading...' : 'Refresh'}
+            </Button>
+          </div>
+          <p className="text-gray-600 mb-4">
+            These customers have been imported but haven't claimed their accounts yet.
+            They can visit <span className="font-mono text-sm bg-gray-100 px-1 rounded">/claim</span> to set up their password.
+          </p>
+
+          {isLoadingUnclaimed ? (
+            <div className="flex justify-center py-8">
+              <svg
+                className="animate-spin h-8 w-8 text-green-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+          ) : unclaimedCustomers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No unclaimed accounts. All imported customers have claimed their accounts!
+            </div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Points
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Imported
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {unclaimedCustomers.map((customer) => (
+                    <tr key={customer.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {customer.first_name} {customer.last_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {customer.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {customer.phone}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">
+                        {customer.points_balance.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(customer.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Sync History Card */}
         <div className="bg-white rounded-lg shadow p-6">

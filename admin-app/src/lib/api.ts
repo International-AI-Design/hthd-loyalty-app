@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface ApiError {
   error: string;
@@ -357,8 +357,55 @@ export interface GingrHistoryResponse {
   history: GingrHistoryItem[];
 }
 
+// Gingr import customers types
+export interface GingrImportedCustomer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  points_balance: number;
+  invoice_count: number;
+}
+
+export interface GingrSkippedCustomer {
+  email: string | null;
+  phone: string | null;
+  reason: string;
+}
+
+export interface GingrImportResponse {
+  success: boolean;
+  customers_imported: number;
+  customers_skipped: number;
+  total_points_applied: number;
+  imported_customers: GingrImportedCustomer[];
+  skipped_customers: GingrSkippedCustomer[];
+  error?: string;
+}
+
+// Unclaimed customers types
+export interface GingrUnclaimedCustomer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  points_balance: number;
+  source: string;
+  created_at: string;
+}
+
+export interface GingrUnclaimedCustomersResponse {
+  customers: GingrUnclaimedCustomer[];
+}
+
 export const adminGingrApi = {
   status: () => api.get<GingrStatusResponse>('/admin/gingr/status'),
   sync: () => api.post<GingrSyncResponse>('/admin/gingr/sync', {}),
   history: () => api.get<GingrHistoryResponse>('/admin/gingr/history'),
+  importCustomers: (daysBack?: number) =>
+    api.post<GingrImportResponse>('/admin/gingr/import-customers', { days_back: daysBack }),
+  unclaimedCustomers: () =>
+    api.get<GingrUnclaimedCustomersResponse>('/admin/gingr/unclaimed-customers'),
 };

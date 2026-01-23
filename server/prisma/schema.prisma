@@ -10,12 +10,15 @@ model Customer {
   id              String              @id @default(uuid())
   email           String              @unique
   phone           String              @unique
-  passwordHash    String              @map("password_hash")
+  passwordHash    String?             @map("password_hash")
   firstName       String              @map("first_name")
   lastName        String              @map("last_name")
   pointsBalance   Int                 @default(0) @map("points_balance")
   referralCode    String              @unique @map("referral_code")
   referredById    String?             @map("referred_by_id")
+  accountStatus   String              @default("active") @map("account_status") // 'unclaimed' | 'active'
+  source          String              @default("organic") // 'organic' | 'gingr_import'
+  claimedAt       DateTime?           @map("claimed_at")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
   dogs            Dog[]
@@ -24,6 +27,7 @@ model Customer {
   referredBy      Customer?           @relation("CustomerReferrals", fields: [referredById], references: [id])
   referrals       Customer[]          @relation("CustomerReferrals")
   gingrImportRows GingrImportRow[]
+  verificationCodes VerificationCode[]
 
   @@map("customers")
 }
@@ -131,4 +135,18 @@ model GingrImportRow {
   customer       Customer?    @relation(fields: [customerId], references: [id])
 
   @@map("gingr_import_rows")
+}
+
+model VerificationCode {
+  id          String    @id @default(uuid())
+  customerId  String    @map("customer_id")
+  code        String    // 6-digit code
+  type        String    // 'claim'
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, type])
+  @@map("verification_codes")
 }
