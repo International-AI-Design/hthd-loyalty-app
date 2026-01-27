@@ -154,8 +154,8 @@ async function fetchInvoices(since?: Date): Promise<GingrInvoice[]> {
       throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.invoices || data || [];
+    const data = await response.json() as { invoices?: GingrInvoice[] } | GingrInvoice[];
+    return (data as { invoices?: GingrInvoice[] }).invoices || (data as GingrInvoice[]) || [];
   } catch (error) {
     logger.error('Failed to fetch Gingr invoices:', error);
     throw error;
@@ -514,8 +514,8 @@ async function fetchInvoicesForImport(daysBack: number = 90): Promise<GingrInvoi
       throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.invoices || data || [];
+    const data = await response.json() as { invoices?: GingrInvoice[] } | GingrInvoice[];
+    return (data as { invoices?: GingrInvoice[] }).invoices || (data as GingrInvoice[]) || [];
   } catch (error) {
     logger.error('Failed to fetch Gingr invoices for import:', error);
     throw error;
