@@ -1,11 +1,10 @@
-# Build stage - v2
+# Build stage - v3 (cache bust)
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-COPY prisma ./prisma/
+# Copy all source first to ensure fresh prisma schema
+COPY . .
 RUN npm ci
 RUN npx prisma generate
-COPY . .
 RUN npm run build
 
 # Production stage
