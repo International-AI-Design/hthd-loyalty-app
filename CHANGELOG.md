@@ -4,18 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Production Prep
 
+### Added
+- **Deployment configuration files** - `railway.toml`, `vercel.json` for customer-app and admin-app
+- **DEPLOYMENT.md** - Step-by-step deployment guide for Railway + Vercel + Namecheap DNS
+
 ### Fixed
 - **API URL fallback bug** - Customer and admin apps now correctly fallback to port 3001 (was 3000)
 - **Global error handler** - Server now catches unhandled errors to prevent crashes
+- **TypeScript strict mode errors** - Fixed `response.json()` type assertions in gingr.ts
+- **Prisma schema** - Added `url = env("DATABASE_URL")` to datasource config (was missing)
 
 ### Added
 - **Pre-commit hook** - Scans for API keys/secrets before allowing commits
 - **.env.example files** - Added for customer-app and admin-app
 - **Expanded server .env.example** - Now includes Gingr, CORS, and email service configuration
+- **Dockerfile** - Production container config with migrations on startup
+- **start.sh** - Startup script for Railway deployments
+- **railway.toml** - Forces Dockerfile builder
 
 ### Security
 - Rotated Gingr API key (old key invalidated)
 - Session management section added to CLAUDE.md
+
+### Deployment Status (2026-01-27)
+**Railway Backend**: ✅ COMPLETE
+- Server running: `https://hthd-loyalty-app-production.up.railway.app`
+- Health endpoint: `https://hthd-loyalty-app-production.up.railway.app/api/health`
+- PostgreSQL connected and migrations applied
+- All environment variables configured
+- **NEXT**: Add custom domain `hthd-api.internationalaidesign.com`
+
+**Vercel Frontends**: Not yet deployed
+**DNS (Namecheap)**: Not yet configured
+
+### Technical Notes
+- Prisma 7 uses `prisma.config.ts` for database URL, NOT `url` in schema.prisma
+- Migrations were run manually from local machine due to Prisma 7 config issues in Docker
+- Railway public DB URL: `postgresql://postgres:***@hopper.proxy.rlwy.net:47664/railway`
 
 ---
 
