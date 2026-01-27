@@ -1,10 +1,6 @@
 [build]
-builder = "nixpacks"
-buildCommand = "npm install && npx prisma generate && npx prisma migrate deploy && npm run build"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 30
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
+startCommand = "./start.sh"
