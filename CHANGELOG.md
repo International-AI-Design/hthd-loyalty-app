@@ -45,6 +45,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed (2026-01-28)
 - **Gingr API integration** - Fixed 404 error on import. The `/invoices` endpoint doesn't exist in Gingr's API. Switched to `POST /reservations` which returns all needed data (owner info, pricing, services). Import now works correctly.
 - **Admin app CSS** - Confirmed working (was likely a caching issue)
+- **Brand compliance (customer-app)** - Full audit and fix of brand guideline violations:
+  - Added missing Tailwind brand colors (coral, golden-yellow, soft-green, light-gray, soft-cream)
+  - Replaced all hardcoded hex values in DashboardPage with brand tokens
+  - Fixed Input component border to use brand-light-gray
+  - Updated Button secondary variant to use brand colors
+  - Changed reward tier buttons from green to brand teal for consistency
 
 ### Gingr Import Results (2026-01-28)
 - **151 customers imported** from last 90 days of reservations
