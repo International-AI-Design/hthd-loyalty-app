@@ -27,15 +27,40 @@ All notable changes to this project will be documented in this file.
 - Session management section added to CLAUDE.md
 
 ### Deployment Status (2026-01-27)
-**Railway Backend**: ✅ COMPLETE
-- Server running: `https://hthd-loyalty-app-production.up.railway.app`
-- Health endpoint: `https://hthd-loyalty-app-production.up.railway.app/api/health`
-- PostgreSQL connected and migrations applied
-- All environment variables configured
-- **NEXT**: Add custom domain `hthd-api.internationalaidesign.com`
+**✅ FULLY DEPLOYED**
 
-**Vercel Frontends**: Not yet deployed
-**DNS (Namecheap)**: Not yet configured
+| Service | URL | Status |
+|---------|-----|--------|
+| API | https://hthd-api.internationalaidesign.com | ✅ Live |
+| Customer App | https://hthd.internationalaidesign.com | ✅ Live |
+| Admin App | https://hthd-admin.internationalaidesign.com | ✅ Live |
+
+**Infrastructure:**
+- Railway: Express API + PostgreSQL
+- Vercel: Customer app + Admin app (Hobby plan, public repo)
+- DNS: Namecheap CNAMEs configured
+
+**Staff Login:** `admin` / `admin123` (case-sensitive username)
+
+### Fixed (2026-01-28)
+- **Gingr API integration** - Fixed 404 error on import. The `/invoices` endpoint doesn't exist in Gingr's API. Switched to `POST /reservations` which returns all needed data (owner info, pricing, services). Import now works correctly.
+- **Admin app CSS** - Confirmed working (was likely a caching issue)
+
+### Gingr Import Results (2026-01-28)
+- **151 customers imported** from last 90 days of reservations
+- **7,435 total points applied** (capped at 50 per customer)
+- **0 skipped** - all customers had valid email + phone
+- Customer claim flow verified working
+
+### Known Issues
+1. **Admin /register route blank** - Page doesn't render (low priority, staff can be added via DB)
+
+### Demo Readiness Checklist
+- [x] Fix admin app CSS/styling issue
+- [x] Seed production DB with real customer data via Gingr import
+- [x] Verify Gingr sync works in production
+- [ ] Test full customer flow (claim account → view points → redeem)
+- [ ] Test admin flow (customer lookup → award points → process redemption)
 
 ### Technical Notes
 - Prisma 7 uses `prisma.config.ts` for database URL, NOT `url` in schema.prisma
