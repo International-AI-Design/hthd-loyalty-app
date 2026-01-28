@@ -141,4 +141,89 @@ router.get('/me/referrals', authenticateCustomer, async (req, res: Response): Pr
   }
 });
 
+// GET /api/customers/me/dogs - Get customer's dogs
+router.get('/me/dogs', authenticateCustomer, async (req, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const customerId = customerReq.customer.id;
+
+    const dogs = await prisma.dog.findMany({
+      where: { customerId },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        breed: true,
+        birthDate: true,
+        notes: true,
+      },
+    });
+
+    res.status(200).json({
+      dogs: dogs.map((dog) => ({
+        id: dog.id,
+        name: dog.name,
+        breed: dog.breed,
+        birth_date: dog.birthDate?.toISOString() || null,
+        notes: dog.notes,
+      })),
+    });
+  } catch (error) {
+    console.error('Get dogs error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/customers/me/visits - Get customer's visit history
+router.get('/me/visits', authenticateCustomer, async (req, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const customerId = customerReq.customer.id;
+
+    // Parse pagination params with defaults
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 10, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+
+    const [visits, total] = await Promise.all([
+      prisma.gingrVisit.findMany({
+        where: { customerId },
+        orderBy: { visitDate: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          visitDate: true,
+          serviceType: true,
+          description: true,
+          amount: true,
+          pointsEarned: true,
+        },
+      }),
+      prisma.gingrVisit.count({
+        where: { customerId },
+      }),
+    ]);
+
+    res.status(200).json({
+      visits: visits.map((visit) => ({
+        id: visit.id,
+        visit_date: visit.visitDate.toISOString(),
+        service_type: visit.serviceType,
+        description: visit.description,
+        amount: Number(visit.amount),
+        points_earned: visit.pointsEarned,
+      })),
+      pagination: {
+        total,
+        limit,
+        offset,
+        has_more: offset + visits.length < total,
+      },
+    });
+  } catch (error) {
+    console.error('Get visits error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

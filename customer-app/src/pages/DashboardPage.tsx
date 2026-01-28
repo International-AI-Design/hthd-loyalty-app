@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { customerApi } from '../lib/api';
-import type { PointsTransaction, Redemption, ReferredCustomer } from '../lib/api';
+import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit } from '../lib/api';
 import { Button, Modal, Alert } from '../components/ui';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,6 +28,12 @@ export function DashboardPage() {
   const [referralBonusPoints, setReferralBonusPoints] = useState(0);
   const [referredCustomers, setReferredCustomers] = useState<ReferredCustomer[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
+
+  // Dogs and visits state
+  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [isLoadingDogs, setIsLoadingDogs] = useState(true);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [isLoadingVisits, setIsLoadingVisits] = useState(true);
 
   // Redemption state
   const [selectedTier, setSelectedTier] = useState<{ points: number; discount: number } | null>(null);
@@ -64,15 +70,33 @@ export function DashboardPage() {
     setIsLoadingReferrals(false);
   }, []);
 
+  const fetchDogs = useCallback(async () => {
+    const { data } = await customerApi.getDogs();
+    if (data) {
+      setDogs(data.dogs);
+    }
+    setIsLoadingDogs(false);
+  }, []);
+
+  const fetchVisits = useCallback(async () => {
+    const { data } = await customerApi.getVisits(5, 0);
+    if (data) {
+      setVisits(data.visits);
+    }
+    setIsLoadingVisits(false);
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
     fetchRedemptions();
     fetchReferralStats();
-  }, [fetchTransactions, fetchRedemptions, fetchReferralStats]);
+    fetchDogs();
+    fetchVisits();
+  }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refreshProfile(), fetchTransactions(), fetchRedemptions(), fetchReferralStats()]);
+    await Promise.all([refreshProfile(), fetchTransactions(), fetchRedemptions(), fetchReferralStats(), fetchDogs(), fetchVisits()]);
     setIsRefreshing(false);
   };
 
@@ -266,6 +290,101 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* My Pups Section */}
+        {!isLoadingDogs && dogs.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-brand-teal"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              My Pups
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              {dogs.map((dog) => (
+                <div
+                  key={dog.id}
+                  className="bg-brand-warm-white rounded-xl px-4 py-3 flex items-center gap-3"
+                >
+                  <div className="w-10 h-10 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold">
+                    {dog.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-brand-navy">{dog.name}</p>
+                    {dog.breed && <p className="text-sm text-gray-500">{dog.breed}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Visits Section */}
+        {!isLoadingVisits && visits.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-brand-teal"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Recent Visits
+            </h3>
+            <div className="space-y-3">
+              {visits.map((visit) => (
+                <div
+                  key={visit.id}
+                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                          visit.service_type === 'grooming'
+                            ? 'bg-purple-100 text-purple-800'
+                            : visit.service_type === 'boarding'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {visit.service_type}
+                      </span>
+                      {visit.description && (
+                        <span className="text-sm text-gray-600 truncate max-w-xs">
+                          {visit.description}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {formatDate(visit.visit_date)} • ${visit.amount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-sm font-medium text-brand-teal">
+                    +{visit.points_earned} pts
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* My Referrals Section */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

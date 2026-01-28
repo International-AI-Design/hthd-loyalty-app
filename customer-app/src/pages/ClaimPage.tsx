@@ -30,12 +30,28 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 
 type Step = 'lookup' | 'verify' | 'password' | 'success';
 
+interface DogData {
+  id: string;
+  name: string;
+  breed: string | null;
+}
+
+interface VisitData {
+  id: string;
+  visit_date: string;
+  service_type: string;
+  description: string | null;
+  amount: number;
+}
+
 interface CustomerData {
   id: string;
   firstName: string;
   lastName: string;
   emailMasked: string;
   pointsBalance: number;
+  dogs: DogData[];
+  recentVisits: VisitData[];
 }
 
 export function ClaimPage() {
@@ -81,6 +97,8 @@ export function ClaimPage() {
         lastName: response.customer.last_name,
         emailMasked: response.customer.email_masked,
         pointsBalance: response.customer.points_balance,
+        dogs: response.customer.dogs || [],
+        recentVisits: response.customer.recent_visits || [],
       });
       setStep('verify');
     }
@@ -203,8 +221,8 @@ export function ClaimPage() {
           {step === 'verify' && customerData && (
             <div className="space-y-6">
               {/* Customer preview card */}
-              <div className="bg-brand-soft-cream rounded-xl p-6 text-center">
-                <p className="text-lg text-brand-navy">
+              <div className="bg-brand-soft-cream rounded-xl p-6">
+                <p className="text-lg text-brand-navy text-center">
                   Hi <span className="font-bold">{customerData.firstName}</span>!
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-2">
@@ -213,7 +231,51 @@ export function ClaimPage() {
                   </span>
                   <span className="text-gray-600">points waiting</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
+
+                {/* Dogs preview */}
+                {customerData.dogs.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-brand-teal/20">
+                    <p className="text-sm text-gray-600 text-center mb-2">Your pups:</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {customerData.dogs.map((dog) => (
+                        <span
+                          key={dog.id}
+                          className="bg-white px-3 py-1 rounded-full text-sm font-medium text-brand-navy"
+                        >
+                          {dog.name}
+                          {dog.breed && <span className="text-gray-400 ml-1">({dog.breed})</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent visits preview */}
+                {customerData.recentVisits.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-brand-teal/20">
+                    <p className="text-sm text-gray-600 text-center mb-2">Recent visits:</p>
+                    <div className="space-y-2">
+                      {customerData.recentVisits.slice(0, 3).map((visit) => (
+                        <div
+                          key={visit.id}
+                          className="bg-white rounded-lg px-3 py-2 flex justify-between items-center text-sm"
+                        >
+                          <div>
+                            <span className="capitalize text-brand-navy">
+                              {visit.service_type}
+                            </span>
+                            <span className="text-gray-400 ml-2">
+                              {new Date(visit.visit_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <span className="text-gray-600">${visit.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-sm text-gray-500 mt-4 text-center">
                   Code will be sent to {customerData.emailMasked}
                 </p>
               </div>

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers } from '../../services/gingr';
+import { getAutoSyncStatus } from '../../jobs/gingrSync';
 
 const router = Router();
 
@@ -8,16 +9,27 @@ const router = Router();
 router.use(authenticateStaff);
 
 // GET /api/admin/gingr/status
-// Check Gingr API connection status
+// Check Gingr API connection status and auto-sync status
 router.get('/status', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await testConnection();
+    const connectionResult = await testConnection();
+    const autoSyncStatus = getAutoSyncStatus();
 
     res.status(200).json({
-      connected: result.connected,
-      auth_format: result.authFormat,
-      error: result.error,
+      connected: connectionResult.connected,
+      auth_format: connectionResult.authFormat,
+      error: connectionResult.error,
       subdomain: process.env.GINGR_SUBDOMAIN || 'not configured',
+      auto_sync: {
+        enabled: autoSyncStatus.enabled,
+        last_sync_time: autoSyncStatus.lastSyncTime?.toISOString() || null,
+        sync_in_progress: autoSyncStatus.syncInProgress,
+        interval_minutes: autoSyncStatus.intervalMinutes,
+        business_hours: {
+          start: autoSyncStatus.businessHours.start,
+          end: autoSyncStatus.businessHours.end,
+        },
+      },
     });
   } catch (error) {
     console.error('Gingr status check error:', error);

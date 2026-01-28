@@ -18,6 +18,7 @@ model Customer {
   referredById    String?             @map("referred_by_id")
   accountStatus   String              @default("active") @map("account_status") // 'unclaimed' | 'active'
   source          String              @default("organic") // 'organic' | 'gingr_import'
+  gingrOwnerId    String?             @unique @map("gingr_owner_id") // For syncing with Gingr
   claimedAt       DateTime?           @map("claimed_at")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
@@ -28,20 +29,22 @@ model Customer {
   referrals       Customer[]          @relation("CustomerReferrals")
   gingrImportRows GingrImportRow[]
   verificationCodes VerificationCode[]
+  gingrVisits     GingrVisit[]
 
   @@map("customers")
 }
 
 model Dog {
-  id         String    @id @default(uuid())
-  customerId String    @map("customer_id")
-  name       String
-  breed      String?
-  birthDate  DateTime? @map("birth_date")
-  notes      String?
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid())
+  customerId    String    @map("customer_id")
+  name          String
+  breed         String?
+  birthDate     DateTime? @map("birth_date")
+  notes         String?
+  gingrAnimalId String?   @unique @map("gingr_animal_id") // For syncing with Gingr
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("dogs")
 }
@@ -149,4 +152,21 @@ model VerificationCode {
 
   @@index([customerId, type])
   @@map("verification_codes")
+}
+
+// Stores visit history imported from Gingr for customer dashboard display
+model GingrVisit {
+  id                String   @id @default(uuid())
+  customerId        String   @map("customer_id")
+  gingrReservationId String  @unique @map("gingr_reservation_id")
+  visitDate         DateTime @map("visit_date")
+  serviceType       String   @map("service_type") // 'daycare', 'boarding', 'grooming'
+  description       String?
+  amount            Decimal  @db.Decimal(10, 2)
+  pointsEarned      Int      @default(0) @map("points_earned")
+  createdAt         DateTime @default(now()) @map("created_at")
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, visitDate])
+  @@map("gingr_visits")
 }

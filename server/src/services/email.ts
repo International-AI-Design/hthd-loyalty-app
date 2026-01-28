@@ -96,7 +96,7 @@ export async function sendVerificationEmail({
 }
 
 /**
- * Send welcome email after account claim
+ * Send welcome email after account claim (for imported customers claiming their account)
  */
 export async function sendWelcomeEmail({
   to,
@@ -187,6 +187,115 @@ export async function sendWelcomeEmail({
     }
   } catch (error) {
     logger.error('Failed to send welcome email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send email',
+    };
+  }
+}
+
+/**
+ * Send welcome email for new organic signups (includes 25-point bonus mention)
+ */
+export async function sendNewSignupWelcomeEmail({
+  to,
+  customerName,
+  referralCode,
+}: {
+  to: string;
+  customerName: string;
+  referralCode: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const subject = 'Welcome to Happy Tail Happy Dog Rewards - 25 Bonus Points!';
+  const html = `
+    <div style="font-family: 'Open Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
+          Happy Tail Happy Dog
+        </h1>
+        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+      </div>
+
+      <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>
+
+      <p style="color: #444; font-size: 16px;">
+        Welcome to our rewards family! We're thrilled to have you.
+      </p>
+
+      <div style="background: linear-gradient(135deg, #5BBFBA 0%, #4a9e99 100%); border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0; color: white;">
+        <p style="margin: 0 0 5px; font-size: 14px; opacity: 0.9;">Your welcome bonus</p>
+        <span style="font-size: 48px; font-weight: bold;">
+          25
+        </span>
+        <p style="margin: 5px 0 0; font-size: 16px;">points added to your account!</p>
+      </div>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="color: #1B365D; margin: 0 0 15px; font-size: 16px;">How to earn more points:</h3>
+        <ul style="color: #444; margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;">1 point per dollar spent</li>
+          <li style="margin-bottom: 8px;"><strong>1.5x points on grooming services!</strong></li>
+          <li style="margin-bottom: 8px;">100 bonus points for each friend you refer</li>
+        </ul>
+      </div>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="color: #1B365D; margin: 0 0 15px; font-size: 16px;">Redeem your points:</h3>
+        <ul style="color: #444; margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;">100 points = $10 off</li>
+          <li style="margin-bottom: 8px;">250 points = $25 off</li>
+          <li style="margin-bottom: 8px;">500 points = $50 off</li>
+        </ul>
+      </div>
+
+      <div style="background: #1B365D; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="color: #fff; margin: 0 0 10px; font-size: 14px;">Share your referral code with friends:</p>
+        <span style="background: #fff; color: #1B365D; padding: 10px 20px; border-radius: 4px; font-size: 20px; font-weight: bold; letter-spacing: 2px;">
+          ${referralCode}
+        </span>
+        <p style="color: #5BBFBA; margin: 10px 0 0; font-size: 12px;">They'll get started, and you'll get 100 bonus points!</p>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+      <p style="color: #888; font-size: 12px; text-align: center;">
+        We can't wait to see you and your pup!<br>
+        - The Happy Tail Happy Dog Team
+      </p>
+    </div>
+  `;
+
+  try {
+    if (resend) {
+      // Production: Send via Resend
+      const { error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        html,
+      });
+
+      if (error) {
+        logger.error('Resend error:', error);
+        return { success: false, error: error.message };
+      }
+
+      logger.info(`New signup welcome email sent to ${to}`);
+      return { success: true };
+    } else {
+      // Development: Log to console
+      logger.info('========================================');
+      logger.info('📧 NEW SIGNUP WELCOME EMAIL (Dev Mode)');
+      logger.info('========================================');
+      logger.info(`To: ${to}`);
+      logger.info(`Customer: ${customerName}`);
+      logger.info(`Referral Code: ${referralCode}`);
+      logger.info(`Welcome Bonus: 25 points`);
+      logger.info('========================================');
+      return { success: true };
+    }
+  } catch (error) {
+    logger.error('Failed to send new signup welcome email:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send email',

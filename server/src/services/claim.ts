@@ -6,6 +6,20 @@ import { logger } from '../middleware/security';
 const SALT_ROUNDS = 10;
 const CODE_EXPIRY_MINUTES = 10;
 
+interface DogInfo {
+  id: string;
+  name: string;
+  breed: string | null;
+}
+
+interface VisitInfo {
+  id: string;
+  visitDate: Date;
+  serviceType: string;
+  description: string | null;
+  amount: number;
+}
+
 interface UnclaimedCustomer {
   id: string;
   email: string;
@@ -13,10 +27,13 @@ interface UnclaimedCustomer {
   firstName: string;
   lastName: string;
   pointsBalance: number;
+  dogs?: DogInfo[];
+  recentVisits?: VisitInfo[];
 }
 
 /**
  * Find an unclaimed customer by email or phone
+ * Returns customer info along with their dogs and recent visit history
  */
 export async function findUnclaimedCustomer(
   identifier: string
@@ -40,6 +57,25 @@ export async function findUnclaimedCustomer(
         lastName: true,
         pointsBalance: true,
         accountStatus: true,
+        dogs: {
+          select: {
+            id: true,
+            name: true,
+            breed: true,
+          },
+          orderBy: { name: 'asc' },
+        },
+        gingrVisits: {
+          select: {
+            id: true,
+            visitDate: true,
+            serviceType: true,
+            description: true,
+            amount: true,
+          },
+          orderBy: { visitDate: 'desc' },
+          take: 5, // Show last 5 visits in preview
+        },
       },
     });
 
@@ -55,6 +91,18 @@ export async function findUnclaimedCustomer(
         firstName: customer.firstName,
         lastName: customer.lastName,
         pointsBalance: customer.pointsBalance,
+        dogs: customer.dogs.map((dog) => ({
+          id: dog.id,
+          name: dog.name,
+          breed: dog.breed,
+        })),
+        recentVisits: customer.gingrVisits.map((visit) => ({
+          id: visit.id,
+          visitDate: visit.visitDate,
+          serviceType: visit.serviceType,
+          description: visit.description,
+          amount: Number(visit.amount),
+        })),
       },
     };
   } catch (error) {

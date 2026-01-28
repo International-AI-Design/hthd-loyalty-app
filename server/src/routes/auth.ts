@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { sendNewSignupWelcomeEmail } from '../services/email';
 
 const router = Router();
 
@@ -85,12 +86,13 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       attempts++;
     }
 
-    // Referral bonus points
+    // Bonus points
     const REFERRAL_BONUS_POINTS = 100;
+    const WELCOME_BONUS_POINTS = 25;
 
-    // Create customer and award referral bonus in a transaction
+    // Create customer and award bonuses in a transaction
     const customer = await prisma.$transaction(async (tx) => {
-      // Create new customer
+      // Create new customer with welcome bonus
       const newCustomer = await tx.customer.create({
         data: {
           phone,
@@ -100,6 +102,17 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
           lastName: last_name,
           referralCode,
           referredById: referrer?.id ?? null,
+          pointsBalance: WELCOME_BONUS_POINTS,
+        },
+      });
+
+      // Create welcome bonus points transaction
+      await tx.pointsTransaction.create({
+        data: {
+          customerId: newCustomer.id,
+          type: 'bonus',
+          amount: WELCOME_BONUS_POINTS,
+          description: 'Welcome bonus for joining the rewards program',
         },
       });
 
@@ -137,6 +150,13 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Send welcome email (non-blocking - don't fail registration if email fails)
+    sendNewSignupWelcomeEmail({
+      to: customer.email,
+      customerName: customer.firstName,
+      referralCode: customer.referralCode,
+    }).catch((err) => console.error('Failed to send welcome email:', err));
 
     res.status(201).json({
       message: 'Registration successful',

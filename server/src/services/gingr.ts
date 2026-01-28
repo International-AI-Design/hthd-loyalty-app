@@ -14,6 +14,16 @@ const AUTH_FORMATS = [
   { name: 'Query Param', getHeaders: () => ({}), useQueryParam: true },
 ];
 
+// Gingr Animal structure (from /animals endpoint)
+interface GingrAnimal {
+  animal_id: string;
+  name: string;
+  breed?: string;
+  species?: string;
+  birth_date?: string;
+  owner_id: string;
+}
+
 // Gingr Reservation structure (from /reservations endpoint)
 interface GingrReservation {
   reservation_id: string;
@@ -50,6 +60,7 @@ interface GingrReservation {
 interface GingrInvoice {
   id: string;
   invoice_number: string;
+  owner_id?: string; // For fetching animals
   owner_name: string;
   owner_email?: string;
   owner_phone?: string;
@@ -173,6 +184,7 @@ function reservationToInvoice(reservation: GingrReservation): GingrInvoice {
   return {
     id: reservation.reservation_id,
     invoice_number: `RES-${reservation.reservation_id}`,
+    owner_id: owner.id,
     owner_name: `${owner.first_name} ${owner.last_name}`.trim(),
     owner_email: owner.email,
     owner_phone: owner.cell_phone || owner.home_phone,
@@ -519,6 +531,189 @@ export async function getSyncHistory(limit: number = 10) {
   });
 }
 
+/**
+ * Fetch animals (pets) for a specific owner from Gingr API
+ * Returns empty array if endpoint not available or no animals found
+ */
+export async function fetchAnimalsForOwner(ownerId: string): Promise<GingrAnimal[]> {
+  if (!workingAuthFormat) {
+    const test = await testConnection();
+    if (!test.connected) {
+      logger.warn('Unable to connect to Gingr for animal fetch');
+      return [];
+    }
+  }
+
+  try {
+    // Try to fetch animals for this owner
+    const url = workingAuthFormat?.useQueryParam
+      ? `${GINGR_BASE_URL}/animals?owner_id=${ownerId}&key=${GINGR_API_KEY}`
+      : `${GINGR_BASE_URL}/animals?owner_id=${ownerId}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(workingAuthFormat?.getHeaders() || {}),
+      },
+    });
+
+    if (!response.ok) {
+      // If 404, endpoint may not exist - not an error
+      if (response.status === 404) {
+        logger.info('Gingr /animals endpoint not available');
+        return [];
+      }
+      logger.warn(`Gingr animals endpoint returned ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json() as {
+      error?: boolean;
+      data?: Record<string, GingrAnimal> | GingrAnimal[];
+      message?: string;
+    };
+
+    if (data.error) {
+      logger.warn(`Gingr animals error: ${data.message}`);
+      return [];
+    }
+
+    // Handle both array and object response formats
+    const animals = Array.isArray(data.data)
+      ? data.data
+      : Object.values(data.data || {});
+
+    // Filter to only dogs (species = 'dog' or 'canine')
+    return animals.filter(a =>
+      !a.species ||
+      a.species.toLowerCase() === 'dog' ||
+      a.species.toLowerCase() === 'canine'
+    );
+  } catch (error) {
+    logger.warn('Failed to fetch animals from Gingr:', error);
+    return [];
+  }
+}
+
+/**
+ * Import dogs for a customer from Gingr
+ * Creates dog records linked to the customer
+ */
+export async function importDogsForCustomer(
+  customerId: string,
+  gingrOwnerId: string
+): Promise<{ imported: number; skipped: number }> {
+  try {
+    const animals = await fetchAnimalsForOwner(gingrOwnerId);
+
+    if (animals.length === 0) {
+      return { imported: 0, skipped: 0 };
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const animal of animals) {
+      // Check if we already have this dog
+      const existing = await prisma.dog.findUnique({
+        where: { gingrAnimalId: animal.animal_id },
+      });
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      // Create the dog record
+      await prisma.dog.create({
+        data: {
+          customerId,
+          name: animal.name || 'Unknown',
+          breed: animal.breed,
+          birthDate: animal.birth_date ? new Date(animal.birth_date) : null,
+          gingrAnimalId: animal.animal_id,
+        },
+      });
+
+      imported++;
+    }
+
+    return { imported, skipped };
+  } catch (error) {
+    logger.error('Failed to import dogs for customer:', error);
+    return { imported: 0, skipped: 0 };
+  }
+}
+
+/**
+ * Import visit history for a customer from their invoices
+ * Stores GingrVisit records for dashboard display
+ */
+export async function importVisitsForCustomer(
+  customerId: string,
+  invoices: GingrInvoice[]
+): Promise<{ imported: number; skipped: number }> {
+  let imported = 0;
+  let skipped = 0;
+
+  for (const invoice of invoices) {
+    try {
+      // Check if we already have this visit
+      const existing = await prisma.gingrVisit.findUnique({
+        where: { gingrReservationId: invoice.id },
+      });
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      // Determine service type from line items
+      const hasGrooming = invoice.line_items?.some(item =>
+        item.service_type?.toLowerCase().includes('groom') ||
+        item.description?.toLowerCase().includes('groom')
+      );
+      const hasBoarding = invoice.line_items?.some(item =>
+        item.service_type?.toLowerCase().includes('board') ||
+        item.description?.toLowerCase().includes('board')
+      );
+
+      let serviceType = 'daycare';
+      if (hasGrooming) serviceType = 'grooming';
+      else if (hasBoarding) serviceType = 'boarding';
+
+      // Build description from line items
+      const description = invoice.line_items
+        ?.map(item => item.description || item.service_type)
+        .filter(Boolean)
+        .join(', ');
+
+      // Calculate points earned for this visit
+      const { points } = calculatePoints(invoice);
+
+      // Create the visit record
+      await prisma.gingrVisit.create({
+        data: {
+          customerId,
+          gingrReservationId: invoice.id,
+          visitDate: new Date(invoice.completed_at || invoice.created_at),
+          serviceType,
+          description: description || null,
+          amount: new Prisma.Decimal(invoice.total),
+          pointsEarned: points,
+        },
+      });
+
+      imported++;
+    } catch (error) {
+      logger.warn(`Failed to import visit ${invoice.id}:`, error);
+      skipped++;
+    }
+  }
+
+  return { imported, skipped };
+}
+
 // ============================================
 // Customer Import Functions
 // ============================================
@@ -659,6 +854,7 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
     // Group invoices by customer (using email as primary key, fall back to phone)
     const customerInvoices = new Map<string, {
       ownerName: string;
+      ownerId?: string; // Gingr owner ID for fetching pets
       email?: string;
       phone?: string;
       invoices: GingrInvoice[];
@@ -680,10 +876,14 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
       if (!customerInvoices.has(key)) {
         customerInvoices.set(key, {
           ownerName: invoice.owner_name,
+          ownerId: invoice.owner_id,
           email: email,
           phone: phone,
           invoices: [],
         });
+      } else if (invoice.owner_id && !customerInvoices.get(key)!.ownerId) {
+        // Update owner ID if we have it from a newer invoice
+        customerInvoices.get(key)!.ownerId = invoice.owner_id;
       }
 
       customerInvoices.get(key)!.invoices.push(invoice);
@@ -782,6 +982,7 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
               pointsBalance: customerPoints,
               accountStatus: 'unclaimed',
               source: 'gingr_import',
+              gingrOwnerId: data.ownerId, // Store Gingr owner ID for pet sync
               // No passwordHash - account is unclaimed
             },
           });
@@ -819,6 +1020,22 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
 
           return newCustomer;
         });
+
+        // Import dogs from Gingr if we have the owner ID
+        let dogsImported = 0;
+        if (data.ownerId) {
+          const dogResult = await importDogsForCustomer(customer.id, data.ownerId);
+          dogsImported = dogResult.imported;
+          if (dogsImported > 0) {
+            logger.info(`Imported ${dogsImported} dogs for customer ${customer.email}`);
+          }
+        }
+
+        // Import visit history from invoices
+        const visitResult = await importVisitsForCustomer(customer.id, data.invoices);
+        if (visitResult.imported > 0) {
+          logger.info(`Imported ${visitResult.imported} visits for customer ${customer.email}`);
+        }
 
         importedCustomers.push({
           id: customer.id,

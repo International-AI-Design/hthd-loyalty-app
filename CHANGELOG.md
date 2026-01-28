@@ -2,6 +2,72 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - Rollout & Onboarding Phase - 2026-01-28
+
+### Added
+
+**New Customer Welcome Bonus**
+- 25 welcome points awarded automatically to new organic signups
+- Welcome email with 25-point bonus mention and referral code
+- Imported customers (claiming accounts) keep their imported points without additional bonus
+
+**Enhanced Claim Flow**
+- Claim page now shows preview of imported data:
+  - Points balance (already existed)
+  - Dogs (new - if imported from Gingr)
+  - Recent visit history (new - last 5 visits)
+- API returns dogs and visits in claim lookup response
+
+**Gingr Integration Enhancements**
+- Dog import from Gingr API (via `/animals` endpoint)
+  - `gingrAnimalId` field on Dog model for sync tracking
+  - Dogs imported automatically during customer import
+- Visit history storage and display
+  - New `GingrVisit` model storing reservation data
+  - Visits imported during customer import
+  - Customer dashboard shows recent visits with service type badges
+- `gingrOwnerId` field on Customer model for pet/visit sync
+
+**Automatic Gingr Sync**
+- Cron job for automatic point syncing (disabled by default)
+- Runs every 30 minutes during business hours (7am-8pm)
+- System user created for audit trail ("System Auto-Sync")
+- Environment variables: `GINGR_AUTO_SYNC_ENABLED`, `GINGR_AUTO_SYNC_INTERVAL`
+- Admin API returns auto-sync status in `/api/admin/gingr/status`
+
+**Admin Checkout Optimization**
+- Quick phone lookup widget on admin dashboard
+  - Prominent green card at top of page
+  - Instant search as you type (4+ digits)
+  - Inline results with customer name, phone, points
+  - One-tap to select customer
+- Prominent discount display after redemption
+  - Large yellow banner: "APPLY IN GINGR: $XX"
+  - Impossible to miss during checkout
+  - Shows for both code-based and direct redemptions
+
+**Customer Dashboard Enhancements**
+- "My Pups" section showing dogs (if any)
+- "Recent Visits" section with service type badges and points earned
+- API endpoints: `GET /api/customers/me/dogs`, `GET /api/customers/me/visits`
+
+### Database Changes
+- `Customer.gingrOwnerId` - Unique Gingr owner ID for sync
+- `Dog.gingrAnimalId` - Unique Gingr animal ID for sync
+- `GingrVisit` model - Stores visit history from Gingr reservations
+- `StaffUser.role` - Now includes 'system' role for auto-sync
+
+### Environment Variables (New)
+```
+GINGR_AUTO_SYNC_ENABLED=false   # Set to 'true' to enable auto-sync
+GINGR_AUTO_SYNC_INTERVAL=30     # Minutes between syncs
+```
+
+### Migration Required
+Run `npx prisma migrate dev` to apply schema changes.
+
+---
+
 ## [Unreleased] - Production Prep
 
 ### Added

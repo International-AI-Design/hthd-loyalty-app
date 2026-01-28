@@ -72,6 +72,14 @@ router.post('/lookup', async (req: Request, res: Response): Promise<void> => {
         last_name: customer.lastName,
         email_masked: maskEmail(customer.email),
         points_balance: customer.pointsBalance,
+        dogs: customer.dogs || [],
+        recent_visits: (customer.recentVisits || []).map((visit) => ({
+          id: visit.id,
+          visit_date: visit.visitDate,
+          service_type: visit.serviceType,
+          description: visit.description,
+          amount: visit.amount,
+        })),
       },
     });
   } catch (error) {

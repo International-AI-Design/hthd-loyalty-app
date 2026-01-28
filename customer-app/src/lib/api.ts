@@ -145,6 +145,37 @@ export interface ReferralStatsResponse {
   referred_customers: ReferredCustomer[];
 }
 
+export interface Dog {
+  id: string;
+  name: string;
+  breed: string | null;
+  birth_date: string | null;
+  notes: string | null;
+}
+
+export interface DogsResponse {
+  dogs: Dog[];
+}
+
+export interface Visit {
+  id: string;
+  visit_date: string;
+  service_type: string;
+  description: string | null;
+  amount: number;
+  points_earned: number;
+}
+
+export interface VisitsResponse {
+  visits: Visit[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+}
+
 export const authApi = {
   register: (data: RegisterData) => api.post<AuthResponse>('/auth/register', data),
   login: (data: { email?: string; phone?: string; password: string }) =>
@@ -159,9 +190,26 @@ export const customerApi = {
     api.post<RedemptionResponse>('/redemptions/request', { reward_tier: String(rewardTier) }),
   getRedemptions: () => api.get<RedemptionsListResponse>('/redemptions'),
   getReferralStats: () => api.get<ReferralStatsResponse>('/customers/me/referrals'),
+  getDogs: () => api.get<DogsResponse>('/customers/me/dogs'),
+  getVisits: (limit = 10, offset = 0) =>
+    api.get<VisitsResponse>(`/customers/me/visits?limit=${limit}&offset=${offset}`),
 };
 
 // Claim API for pre-imported customers
+export interface ClaimDog {
+  id: string;
+  name: string;
+  breed: string | null;
+}
+
+export interface ClaimVisit {
+  id: string;
+  visit_date: string;
+  service_type: string;
+  description: string | null;
+  amount: number;
+}
+
 export interface ClaimLookupResponse {
   found: boolean;
   customer: {
@@ -170,6 +218,8 @@ export interface ClaimLookupResponse {
     last_name: string;
     email_masked: string;
     points_balance: number;
+    dogs: ClaimDog[];
+    recent_visits: ClaimVisit[];
   };
 }
 

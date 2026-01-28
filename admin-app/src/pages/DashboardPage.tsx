@@ -57,6 +57,11 @@ export function DashboardPage() {
   const [directRedemptionError, setDirectRedemptionError] = useState<string | null>(null);
   const [directRedemptionResult, setDirectRedemptionResult] = useState<CreateRedemptionResponse | null>(null);
 
+  // Quick phone lookup state
+  const [quickPhone, setQuickPhone] = useState('');
+  const [quickResults, setQuickResults] = useState<CustomerSearchResult[]>([]);
+  const [isQuickSearching, setIsQuickSearching] = useState(false);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -237,6 +242,34 @@ export function DashboardPage() {
     setDirectRedemptionError(null);
   };
 
+  // Quick phone lookup - instant search as you type
+  const handleQuickPhoneChange = useCallback(async (phone: string) => {
+    setQuickPhone(phone);
+
+    // Only search if we have at least 4 digits
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length < 4) {
+      setQuickResults([]);
+      return;
+    }
+
+    setIsQuickSearching(true);
+    const result = await adminCustomersApi.search(digitsOnly);
+    setIsQuickSearching(false);
+
+    if (result.data) {
+      setQuickResults(result.data.customers);
+    } else {
+      setQuickResults([]);
+    }
+  }, []);
+
+  const handleQuickSelect = (customer: CustomerSearchResult) => {
+    handleSelectCustomer(customer);
+    setQuickPhone('');
+    setQuickResults([]);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
@@ -266,6 +299,58 @@ export function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Quick Phone Lookup - Checkout Speed */}
+        {!selectedCustomer && (
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-white mb-2">Quick Lookup</h2>
+            <p className="text-green-100 text-sm mb-4">Enter last 4+ digits of phone for instant lookup</p>
+            <div className="flex gap-4 items-start">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="Last 4 digits of phone..."
+                  value={quickPhone}
+                  onChange={(e) => handleQuickPhoneChange(e.target.value)}
+                  className="text-lg"
+                />
+                {isQuickSearching && (
+                  <div className="absolute right-3 top-3">
+                    <svg className="animate-spin h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                )}
+                {/* Inline results */}
+                {quickResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-10 max-h-80 overflow-y-auto">
+                    {quickResults.map((customer) => (
+                      <button
+                        key={customer.id}
+                        onClick={() => handleQuickSelect(customer)}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-green-50 border-b border-gray-100 last:border-0 transition-colors"
+                      >
+                        <div className="text-left">
+                          <p className="font-medium text-gray-900">{customer.name}</p>
+                          <p className="text-sm text-gray-500">{customer.phone}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">points</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {quickPhone.replace(/\D/g, '').length >= 4 && quickResults.length === 0 && !isQuickSearching && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-4 text-center text-gray-500 z-10">
+                    No customers found
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Customer Search Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Customer Lookup</h2>
@@ -376,22 +461,22 @@ export function DashboardPage() {
             <Alert variant="error" className="mb-4">{lookupError}</Alert>
           )}
 
-          {/* Completion Success Message */}
+          {/* Completion Success Message - PROMINENT DISCOUNT DISPLAY */}
           {completionResult && (
-            <Alert variant="success" className="mb-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <strong>Redemption completed successfully!</strong>
-                  <p className="text-sm mt-1">
-                    {completionResult.customer.name} redeemed {completionResult.redemption.reward_tier} points.
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm">Discount to apply</p>
-                  <p className="text-2xl font-bold">${completionResult.discount_to_apply}</p>
-                </div>
+            <div className="mb-4 rounded-lg overflow-hidden border-4 border-green-500">
+              <div className="bg-green-500 p-3">
+                <p className="text-white font-semibold text-center">
+                  Redemption completed for {completionResult.customer.name}
+                </p>
               </div>
-            </Alert>
+              <div className="bg-yellow-300 p-6 text-center">
+                <p className="text-yellow-800 font-semibold text-lg mb-2">APPLY IN GINGR:</p>
+                <p className="text-6xl font-black text-yellow-900">${completionResult.discount_to_apply}</p>
+                <p className="text-yellow-800 text-sm mt-2">
+                  {completionResult.redemption.reward_tier} points redeemed
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Redemption Details */}
@@ -583,27 +668,25 @@ export function DashboardPage() {
                 <Alert variant="error" className="mb-4">{directRedemptionError}</Alert>
               )}
 
-              {/* Direct Redemption Success */}
+              {/* Direct Redemption Success - PROMINENT DISCOUNT DISPLAY */}
               {directRedemptionResult && (
-                <Alert variant="success" className="mb-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <strong>Redemption processed successfully!</strong>
-                      <p className="text-sm mt-1">
-                        {directRedemptionResult.customer.name} redeemed {directRedemptionResult.redemption.reward_tier} points.
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm">Discount to apply</p>
-                      <p className="text-2xl font-bold">${directRedemptionResult.discount_to_apply}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-right">
-                    <Button size="sm" variant="outline" onClick={handleClearDirectRedemption}>
+                <div className="mb-4 rounded-lg overflow-hidden border-4 border-green-500">
+                  <div className="bg-green-500 p-3 flex justify-between items-center">
+                    <p className="text-white font-semibold">
+                      Redemption completed for {directRedemptionResult.customer.name}
+                    </p>
+                    <Button size="sm" variant="outline" onClick={handleClearDirectRedemption} className="bg-white text-green-700 hover:bg-green-50">
                       Dismiss
                     </Button>
                   </div>
-                </Alert>
+                  <div className="bg-yellow-300 p-6 text-center">
+                    <p className="text-yellow-800 font-semibold text-lg mb-2">APPLY IN GINGR:</p>
+                    <p className="text-6xl font-black text-yellow-900">${directRedemptionResult.discount_to_apply}</p>
+                    <p className="text-yellow-800 text-sm mt-2">
+                      {directRedemptionResult.redemption.reward_tier} points redeemed
+                    </p>
+                  </div>
+                </div>
               )}
 
               {/* Reward Tiers Grid */}

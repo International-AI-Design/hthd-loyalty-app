@@ -20,6 +20,7 @@ import {
   getCorsOptions,
   logger
 } from './middleware/security';
+import { startGingrAutoSync } from './jobs/gingrSync';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -65,4 +66,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
+
+  // Start the Gingr auto-sync job
+  startGingrAutoSync();
 });
