@@ -14,6 +14,39 @@ const AUTH_FORMATS = [
   { name: 'Query Param', getHeaders: () => ({}), useQueryParam: true },
 ];
 
+// Gingr Reservation structure (from /reservations endpoint)
+interface GingrReservation {
+  reservation_id: string;
+  start_date: string;
+  end_date: string;
+  check_out_date?: string;
+  reservation_type?: {
+    id: string;
+    type: string;
+  };
+  owner: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email?: string;
+    cell_phone?: string;
+    home_phone?: string;
+  };
+  services?: Array<{
+    id: string;
+    name: string;
+    cost: number;
+  }>;
+  transaction?: {
+    pos_transaction_id: number;
+    price: number;
+  };
+  deposit?: {
+    amount: number;
+  };
+}
+
+// Normalized invoice structure for internal use
 interface GingrInvoice {
   id: string;
   invoice_number: string;
@@ -124,7 +157,36 @@ export async function testConnection(): Promise<ConnectionTestResult> {
 }
 
 /**
- * Fetch invoices from Gingr API
+ * Convert Gingr reservation to our internal invoice format
+ */
+function reservationToInvoice(reservation: GingrReservation): GingrInvoice {
+  const owner = reservation.owner;
+  const total = reservation.transaction?.price || reservation.deposit?.amount || 0;
+
+  // Convert services to line_items format
+  const line_items = (reservation.services || []).map(s => ({
+    service_type: s.name,
+    description: s.name,
+    amount: s.cost,
+  }));
+
+  return {
+    id: reservation.reservation_id,
+    invoice_number: `RES-${reservation.reservation_id}`,
+    owner_name: `${owner.first_name} ${owner.last_name}`.trim(),
+    owner_email: owner.email,
+    owner_phone: owner.cell_phone || owner.home_phone,
+    total,
+    status: 'completed',
+    created_at: reservation.start_date,
+    completed_at: reservation.check_out_date || reservation.end_date,
+    line_items,
+  };
+}
+
+/**
+ * Fetch reservations from Gingr API and convert to invoice format
+ * Uses POST /reservations endpoint with date range (max 31 days)
  */
 async function fetchInvoices(since?: Date): Promise<GingrInvoice[]> {
   if (!workingAuthFormat) {
@@ -135,29 +197,43 @@ async function fetchInvoices(since?: Date): Promise<GingrInvoice[]> {
   }
 
   try {
-    let url = `${GINGR_BASE_URL}/invoices?status=completed&limit=100`;
-    if (since) {
-      url += `&created_after=${since.toISOString()}`;
-    }
+    // Gingr requires date range, max 31 days
+    const endDate = new Date();
+    const startDate = since || new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const formData = new URLSearchParams();
+    formData.append('start_date', startDate.toISOString().split('T')[0]);
+    formData.append('end_date', endDate.toISOString().split('T')[0]);
     if (workingAuthFormat?.useQueryParam) {
-      url += `&key=${GINGR_API_KEY}`;
+      formData.append('key', GINGR_API_KEY);
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${GINGR_BASE_URL}/reservations`, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         ...(workingAuthFormat?.getHeaders() || {}),
       },
+      body: formData.toString(),
     });
 
     if (!response.ok) {
       throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json() as { invoices?: GingrInvoice[] } | GingrInvoice[];
-    return (data as { invoices?: GingrInvoice[] }).invoices || (data as GingrInvoice[]) || [];
+    const data = await response.json() as { error: boolean; data?: Record<string, GingrReservation>; message?: string };
+
+    if (data.error) {
+      throw new Error(data.message || 'Gingr API returned an error');
+    }
+
+    // Convert reservations to invoice format, filter out those with no price
+    const reservations = Object.values(data.data || {});
+    return reservations
+      .filter(r => (r.transaction?.price || 0) > 0 || (r.deposit?.amount || 0) > 0)
+      .map(reservationToInvoice);
   } catch (error) {
-    logger.error('Failed to fetch Gingr invoices:', error);
+    logger.error('Failed to fetch Gingr reservations:', error);
     throw error;
   }
 }
@@ -484,7 +560,8 @@ function generateReferralCode(): string {
 }
 
 /**
- * Fetch invoices for import (last 90 days by default)
+ * Fetch reservations for import (last 90 days by default)
+ * Makes multiple requests since Gingr limits date range to 31 days
  */
 async function fetchInvoicesForImport(daysBack: number = 90): Promise<GingrInvoice[]> {
   if (!workingAuthFormat) {
@@ -494,30 +571,64 @@ async function fetchInvoicesForImport(daysBack: number = 90): Promise<GingrInvoi
     }
   }
 
-  const since = new Date();
-  since.setDate(since.getDate() - daysBack);
+  const allInvoices: GingrInvoice[] = [];
+  const seenIds = new Set<string>();
 
   try {
-    let url = `${GINGR_BASE_URL}/invoices?status=completed&limit=500&created_after=${since.toISOString()}`;
-    if (workingAuthFormat?.useQueryParam) {
-      url += `&key=${GINGR_API_KEY}`;
+    // Gingr limits to 31 days per request, so we need to make multiple requests
+    const maxDaysPerRequest = 30;
+    const now = new Date();
+
+    for (let offset = 0; offset < daysBack; offset += maxDaysPerRequest) {
+      const endDate = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
+      const startDate = new Date(endDate.getTime() - maxDaysPerRequest * 24 * 60 * 60 * 1000);
+
+      logger.info(`Fetching Gingr reservations from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+
+      const formData = new URLSearchParams();
+      formData.append('start_date', startDate.toISOString().split('T')[0]);
+      formData.append('end_date', endDate.toISOString().split('T')[0]);
+      if (workingAuthFormat?.useQueryParam) {
+        formData.append('key', GINGR_API_KEY);
+      }
+
+      const response = await fetch(`${GINGR_BASE_URL}/reservations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          ...(workingAuthFormat?.getHeaders() || {}),
+        },
+        body: formData.toString(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json() as { error: boolean; data?: Record<string, GingrReservation>; message?: string };
+
+      if (data.error) {
+        logger.warn(`Gingr API error for date range: ${data.message}`);
+        continue;
+      }
+
+      // Convert and deduplicate reservations
+      const reservations = Object.values(data.data || {});
+      for (const reservation of reservations) {
+        if (!seenIds.has(reservation.reservation_id)) {
+          const total = (reservation.transaction?.price || 0) + (reservation.deposit?.amount || 0);
+          if (total > 0) {
+            seenIds.add(reservation.reservation_id);
+            allInvoices.push(reservationToInvoice(reservation));
+          }
+        }
+      }
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(workingAuthFormat?.getHeaders() || {}),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json() as { invoices?: GingrInvoice[] } | GingrInvoice[];
-    return (data as { invoices?: GingrInvoice[] }).invoices || (data as GingrInvoice[]) || [];
+    logger.info(`Fetched ${allInvoices.length} unique reservations from Gingr`);
+    return allInvoices;
   } catch (error) {
-    logger.error('Failed to fetch Gingr invoices for import:', error);
+    logger.error('Failed to fetch Gingr reservations for import:', error);
     throw error;
   }
 }
