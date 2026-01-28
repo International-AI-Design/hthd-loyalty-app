@@ -239,11 +239,11 @@ export function DashboardPage() {
           {/* Referral Code Section */}
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-gray-600 text-sm mb-3">
-              Your referral code: <span className="font-mono font-bold text-[#1B365D]">{customer.referral_code}</span>
+              Your referral code: <span className="font-mono font-bold text-brand-navy">{customer.referral_code}</span>
             </p>
             <Button
+              variant="primary"
               size="sm"
-              className="bg-[#5BBFBA] hover:bg-[#4AA9A4] focus:ring-[#5BBFBA] text-white"
               onClick={handleShareCode}
             >
               <svg
@@ -262,7 +262,7 @@ export function DashboardPage() {
               Share Your Code
             </Button>
             {shareSuccess && (
-              <p className="text-sm text-[#7FB685] mt-2 font-medium">{shareSuccess}</p>
+              <p className="text-sm text-brand-soft-green mt-2 font-medium">{shareSuccess}</p>
             )}
           </div>
         </div>
@@ -271,7 +271,7 @@ export function DashboardPage() {
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <svg
-              className="w-5 h-5 text-[#5BBFBA]"
+              className="w-5 h-5 text-brand-teal"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -288,7 +288,7 @@ export function DashboardPage() {
           {isLoadingReferrals ? (
             <div className="flex justify-center py-8">
               <svg
-                className="animate-spin h-8 w-8 text-[#5BBFBA]"
+                className="animate-spin h-8 w-8 text-brand-teal"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -330,12 +330,12 @@ export function DashboardPage() {
             <div className="space-y-4">
               {/* Stats Summary */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#F8F6F3] rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-[#1B365D]">{referralCount}</p>
+                <div className="bg-brand-warm-white rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-brand-navy">{referralCount}</p>
                   <p className="text-sm text-gray-600">Friends Referred</p>
                 </div>
-                <div className="bg-[#F8F6F3] rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-[#5BBFBA]">+{referralBonusPoints.toLocaleString()}</p>
+                <div className="bg-brand-warm-white rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-brand-teal">+{referralBonusPoints.toLocaleString()}</p>
                   <p className="text-sm text-gray-600">Bonus Points Earned</p>
                 </div>
               </div>
@@ -348,13 +348,13 @@ export function DashboardPage() {
                     {referredCustomers.map((referral) => (
                       <div
                         key={referral.id}
-                        className="flex items-center justify-between py-2 px-3 bg-[#FDF8F3] rounded-lg"
+                        className="flex items-center justify-between py-2 px-3 bg-brand-cream rounded-lg"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-[#5BBFBA] rounded-full flex items-center justify-center text-white font-medium text-sm">
+                          <div className="w-8 h-8 bg-brand-teal rounded-full flex items-center justify-center text-white font-medium text-sm">
                             {referral.first_name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-medium text-[#1B365D]">{referral.first_name}</span>
+                          <span className="font-medium text-brand-navy">{referral.first_name}</span>
                         </div>
                         <span className="text-sm text-gray-500">
                           {formatDate(referral.joined_at)}
@@ -382,26 +382,26 @@ export function DashboardPage() {
                   key={tier.points}
                   onClick={() => handleTierClick(tier)}
                   disabled={!canAfford}
-                  className={`rounded-xl p-4 border-2 transition-all text-left w-full ${
+                  className={`rounded-xl p-4 border-2 transition-all text-left w-full shadow-md ${
                     canAfford
-                      ? 'border-green-500 bg-green-50 hover:bg-green-100 hover:border-green-600 cursor-pointer'
-                      : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      ? 'border-brand-teal bg-white hover:bg-brand-cream hover:border-brand-teal-dark cursor-pointer'
+                      : 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
                   }`}
                 >
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">${tier.discount}</p>
+                    <p className="text-3xl font-bold text-brand-navy">${tier.discount}</p>
                     <p className="text-sm text-gray-600 mt-1">grooming discount</p>
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <p
                         className={`text-lg font-semibold ${
-                          canAfford ? 'text-green-600' : 'text-gray-500'
+                          canAfford ? 'text-brand-teal' : 'text-gray-500'
                         }`}
                       >
                         {tier.points.toLocaleString()} pts
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         {canAfford ? (
-                          <span className="text-green-600 font-medium">Click to redeem</span>
+                          <span className="text-brand-teal font-medium">Tap to redeem</span>
                         ) : (
                           `${(tier.points - customer.points_balance).toLocaleString()} more needed`
                         )}

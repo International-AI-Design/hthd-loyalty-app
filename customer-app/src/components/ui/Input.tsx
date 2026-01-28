@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal
               disabled:bg-gray-100 disabled:cursor-not-allowed
               ${isPassword ? 'pr-10' : ''}
-              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'}
+              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-brand-light-gray'}
               ${className}
             `}
             {...props}

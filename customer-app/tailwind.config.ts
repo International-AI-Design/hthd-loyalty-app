@@ -11,6 +11,11 @@ export default {
           navy: '#1B365D',
           cream: '#FDF8F3',
           'warm-white': '#F8F6F3',
+          coral: '#E8837B',
+          'golden-yellow': '#F5C65D',
+          'soft-green': '#7FB685',
+          'light-gray': '#E8E8E8',
+          'soft-cream': '#FDF8F3',
         },
       },
       fontFamily: {
