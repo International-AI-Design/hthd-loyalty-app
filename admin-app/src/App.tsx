@@ -42,6 +42,8 @@ function App() {
             }
           />
           <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Catch-all: redirect unknown routes to login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
