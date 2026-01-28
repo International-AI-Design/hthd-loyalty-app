@@ -61,6 +61,13 @@ All notable changes to this project will be documented in this file.
 ### Known Issues
 1. **Admin /register route blank** - Page doesn't render (low priority, staff can be added via DB)
 
+### Known Technical Debt (Brand Compliance)
+Identified during brand audit - lower priority, would require significant refactoring:
+- **Tailwind gray usage** - `text-gray-600`, `bg-gray-50`, `border-gray-100`, etc. used throughout instead of brand equivalents
+- **Alert component** - Uses generic red/green/yellow colors instead of brand palette
+
+**Root cause analysis:** The initial Tailwind config was incomplete (missing accent colors like coral, golden-yellow, soft-green). Developers used Tailwind's arbitrary value syntax (`text-[#1B365D]`) as a shortcut since proper tokens didn't exist. SKILL.md brand guidelines may have been added after initial development, and no linting rules enforced token usage. Common pattern in fast MVP development.
+
 ### Demo Readiness Checklist
 - [x] Fix admin app CSS/styling issue
 - [x] Seed production DB with real customer data via Gingr import
