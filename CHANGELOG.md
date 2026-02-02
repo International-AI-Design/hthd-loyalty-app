@@ -68,6 +68,31 @@ Run `npx prisma migrate dev` to apply schema changes.
 
 ---
 
+## [1.4.0] - Demo Day Prep - 2026-02-02
+
+### Added
+- **DEMO.md** - Complete demo walkthrough for Ted & Julian presentation
+  - Pre-demo checklist
+  - Customer flow walkthrough with talking points
+  - Admin flow walkthrough with talking points
+  - Objection handling
+  - Transition to proposal script
+- **docs/** directory for project documentation
+- **docs/original-proposal-oct-2025.txt** - Original Phase 1-3 proposal for reference
+- **docs/transformation-proposal-feb-2026.md** - Updated proposal with three options:
+  - Option 1: Buy app outright ($2,500)
+  - Option 2: Intro Bundle ($150/mo)
+  - Option 3: Full Digital Takeover ($1,000 + $250/mo)
+
+### Demo Readiness
+- [x] API health verified
+- [x] 151 customers synced from Gingr
+- [x] Auto-sync running every 30 minutes
+- [x] Admin login working (admin / admin123)
+- [x] Demo materials created
+
+---
+
 ## [Unreleased] - Production Prep
 
 ### Fixed
