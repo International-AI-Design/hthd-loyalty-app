@@ -175,21 +175,29 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     // Handle Prisma unique constraint violations
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
-        const target = error.meta?.target as string[] | undefined;
-        if (target?.includes('email')) {
+        // Prisma target can be array ['email'] or constraint name 'customers_email_key'
+        const target = error.meta?.target;
+        const targetStr = Array.isArray(target) ? target.join(' ') : String(target || '');
+
+        if (targetStr.toLowerCase().includes('email')) {
           res.status(409).json({
             error: 'Email already registered',
             field: 'email',
           });
           return;
         }
-        if (target?.includes('phone')) {
+        if (targetStr.toLowerCase().includes('phone')) {
           res.status(409).json({
             error: 'Phone number already registered',
             field: 'phone',
           });
           return;
         }
+        // Fallback for any other unique constraint
+        res.status(409).json({
+          error: 'Account already exists with this information',
+        });
+        return;
       }
     }
 
