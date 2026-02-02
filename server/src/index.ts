@@ -13,6 +13,7 @@ import adminCustomersRoutes from './routes/admin/customers';
 import adminPointsRoutes from './routes/admin/points';
 import adminRedemptionsRoutes from './routes/admin/redemptions';
 import adminGingrRoutes from './routes/admin/gingr';
+import adminDemoRoutes from './routes/admin/demo';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -57,6 +58,7 @@ app.use('/api/admin/customers', adminCustomersRoutes);
 app.use('/api/admin/points', adminPointsRoutes);
 app.use('/api/admin/redemptions', adminRedemptionsRoutes);
 app.use('/api/admin/gingr', adminGingrRoutes);
+app.use('/api/admin/demo', adminDemoRoutes);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
