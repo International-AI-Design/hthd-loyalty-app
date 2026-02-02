@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button, Input, Select, Alert, Modal } from '../components/ui';
 import { useNavigate } from 'react-router-dom';
-import { adminCustomersApi, adminPointsApi, adminRedemptionsApi } from '../lib/api';
-import type { CustomerSearchResult, AddPointsResponse, RedemptionLookupResponse, CompleteRedemptionResponse, CreateRedemptionResponse } from '../lib/api';
+import { adminCustomersApi, adminPointsApi, adminRedemptionsApi, adminDemoApi } from '../lib/api';
+import type { CustomerSearchResult, AddPointsResponse, RedemptionLookupResponse, CompleteRedemptionResponse, CreateRedemptionResponse, DemoResetResponse } from '../lib/api';
 
 const SERVICE_TYPES = [
   { value: 'daycare', label: 'Daycare' },
@@ -61,6 +61,11 @@ export function DashboardPage() {
   const [quickPhone, setQuickPhone] = useState('');
   const [quickResults, setQuickResults] = useState<CustomerSearchResult[]>([]);
   const [isQuickSearching, setIsQuickSearching] = useState(false);
+
+  // Demo reset state
+  const [showDemoResetModal, setShowDemoResetModal] = useState(false);
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
+  const [demoResetResult, setDemoResetResult] = useState<DemoResetResponse | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -270,6 +275,21 @@ export function DashboardPage() {
     setQuickResults([]);
   };
 
+  const handleDemoReset = async () => {
+    setIsResettingDemo(true);
+    const result = await adminDemoApi.reset();
+    setIsResettingDemo(false);
+
+    if (result.data) {
+      setDemoResetResult(result.data);
+    }
+  };
+
+  const handleCloseDemoResetModal = () => {
+    setShowDemoResetModal(false);
+    setDemoResetResult(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
@@ -285,6 +305,9 @@ export function DashboardPage() {
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
                 Customers
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowDemoResetModal(true)} className="text-orange-600 border-orange-300 hover:bg-orange-50">
+                Reset Demo
               </Button>
               <span className="hidden sm:inline text-gray-700 text-sm">
                 {staff?.first_name}
@@ -874,6 +897,66 @@ export function DashboardPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Demo Reset Modal */}
+      <Modal
+        isOpen={showDemoResetModal}
+        onClose={handleCloseDemoResetModal}
+        title="Reset Demo Data"
+      >
+        <div>
+          {!demoResetResult ? (
+            <>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <p className="text-orange-800 font-medium mb-2">This will:</p>
+                <ul className="text-orange-700 text-sm space-y-1">
+                  <li>Reset all claimed Gingr-imported accounts to unclaimed</li>
+                  <li>Clear customer passwords</li>
+                  <li>Clear all verification codes</li>
+                </ul>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Use this to reset the demo environment for a fresh walkthrough.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleCloseDemoResetModal}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-orange-500 hover:bg-orange-600"
+                  onClick={handleDemoReset}
+                  isLoading={isResettingDemo}
+                >
+                  Reset Demo
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <p className="text-green-800 font-medium mb-2">Reset Complete!</p>
+                <ul className="text-green-700 text-sm space-y-1">
+                  <li>{demoResetResult.accounts_reset} account(s) reset to unclaimed</li>
+                  <li>{demoResetResult.verification_codes_cleared} verification code(s) cleared</li>
+                </ul>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Customers can now go through the claim flow fresh.
+              </p>
+              <Button
+                className="w-full"
+                onClick={handleCloseDemoResetModal}
+              >
+                Done
+              </Button>
+            </>
+          )}
+        </div>
       </Modal>
     </div>
   );

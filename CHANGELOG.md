@@ -83,6 +83,12 @@ Run `npx prisma migrate dev` to apply schema changes.
   - Option 1: Buy app outright ($2,500)
   - Option 2: Intro Bundle ($150/mo)
   - Option 3: Full Digital Takeover ($1,000 + $250/mo)
+- **Demo Reset Feature** - Reset claimed accounts for fresh demo walkthroughs
+  - API endpoints: `POST /api/admin/demo/reset`, `GET /api/admin/demo/status`
+  - "Reset Demo" button in admin dashboard header
+  - Resets all Gingr-imported accounts to unclaimed state
+  - Clears passwords and verification codes
+  - Confirmation modal with clear feedback
 
 ### Demo Readiness
 - [x] API health verified
@@ -90,6 +96,7 @@ Run `npx prisma migrate dev` to apply schema changes.
 - [x] Auto-sync running every 30 minutes
 - [x] Admin login working (admin / admin123)
 - [x] Demo materials created
+- [x] Demo reset functionality for fresh walkthroughs
 
 ---
 

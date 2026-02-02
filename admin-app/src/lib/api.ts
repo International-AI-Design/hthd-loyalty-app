@@ -409,3 +409,24 @@ export const adminGingrApi = {
   unclaimedCustomers: () =>
     api.get<GingrUnclaimedCustomersResponse>('/admin/gingr/unclaimed-customers'),
 };
+
+// Demo reset types
+export interface DemoStatusResponse {
+  gingr_imported: {
+    total: number;
+    claimed: number;
+    unclaimed: number;
+  };
+}
+
+export interface DemoResetResponse {
+  success: boolean;
+  message: string;
+  accounts_reset: number;
+  verification_codes_cleared: number;
+}
+
+export const adminDemoApi = {
+  status: () => api.get<DemoStatusResponse>('/admin/demo/status'),
+  reset: () => api.post<DemoResetResponse>('/admin/demo/reset', {}),
+};
