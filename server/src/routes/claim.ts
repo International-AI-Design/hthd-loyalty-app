@@ -84,7 +84,7 @@ router.post('/lookup', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Claim lookup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Account lookup failed. Please try again.' });
   }
 });
 
@@ -120,7 +120,7 @@ router.post('/send-code', async (req: Request, res: Response): Promise<void> => 
     });
   } catch (error) {
     console.error('Send code error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Failed to send code. Please try again.' });
   }
 });
 
@@ -176,7 +176,7 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Verify claim error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Verification failed. Please try again.' });
   }
 });
 

@@ -70,6 +70,21 @@ Run `npx prisma migrate dev` to apply schema changes.
 
 ## [Unreleased] - Production Prep
 
+### Fixed
+- **Error messages** - Replaced 5 generic "Internal server error" messages with user-friendly alternatives in auth and claim routes
+- **Claim page dev text** - Removed "(and server console for demo)" from code sent message
+
+### Added
+- **Password reset** - Complete forgot password flow with email verification codes
+  - New endpoints: `/api/auth/forgot-password`, `/api/auth/verify-reset-code`, `/api/auth/reset-password`
+  - Password reset email template in email service
+  - ForgotPasswordPage with multi-step form (identifier → code + password → success)
+  - "Forgot password?" link on login page
+
+---
+
+## [1.3.1] - Production Prep - 2026-01-27
+
 ### Added
 - **Deployment configuration files** - `railway.toml`, `vercel.json` for customer-app and admin-app
 - **DEPLOYMENT.md** - Step-by-step deployment guide for Railway + Vercel + Namecheap DNS

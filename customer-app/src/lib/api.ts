@@ -251,3 +251,26 @@ export const claimApi = {
   verify: (customerId: string, code: string, password: string) =>
     api.post<ClaimVerifyResponse>('/claim/verify', { customer_id: customerId, code, password }),
 };
+
+// Password Reset API
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface VerifyResetCodeResponse {
+  valid: boolean;
+  resetToken: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
+export const passwordResetApi = {
+  forgotPassword: (identifier: string) =>
+    api.post<ForgotPasswordResponse>('/auth/forgot-password', { identifier }),
+  verifyResetCode: (identifier: string, code: string) =>
+    api.post<VerifyResetCodeResponse>('/auth/verify-reset-code', { identifier, code }),
+  resetPassword: (resetToken: string, password: string) =>
+    api.post<ResetPasswordResponse>('/auth/reset-password', { resetToken, password }),
+};

@@ -292,7 +292,7 @@ export function ClaimPage() {
               ) : (
                 <form onSubmit={verifyForm.handleSubmit(onVerify)} className="space-y-4">
                   <Alert variant="success" className="mb-4">
-                    Code sent! Check your email (and server console for demo).
+                    Code sent! Check your email.
                   </Alert>
 
                   <Input

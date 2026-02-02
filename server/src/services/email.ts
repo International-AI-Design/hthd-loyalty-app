@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 import { logger } from '../middleware/security';
 
+export { sendPasswordResetEmail };
+
 // Initialize Resend if API key is available
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -296,6 +298,97 @@ export async function sendNewSignupWelcomeEmail({
     }
   } catch (error) {
     logger.error('Failed to send new signup welcome email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send email',
+    };
+  }
+}
+
+interface SendPasswordResetEmailParams {
+  to: string;
+  customerName: string;
+  code: string;
+}
+
+/**
+ * Send password reset code email
+ * Uses Resend in production, console logging in development
+ */
+async function sendPasswordResetEmail({
+  to,
+  customerName,
+  code,
+}: SendPasswordResetEmailParams): Promise<{ success: boolean; error?: string }> {
+  const subject = 'Reset your Happy Tail Happy Dog password';
+  const html = `
+    <div style="font-family: 'Open Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
+          Happy Tail Happy Dog
+        </h1>
+        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+      </div>
+
+      <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>
+
+      <p style="color: #444; font-size: 16px;">
+        Your password reset code is:
+      </p>
+
+      <div style="background: #f5f5f5; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1B365D;">
+          ${code}
+        </span>
+      </div>
+
+      <p style="color: #666; font-size: 14px;">
+        This code expires in 10 minutes.
+      </p>
+
+      <p style="color: #666; font-size: 14px;">
+        If you didn't request a password reset, you can safely ignore this email.
+      </p>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+      <p style="color: #888; font-size: 12px; text-align: center;">
+        Questions? Visit us at the shop.<br>
+        - The Happy Tail Happy Dog Team
+      </p>
+    </div>
+  `;
+
+  try {
+    if (resend) {
+      // Production: Send via Resend
+      const { error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        html,
+      });
+
+      if (error) {
+        logger.error('Resend error:', error);
+        return { success: false, error: error.message };
+      }
+
+      logger.info(`Password reset email sent to ${to}`);
+      return { success: true };
+    } else {
+      // Development: Log to console
+      logger.info('========================================');
+      logger.info('📧 PASSWORD RESET EMAIL (Dev Mode)');
+      logger.info('========================================');
+      logger.info(`To: ${to}`);
+      logger.info(`Customer: ${customerName}`);
+      logger.info(`Reset Code: ${code}`);
+      logger.info('========================================');
+      return { success: true };
+    }
+  } catch (error) {
+    logger.error('Failed to send password reset email:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send email',

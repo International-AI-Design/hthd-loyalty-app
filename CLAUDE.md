@@ -3,6 +3,41 @@
 ## Project Overview
 Pet business loyalty program - MVP complete with 25 user stories implemented. Active development for v2 features while maintaining stability.
 
+## Production URLs
+| Service | URL | Platform |
+|---------|-----|----------|
+| **Customer App** | https://hthd.internationalaidesign.com | Vercel |
+| **Admin App** | https://hthd-admin.internationalaidesign.com | Vercel |
+| **API** | https://hthd-api.internationalaidesign.com | Railway |
+
+**Staff Login:** `admin` / `admin123`
+
+## Deployment Workflow
+**Repository:** `https://github.com/International-AI-Design/hthd-loyalty-app.git`
+
+**All deployments are automatic on push to `main`:**
+```bash
+# 1. Stage and commit changes
+git add <files>
+git commit -m "Description of changes"
+
+# 2. Push to trigger deployment
+git push origin main
+
+# 3. Monitor deployment
+# - Railway: Check dashboard at railway.app (API deploys in ~2-3 min)
+# - Vercel: Check dashboard at vercel.com (Apps deploy in ~1-2 min)
+```
+
+**What deploys where:**
+- `server/` changes → Railway (API)
+- `customer-app/` changes → Vercel (Customer App)
+- `admin-app/` changes → Vercel (Admin App)
+
+**Rollback:** Use Railway/Vercel dashboards to redeploy previous version if needed.
+
+See `DEPLOYMENT.md` for initial setup, environment variables, and DNS configuration.
+
 ## Brand Guidelines
 **IMPORTANT:** See `SKILL.md` for complete brand guidelines including:
 - Color palette (Teal #5BBFBA primary, Navy #1B365D text)

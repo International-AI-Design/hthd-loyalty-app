@@ -98,6 +98,12 @@ export function LoginPage() {
 
             <div className="flex items-center justify-between">
               <Checkbox label="Remember me" {...register('remember_me')} />
+              <Link
+                to="/forgot-password"
+                className="text-sm text-brand-teal hover:text-brand-teal-dark"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>

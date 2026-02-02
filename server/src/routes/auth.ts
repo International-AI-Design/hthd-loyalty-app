@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { sendNewSignupWelcomeEmail } from '../services/email';
+import { sendNewSignupWelcomeEmail, sendPasswordResetEmail } from '../services/email';
 
 const router = Router();
 
@@ -202,7 +202,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     }
 
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Account creation failed. Please try again.' });
   }
 });
 
@@ -297,7 +297,248 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+});
+
+// Constants for password reset
+const RESET_CODE_EXPIRY_MINUTES = 10;
+const RESET_TOKEN_EXPIRY_MINUTES = 15;
+
+// Generate a random 6-digit verification code
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Zod schema for forgot password
+const forgotPasswordSchema = z.object({
+  identifier: z.string().min(1, 'Email or phone is required'),
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validationResult = forgotPasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: validationResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
+      return;
+    }
+
+    const { identifier } = validationResult.data;
+    const isEmail = identifier.includes('@');
+
+    // Find customer by email or phone
+    const customer = await prisma.customer.findFirst({
+      where: isEmail
+        ? { email: identifier.toLowerCase() }
+        : { phone: { contains: identifier.replace(/\D/g, '').slice(-10) } },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        accountStatus: true,
+        passwordHash: true,
+      },
+    });
+
+    // Always return success to prevent user enumeration
+    // But only send email if account exists and is active
+    if (customer && customer.accountStatus === 'active' && customer.passwordHash) {
+      // Invalidate any existing unused reset codes for this customer
+      await prisma.verificationCode.updateMany({
+        where: {
+          customerId: customer.id,
+          type: 'reset',
+          usedAt: null,
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
+
+      // Generate new code
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + RESET_CODE_EXPIRY_MINUTES * 60 * 1000);
+
+      // Save code to database
+      await prisma.verificationCode.create({
+        data: {
+          customerId: customer.id,
+          code,
+          type: 'reset',
+          expiresAt,
+        },
+      });
+
+      // Send reset email (non-blocking)
+      sendPasswordResetEmail({
+        to: customer.email,
+        customerName: customer.firstName,
+        code,
+      }).catch((err) => console.error('Failed to send password reset email:', err));
+    }
+
+    // Always return success message to prevent user enumeration
+    res.status(200).json({
+      message: 'If an account exists with that email or phone, a reset code has been sent.',
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Password reset request failed. Please try again.' });
+  }
+});
+
+// Zod schema for verify reset code
+const verifyResetCodeSchema = z.object({
+  identifier: z.string().min(1, 'Email or phone is required'),
+  code: z.string().length(6, 'Code must be 6 digits'),
+});
+
+// POST /api/auth/verify-reset-code
+router.post('/verify-reset-code', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validationResult = verifyResetCodeSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: validationResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
+      return;
+    }
+
+    const { identifier, code } = validationResult.data;
+    const isEmail = identifier.includes('@');
+
+    // Find customer by email or phone
+    const customer = await prisma.customer.findFirst({
+      where: isEmail
+        ? { email: identifier.toLowerCase() }
+        : { phone: { contains: identifier.replace(/\D/g, '').slice(-10) } },
+      select: { id: true, email: true },
+    });
+
+    if (!customer) {
+      res.status(400).json({ error: 'Invalid or expired code. Please try again.' });
+      return;
+    }
+
+    // Find valid verification code
+    const verificationCode = await prisma.verificationCode.findFirst({
+      where: {
+        customerId: customer.id,
+        code,
+        type: 'reset',
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!verificationCode) {
+      res.status(400).json({ error: 'Invalid or expired code. Please try again.' });
+      return;
+    }
+
+    // Generate a short-lived reset token (15 min)
+    const resetToken = jwt.sign(
+      {
+        customerId: customer.id,
+        codeId: verificationCode.id,
+        purpose: 'password-reset',
+      },
+      JWT_SECRET,
+      { expiresIn: `${RESET_TOKEN_EXPIRY_MINUTES}m` }
+    );
+
+    res.status(200).json({
+      valid: true,
+      resetToken,
+    });
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    res.status(500).json({ error: 'Verification failed. Please try again.' });
+  }
+});
+
+// Zod schema for reset password
+const resetPasswordSchema = z.object({
+  resetToken: z.string().min(1, 'Reset token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validationResult = resetPasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: validationResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
+      return;
+    }
+
+    const { resetToken, password } = validationResult.data;
+
+    // Verify reset token
+    let decoded: { customerId: string; codeId: string; purpose: string };
+    try {
+      decoded = jwt.verify(resetToken, JWT_SECRET) as typeof decoded;
+    } catch {
+      res.status(400).json({ error: 'Invalid or expired reset link. Please start over.' });
+      return;
+    }
+
+    if (decoded.purpose !== 'password-reset') {
+      res.status(400).json({ error: 'Invalid reset token.' });
+      return;
+    }
+
+    // Check that the verification code hasn't been used
+    const verificationCode = await prisma.verificationCode.findUnique({
+      where: { id: decoded.codeId },
+    });
+
+    if (!verificationCode || verificationCode.usedAt) {
+      res.status(400).json({ error: 'This reset link has already been used. Please request a new one.' });
+      return;
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Update password and mark code as used in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Mark the code as used
+      await tx.verificationCode.update({
+        where: { id: decoded.codeId },
+        data: { usedAt: new Date() },
+      });
+
+      // Update customer password
+      await tx.customer.update({
+        where: { id: decoded.customerId },
+        data: { passwordHash },
+      });
+    });
+
+    res.status(200).json({
+      message: 'Password updated successfully!',
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Password reset failed. Please try again.' });
   }
 });
 
