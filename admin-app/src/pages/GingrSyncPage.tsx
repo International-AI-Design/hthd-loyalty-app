@@ -142,24 +142,26 @@ export function GingrSyncPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-            <p className="text-sm text-gray-600">Admin Portal - Gingr Sync</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-              Back to Dashboard
-            </Button>
-            <span className="text-gray-700">
-              {staff?.first_name} {staff?.last_name}
-              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
-                {staff?.role}
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
+              <p className="text-sm text-gray-600">Admin Portal - Gingr Sync</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                Dashboard
+              </Button>
+              <span className="hidden sm:inline text-gray-700 text-sm">
+                {staff?.first_name}
+                <span className="ml-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
+                  {staff?.role}
+                </span>
               </span>
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Sign Out
-            </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -318,38 +320,56 @@ export function GingrSyncPage() {
               or their name/email/phone may not match.
             </p>
 
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Owner Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Invoice ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {syncResult.unmatched_customers.map((customer, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {customer.owner_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                        {customer.invoice_id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${customer.total.toFixed(2)}
-                      </td>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="md:hidden space-y-3">
+                {syncResult.unmatched_customers.map((customer, index) => (
+                  <div key={index} className="border rounded-lg p-4 bg-white">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold text-gray-900">{customer.owner_name}</p>
+                        <p className="text-sm text-gray-500 font-mono">{customer.invoice_id}</p>
+                      </div>
+                      <p className="text-lg font-semibold text-gray-900">${customer.total.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Owner Name
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Invoice ID
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {syncResult.unmatched_customers.map((customer, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">
+                          {customer.owner_name}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500 font-mono">
+                          {customer.invoice_id}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-900">
+                          ${customer.total.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           </div>
         )}
 
@@ -396,50 +416,73 @@ export function GingrSyncPage() {
               No unclaimed accounts. All imported customers have claimed their accounts!
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Points
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Imported
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {unclaimedCustomers.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {customer.first_name} {customer.last_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.phone}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">
-                        {customer.points_balance.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(customer.created_at)}
-                      </td>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="md:hidden space-y-3">
+                {unclaimedCustomers.map((customer) => (
+                  <div key={customer.id} className="border rounded-lg p-4 bg-white">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">{customer.first_name} {customer.last_name}</p>
+                        <p className="text-sm text-gray-500">{customer.phone}</p>
+                        <p className="text-sm text-gray-500 truncate max-w-[200px]">{customer.email}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-blue-600">{customer.points_balance.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">points</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500">Imported: {formatDate(customer.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Phone
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Points
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Imported
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {unclaimedCustomers.map((customer) => (
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">
+                          {customer.first_name} {customer.last_name}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.email}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.phone}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-blue-600 font-semibold">
+                          {customer.points_balance.toLocaleString()}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {formatDate(customer.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
@@ -475,56 +518,88 @@ export function GingrSyncPage() {
               No sync history yet. Run your first sync above!
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Synced By
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Invoices
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Matched
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unmatched
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Points Applied
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {history.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(item.synced_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.synced_by}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.invoices_processed}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                        {item.customers_matched}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
-                        {item.customers_not_found}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">
-                        +{item.total_points_applied.toLocaleString()}
-                      </td>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="md:hidden space-y-3">
+                {history.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4 bg-white">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">{formatDate(item.synced_at)}</p>
+                        <p className="text-sm text-gray-500">By: {item.synced_by}</p>
+                      </div>
+                      <p className="text-lg font-bold text-blue-600">+{item.total_points_applied.toLocaleString()}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-lg font-semibold">{item.invoices_processed}</p>
+                        <p className="text-xs text-gray-500">Invoices</p>
+                      </div>
+                      <div className="bg-green-50 rounded p-2">
+                        <p className="text-lg font-semibold text-green-600">{item.customers_matched}</p>
+                        <p className="text-xs text-gray-500">Matched</p>
+                      </div>
+                      <div className="bg-orange-50 rounded p-2">
+                        <p className="text-lg font-semibold text-orange-600">{item.customers_not_found}</p>
+                        <p className="text-xs text-gray-500">Unmatched</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Synced By
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Invoices
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Matched
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Unmatched
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Points
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {history.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-900">
+                          {formatDate(item.synced_at)}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {item.synced_by}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-900">
+                          {item.invoices_processed}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-green-600 font-medium">
+                          {item.customers_matched}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-orange-600">
+                          {item.customers_not_found}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-blue-600 font-semibold">
+                          +{item.total_points_applied.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </main>

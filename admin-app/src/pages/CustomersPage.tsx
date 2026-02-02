@@ -107,24 +107,26 @@ export function CustomersPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-            <p className="text-sm text-gray-600">Admin Portal</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <span className="text-gray-700">
-              {staff?.first_name} {staff?.last_name}
-              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
-                {staff?.role}
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
+              <p className="text-sm text-gray-600">Admin Portal</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                Dashboard
+              </Button>
+              <span className="hidden sm:inline text-gray-700 text-sm">
+                {staff?.first_name}
+                <span className="ml-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
+                  {staff?.role}
+                </span>
               </span>
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Sign Out
-            </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -162,71 +164,100 @@ export function CustomersPage() {
             </div>
           )}
 
-          {/* Customer table */}
+          {/* Customer list - Card layout on mobile, table on desktop */}
           {!isLoading && customers.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('name')}
-                    >
-                      Name{renderSortIndicator('name')}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('phone')}
-                    >
-                      Phone{renderSortIndicator('phone')}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('email')}
-                    >
-                      Email{renderSortIndicator('email')}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('points_balance')}
-                    >
-                      Points{renderSortIndicator('points_balance')}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('join_date')}
-                    >
-                      Join Date{renderSortIndicator('join_date')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {customers.map((customer) => (
-                    <tr
-                      key={customer.id}
-                      onClick={() => handleRowClick(customer.id)}
-                      className="hover:bg-gray-50 cursor-pointer"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {customer.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.phone}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                        {customer.points_balance.toLocaleString()} pts
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(customer.join_date)}
-                      </td>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="md:hidden space-y-3">
+                {customers.map((customer) => (
+                  <button
+                    key={customer.id}
+                    onClick={() => handleRowClick(customer.id)}
+                    className="w-full text-left border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">{customer.name}</p>
+                        <p className="text-sm text-gray-500">{customer.phone}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">points</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-sm text-gray-500">
+                      <span className="truncate max-w-[180px]">{customer.email}</span>
+                      <span>{formatDate(customer.join_date)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('name')}
+                      >
+                        Name{renderSortIndicator('name')}
+                      </th>
+                      <th
+                        className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('phone')}
+                      >
+                        Phone{renderSortIndicator('phone')}
+                      </th>
+                      <th
+                        className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('email')}
+                      >
+                        Email{renderSortIndicator('email')}
+                      </th>
+                      <th
+                        className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('points_balance')}
+                      >
+                        Points{renderSortIndicator('points_balance')}
+                      </th>
+                      <th
+                        className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('join_date')}
+                      >
+                        Join Date{renderSortIndicator('join_date')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {customers.map((customer) => (
+                      <tr
+                        key={customer.id}
+                        onClick={() => handleRowClick(customer.id)}
+                        className="hover:bg-gray-50 cursor-pointer"
+                      >
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">
+                          {customer.name}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.phone}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.email}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-semibold text-green-600">
+                          {customer.points_balance.toLocaleString()} pts
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {formatDate(customer.join_date)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* Empty state */}
@@ -240,13 +271,13 @@ export function CustomersPage() {
 
           {/* Pagination */}
           {pagination && pagination.total_pages > 1 && (
-            <div className="mt-6 flex justify-between items-center">
-              <p className="text-sm text-gray-500">
+            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-gray-500 order-2 sm:order-1">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} customers
+                {pagination.total}
               </p>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2 order-1 sm:order-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -255,8 +286,8 @@ export function CustomersPage() {
                 >
                   Previous
                 </Button>
-                <span className="inline-flex items-center px-4 py-2 text-sm text-gray-700">
-                  Page {pagination.page} of {pagination.total_pages}
+                <span className="inline-flex items-center px-3 py-2 text-sm text-gray-700">
+                  {pagination.page} / {pagination.total_pages}
                 </span>
                 <Button
                   variant="outline"

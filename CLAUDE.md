@@ -47,6 +47,21 @@ See `DEPLOYMENT.md` for initial setup, environment variables, and DNS configurat
 
 Apply these guidelines to ALL customer-facing UI in `customer-app/`.
 
+## Frontend Design Requirements
+
+**CRITICAL**: For ALL frontend/UI work, use the `frontend-design` skill to ensure production-grade, mobile-first interfaces.
+
+### Before Starting Frontend Work
+1. Invoke `/frontend-design` or ensure skill auto-triggers
+2. Read `SKILL.md` for brand guidelines and mobile checklist
+3. Design mobile-first, enhance for desktop
+
+### Quality Gate
+No frontend is complete until:
+- Mobile checklist in SKILL.md is satisfied
+- Tested on actual mobile device (staff use tablets/phones at front desk)
+- Typography and colors match brand guidelines
+
 ## Architecture
 Monorepo with three apps:
 - `server/` - Express API with Prisma/PostgreSQL

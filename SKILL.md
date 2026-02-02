@@ -394,3 +394,48 @@ Styles: [component].css or Tailwind classes
 ❌ Use red for non-error states
 ❌ Forget mobile users
 ❌ Make redemption complicated
+
+---
+
+## Frontend Design Standards
+
+**MANDATORY**: All frontend work MUST use the `frontend-design` skill. Invoke with `/frontend-design` before building any UI components.
+
+### Mobile Design Checklist
+
+Before any frontend work is considered complete, verify:
+
+- [ ] **Touch targets**: Minimum 44x44px for all interactive elements
+- [ ] **Viewport**: Proper meta viewport tag, no horizontal scroll
+- [ ] **Typography**: Readable without zoom (min 16px body text)
+- [ ] **Spacing**: Adequate padding for thumb navigation
+- [ ] **Navigation**: Accessible with one hand, bottom-nav preferred on mobile
+- [ ] **Forms**: Large inputs (min 44px height), proper input types, no tiny dropdowns
+- [ ] **Tables**: Responsive - card layout or horizontal scroll on mobile, not truncated
+- [ ] **Images**: Responsive, lazy-loaded, proper aspect ratios
+- [ ] **Performance**: Fast load on 3G, no layout shifts
+- [ ] **Test on device**: Actually test on real mobile device, not just DevTools
+
+### Admin App Specific
+
+The admin-app is used by staff on tablets and phones at the front desk:
+- Optimize for quick lookups and actions
+- Large touch targets for fast customer check-in
+- Clear visual hierarchy for scanning customer info
+- Forms must be usable with one hand
+
+### Responsive Breakpoints
+```css
+/* Mobile first - base styles are mobile */
+/* sm: 640px  - large phones, small tablets */
+/* md: 768px  - tablets */
+/* lg: 1024px - laptops */
+/* xl: 1280px - desktops */
+```
+
+### Quality Gate
+
+No frontend PR is complete until:
+1. Mobile checklist above is satisfied
+2. Tested on actual mobile device (not just DevTools)
+3. Brand colors and typography match this SKILL.md

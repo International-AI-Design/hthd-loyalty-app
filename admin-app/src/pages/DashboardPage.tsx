@@ -273,27 +273,29 @@ export function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-            <p className="text-sm text-gray-600">Admin Portal</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/gingr-sync')}>
-              Gingr Sync
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
-              View All Customers
-            </Button>
-            <span className="text-gray-700">
-              {staff?.first_name} {staff?.last_name}
-              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
-                {staff?.role}
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
+              <p className="text-sm text-gray-600">Admin Portal</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" onClick={() => navigate('/gingr-sync')}>
+                Gingr Sync
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
+                Customers
+              </Button>
+              <span className="hidden sm:inline text-gray-700 text-sm">
+                {staff?.first_name}
+                <span className="ml-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
+                  {staff?.role}
+                </span>
               </span>
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Sign Out
-            </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -355,7 +357,7 @@ export function DashboardPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Customer Lookup</h2>
 
-          <div className="flex gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
             <div className="flex-1">
               <Input
                 placeholder="Search by phone, email, or name..."
@@ -364,7 +366,7 @@ export function DashboardPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} isLoading={isSearching}>
+            <Button onClick={handleSearch} isLoading={isSearching} className="w-full sm:w-auto">
               Search
             </Button>
           </div>
@@ -373,54 +375,82 @@ export function DashboardPage() {
             <Alert variant="error" className="mb-4">{searchError}</Alert>
           )}
 
-          {/* Search Results */}
+          {/* Search Results - Card layout on mobile, table on desktop */}
           {searchResults.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Points
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {searchResults.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {customer.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.phone}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {customer.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                        {customer.points_balance.toLocaleString()} pts
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Button size="sm" onClick={() => handleSelectCustomer(customer)}>
-                          Select
-                        </Button>
-                      </td>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="md:hidden space-y-3">
+                {searchResults.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">{customer.name}</p>
+                        <p className="text-sm text-gray-500">{customer.phone}</p>
+                        <p className="text-sm text-gray-500 truncate max-w-[200px]">{customer.email}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">points</p>
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full" onClick={() => handleSelectCustomer(customer)}>
+                      Select Customer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Phone
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Points
+                      </th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Action
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {searchResults.map((customer) => (
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">
+                          {customer.name}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.phone}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
+                          {customer.email}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-semibold text-green-600">
+                          {customer.points_balance.toLocaleString()} pts
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                          <Button size="sm" onClick={() => handleSelectCustomer(customer)}>
+                            Select
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* No Results */}
@@ -438,7 +468,7 @@ export function DashboardPage() {
             Use this when a customer presents a redemption code they received in the app.
           </p>
 
-          <div className="flex gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
             <div className="flex-1">
               <Input
                 placeholder="Enter redemption code (e.g., RD-ABC123)..."
@@ -447,14 +477,16 @@ export function DashboardPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleRedemptionLookup()}
               />
             </div>
-            <Button onClick={handleRedemptionLookup} isLoading={isLookingUp}>
-              Look Up
-            </Button>
-            {(redemptionResult || completionResult) && (
-              <Button variant="outline" onClick={handleClearRedemption}>
-                Clear
+            <div className="flex gap-3">
+              <Button onClick={handleRedemptionLookup} isLoading={isLookingUp} className="flex-1 sm:flex-none">
+                Look Up
               </Button>
-            )}
+              {(redemptionResult || completionResult) && (
+                <Button variant="outline" onClick={handleClearRedemption} className="flex-1 sm:flex-none">
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           {lookupError && (
@@ -504,7 +536,7 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-sm text-gray-600">Customer</p>
                   <p className="font-medium text-gray-900">{redemptionResult.customer.name}</p>
@@ -517,14 +549,14 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <p className="text-gray-600">Customer Balance</p>
-                  <p className="font-medium">{redemptionResult.customer.points_balance.toLocaleString()} pts</p>
+                  <p className="text-sm text-gray-600">Customer Balance</p>
+                  <p className="font-medium text-base">{redemptionResult.customer.points_balance.toLocaleString()} pts</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Date Requested</p>
-                  <p className="font-medium">{new Date(redemptionResult.created_at).toLocaleString()}</p>
+                  <p className="text-sm text-gray-600">Date Requested</p>
+                  <p className="font-medium text-base">{new Date(redemptionResult.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -690,7 +722,7 @@ export function DashboardPage() {
               )}
 
               {/* Reward Tiers Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {REWARD_TIERS.map((tier) => {
                   const canAfford = selectedCustomer.points_balance >= tier.points;
                   const pointsNeeded = tier.points - selectedCustomer.points_balance;
@@ -700,25 +732,25 @@ export function DashboardPage() {
                       key={tier.points}
                       onClick={() => canAfford && handleSelectRedemptionTier(tier)}
                       disabled={!canAfford}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[100px] ${
                         canAfford
                           ? 'border-green-500 bg-green-50 hover:bg-green-100 cursor-pointer'
                           : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                       }`}
                     >
-                      <div className="text-2xl font-bold text-center mb-1">
+                      <div className="text-xl sm:text-2xl font-bold mb-1">
                         ${tier.discount}
                       </div>
-                      <div className={`text-sm text-center ${canAfford ? 'text-green-700' : 'text-gray-400'}`}>
-                        {tier.points} points
+                      <div className={`text-sm ${canAfford ? 'text-green-700' : 'text-gray-400'}`}>
+                        {tier.points} pts
                       </div>
                       {!canAfford && (
-                        <div className="text-xs text-center text-red-500 mt-1">
-                          Need {pointsNeeded} more pts
+                        <div className="text-xs text-red-500 mt-1">
+                          Need {pointsNeeded}
                         </div>
                       )}
                       {canAfford && (
-                        <div className="text-xs text-center text-green-600 mt-1 font-medium">
+                        <div className="text-xs text-green-600 mt-1 font-medium">
                           Available
                         </div>
                       )}

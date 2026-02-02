@@ -241,18 +241,20 @@ export function CustomerDetailPage() {
     return (
       <div className="min-h-screen bg-gray-100">
         <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
-                Back to Customers
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                Sign Out
-              </Button>
+          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
+                <p className="text-sm text-gray-600">Admin Portal</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
+                  Customers
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -266,37 +268,39 @@ export function CustomerDetailPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-            <p className="text-sm text-gray-600">Admin Portal</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
-              Back to Customers
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <span className="text-gray-700">
-              {staff?.first_name} {staff?.last_name}
-              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
-                {staff?.role}
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
+              <p className="text-sm text-gray-600">Admin Portal</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
+                Customers
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                Dashboard
+              </Button>
+              <span className="hidden sm:inline text-gray-700 text-sm">
+                {staff?.first_name}
+                <span className="ml-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
+                  {staff?.role}
+                </span>
               </span>
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Sign Out
-            </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Customer Profile Card */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-start mb-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{customer.name}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{customer.name}</h2>
               <p className="text-gray-600">{customer.email}</p>
               <p className="text-gray-600">{customer.phone}</p>
               <p className="text-sm text-gray-500 mt-2">
@@ -306,9 +310,9 @@ export function CustomerDetailPage() {
                 Referral Code: <span className="font-mono font-medium">{customer.referral_code}</span>
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right bg-green-50 sm:bg-transparent p-3 sm:p-0 rounded-lg">
               <p className="text-sm text-gray-600">Points Balance</p>
-              <p className="text-4xl font-bold text-green-600">
+              <p className="text-3xl sm:text-4xl font-bold text-green-600">
                 {customer.points_balance.toLocaleString()}
               </p>
               <p className="text-sm text-gray-500">points</p>
@@ -316,12 +320,13 @@ export function CustomerDetailPage() {
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex gap-4">
-            <Button onClick={() => setShowAddPointsModal(true)}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <Button onClick={() => setShowAddPointsModal(true)} className="w-full sm:w-auto">
               Add Points
             </Button>
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setSelectedTier(null);
                 setRedemptionError(null);
@@ -429,18 +434,18 @@ export function CustomerDetailPage() {
                 {transactions.map((txn) => (
                   <div
                     key={txn.id}
-                    className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0"
+                    className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 border-b border-gray-100 last:border-0 gap-2"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900">{txn.description}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-base">{txn.description}</p>
                       <p className="text-sm text-gray-500">{formatDateTime(txn.date)}</p>
                       {txn.service_type && (
                         <span className="text-xs text-gray-400 capitalize">{txn.service_type}</span>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right flex sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
                       <p
-                        className={`font-semibold ${
+                        className={`font-semibold text-lg ${
                           txn.points_amount >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}
                       >
@@ -448,7 +453,7 @@ export function CustomerDetailPage() {
                         {txn.points_amount.toLocaleString()} pts
                       </p>
                       {txn.dollar_amount && (
-                        <p className="text-xs text-gray-400">${txn.dollar_amount.toFixed(2)}</p>
+                        <p className="text-sm text-gray-400">${txn.dollar_amount.toFixed(2)}</p>
                       )}
                     </div>
                   </div>
@@ -652,7 +657,7 @@ export function CustomerDetailPage() {
           {!selectedTier && !redemptionSuccess && (
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-3">Select a reward tier:</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {REWARD_TIERS.map((tier) => {
                   const canAfford = customer.points_balance >= tier.points;
                   const pointsNeeded = tier.points - customer.points_balance;
@@ -662,19 +667,19 @@ export function CustomerDetailPage() {
                       key={tier.points}
                       onClick={() => canAfford && handleSelectRedemptionTier(tier)}
                       disabled={!canAfford}
-                      className={`p-4 rounded-lg border-2 text-center transition-all ${
+                      className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[80px] ${
                         canAfford
                           ? 'border-green-500 bg-green-50 hover:bg-green-100 cursor-pointer'
                           : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                       }`}
                     >
-                      <div className="text-xl font-bold">${tier.discount}</div>
+                      <div className="text-lg sm:text-xl font-bold">${tier.discount}</div>
                       <div className={`text-sm ${canAfford ? 'text-green-700' : 'text-gray-400'}`}>
                         {tier.points} pts
                       </div>
                       {!canAfford && (
                         <div className="text-xs text-red-500 mt-1">
-                          Need {pointsNeeded} more
+                          Need {pointsNeeded}
                         </div>
                       )}
                     </button>
