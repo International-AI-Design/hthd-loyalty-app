@@ -9,43 +9,57 @@ const router = Router();
 router.use(authenticateStaff);
 
 // POST /api/admin/demo/reset
-// Reset all claimed Gingr-imported accounts back to unclaimed state
+// Full demo reset - clears all customer data for fresh demo
 // Used for demo purposes
 router.post('/reset', async (req: Request, res: Response): Promise<void> => {
   try {
     logger.info('Demo reset initiated');
 
-    // Count how many accounts will be reset
-    const claimedCount = await prisma.customer.count({
+    // Delete all redemptions first (foreign key constraint)
+    const redemptionsDeleted = await prisma.redemption.deleteMany({});
+
+    // Delete all points transactions
+    const transactionsDeleted = await prisma.pointsTransaction.deleteMany({});
+
+    // Delete all gingr visits
+    const visitsDeleted = await prisma.gingrVisit.deleteMany({});
+
+    // Delete all dogs
+    const dogsDeleted = await prisma.dog.deleteMany({});
+
+    // Delete all verification codes
+    const codesDeleted = await prisma.verificationCode.deleteMany({});
+
+    // Delete all web-registered customers (keep gingr imports but reset them)
+    const webCustomersDeleted = await prisma.customer.deleteMany({
       where: {
-        accountStatus: 'active',
-        source: 'gingr_import',
+        source: { not: 'gingr_import' },
       },
     });
 
-    // Reset all claimed Gingr-imported accounts
-    const resetResult = await prisma.customer.updateMany({
+    // Reset all Gingr-imported accounts to unclaimed
+    const gingrReset = await prisma.customer.updateMany({
       where: {
-        accountStatus: 'active',
         source: 'gingr_import',
       },
       data: {
         accountStatus: 'unclaimed',
         passwordHash: null,
         claimedAt: null,
+        pointsBalance: 0,
       },
     });
 
-    // Clear all verification codes
-    const codesDeleted = await prisma.verificationCode.deleteMany({});
-
-    logger.info(`Demo reset complete: ${resetResult.count} accounts reset, ${codesDeleted.count} codes cleared`);
+    logger.info(`Demo reset complete: ${webCustomersDeleted.count} web customers deleted, ${gingrReset.count} gingr accounts reset`);
 
     res.status(200).json({
       success: true,
       message: 'Demo reset complete',
-      accounts_reset: resetResult.count,
+      accounts_reset: gingrReset.count,
+      web_customers_deleted: webCustomersDeleted.count,
       verification_codes_cleared: codesDeleted.count,
+      transactions_cleared: transactionsDeleted.count,
+      redemptions_cleared: redemptionsDeleted.count,
     });
   } catch (error) {
     logger.error('Demo reset error:', error);

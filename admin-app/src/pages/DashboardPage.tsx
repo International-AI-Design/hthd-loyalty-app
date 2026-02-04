@@ -333,11 +333,12 @@ export function DashboardPage() {
             <p className="text-green-100 text-sm mb-4">Enter last 4+ digits of phone for instant lookup</p>
             <div className="flex gap-4 items-start">
               <div className="flex-1 relative">
-                <Input
+                <input
+                  type="text"
                   placeholder="Last 4 digits of phone..."
                   value={quickPhone}
                   onChange={(e) => handleQuickPhoneChange(e.target.value)}
-                  className="text-lg placeholder:text-gray-500"
+                  className="w-full px-3 py-3 border rounded-lg shadow-sm min-h-[44px] text-lg border-white/30 bg-white/20 text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
                 />
                 {isQuickSearching && (
                   <div className="absolute right-3 top-3">
