@@ -66,6 +66,7 @@ export function DashboardPage() {
   const [showDemoResetModal, setShowDemoResetModal] = useState(false);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [demoResetResult, setDemoResetResult] = useState<DemoResetResponse | null>(null);
+  const [demoResetError, setDemoResetError] = useState<string | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -277,10 +278,13 @@ export function DashboardPage() {
 
   const handleDemoReset = async () => {
     setIsResettingDemo(true);
+    setDemoResetError(null);
     const result = await adminDemoApi.reset();
     setIsResettingDemo(false);
 
-    if (result.data) {
+    if (result.error) {
+      setDemoResetError(result.error);
+    } else if (result.data) {
       setDemoResetResult(result.data);
     }
   };
@@ -288,6 +292,7 @@ export function DashboardPage() {
   const handleCloseDemoResetModal = () => {
     setShowDemoResetModal(false);
     setDemoResetResult(null);
+    setDemoResetError(null);
   };
 
   return (
@@ -939,6 +944,9 @@ export function DashboardPage() {
               <p className="text-gray-600 mb-4">
                 Use this to reset the demo environment for a fresh walkthrough.
               </p>
+              {demoResetError && (
+                <Alert variant="error" className="mb-4">{demoResetError}</Alert>
+              )}
               <div className="flex gap-3">
                 <Button
                   variant="outline"
