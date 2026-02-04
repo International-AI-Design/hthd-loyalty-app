@@ -62,8 +62,8 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
   }, [step.targetId]);
 
   // Calculate tooltip position
-  const getTooltipStyle = (): React.CSSProperties => {
-    if (!targetRect) return { opacity: 0 };
+  const getTooltipPosition = () => {
+    if (!targetRect) return { top: 0, left: 0, arrowOnTop: true };
 
     const tooltipWidth = 280;
     const tooltipHeight = 180;
@@ -73,33 +73,25 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
 
     // Try to position below first
     let top = targetRect.top + targetRect.height + gap;
-    let arrowTop = true;
+    let arrowOnTop = true;
 
     // If not enough room below, position above
     if (top + tooltipHeight > viewportHeight - 20) {
       top = targetRect.top - tooltipHeight - gap;
-      arrowTop = false;
+      arrowOnTop = false;
     }
 
     // If still off screen (element near top), just position below
     if (top < 20) {
       top = targetRect.top + targetRect.height + gap;
-      arrowTop = true;
+      arrowOnTop = true;
     }
 
     // Horizontal centering with bounds checking
     let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
     left = Math.max(16, Math.min(left, viewportWidth - tooltipWidth - 16));
 
-    return {
-      position: 'fixed' as const,
-      top,
-      left,
-      width: tooltipWidth,
-      zIndex: 51,
-      '--arrow-top': arrowTop ? '-8px' : 'auto',
-      '--arrow-bottom': arrowTop ? 'auto' : '-8px',
-    } as React.CSSProperties;
+    return { top, left, arrowOnTop, width: tooltipWidth };
   };
 
   const handleNext = () => {
@@ -117,8 +109,7 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
     return null;
   }
 
-  const tooltipStyle = getTooltipStyle();
-  const arrowOnTop = tooltipStyle['--arrow-top'] === '-8px';
+  const { top, left, arrowOnTop, width } = getTooltipPosition();
 
   return (
     <>
@@ -159,7 +150,7 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
         className={`fixed z-50 bg-white rounded-xl shadow-2xl transition-all duration-300 ${
           isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
         }`}
-        style={tooltipStyle}
+        style={{ top, left, width, zIndex: 51 }}
       >
         {/* Arrow */}
         <div
