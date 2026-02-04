@@ -17,6 +17,38 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+// Wait for element to be in stable position (rect unchanged for N frames)
+function waitForStablePosition(
+  el: HTMLElement,
+  frameCount: number = 10
+): Promise<DOMRect> {
+  return new Promise((resolve) => {
+    let lastRect = el.getBoundingClientRect();
+    let stableFrames = 0;
+
+    const check = () => {
+      const rect = el.getBoundingClientRect();
+      const same =
+        Math.abs(rect.top - lastRect.top) < 1 &&
+        Math.abs(rect.left - lastRect.left) < 1;
+
+      if (same) {
+        stableFrames++;
+        if (stableFrames >= frameCount) {
+          resolve(rect);
+          return;
+        }
+      } else {
+        stableFrames = 0;
+        lastRect = rect;
+      }
+      requestAnimationFrame(check);
+    };
+
+    requestAnimationFrame(check);
+  });
+}
+
 export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -31,22 +63,29 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
     setIsReady(false);
     setTargetRect(null);
 
-    // Small delay to ensure DOM is ready
-    await new Promise((r) => setTimeout(r, 100));
+    // Retry finding element up to 10 times over 1 second
+    let el: HTMLElement | null = null;
+    for (let i = 0; i < 10; i++) {
+      el = document.getElementById(targetId);
+      if (el) break;
+      await new Promise((r) => setTimeout(r, 100));
+      if (!isMountedRef.current) return;
+    }
 
-    const el = document.getElementById(targetId);
-    if (!el || !isMountedRef.current) return;
+    if (!el || !isMountedRef.current) {
+      console.warn(`Walkthrough: element #${targetId} not found`);
+      return;
+    }
 
     // Scroll element into view
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Wait for scroll to settle
-    await new Promise((r) => setTimeout(r, 500));
+    // Wait for position to stabilize (handles variable scroll durations)
+    const rect = await waitForStablePosition(el, 8);
 
     if (!isMountedRef.current) return;
 
-    // Measure and show
-    const rect = el.getBoundingClientRect();
+    // Set state and show
     setTargetRect(rect);
     setIsReady(true);
   }, []);

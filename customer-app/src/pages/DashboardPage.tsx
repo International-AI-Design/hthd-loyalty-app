@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { customerApi } from '../lib/api';
 import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit } from '../lib/api';
-import { Button, Modal, Alert } from '../components/ui';
+import { Button, Modal, Alert, Toast } from '../components/ui';
 import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
 import { useNavigate } from 'react-router-dom';
@@ -151,6 +151,16 @@ export function DashboardPage() {
   // Referral modal state
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
+  // Toast state
+  const [toastMessage, setToastMessage] = useState('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  }, []);
+
   // Walkthrough state
   const [showWalkthrough, setShowWalkthrough] = useState(false);
 
@@ -210,19 +220,31 @@ export function DashboardPage() {
   const nextReward = getNextRewardInfo();
 
   const handleShareCode = async () => {
-    if (!customer) return;
+    if (!customer || isSharing) return;
+
+    setIsSharing(true);
 
     const referralUrl = `${window.location.origin}/register?ref=${customer.referral_code}`;
-    const shareData = {
-      title: 'Join Happy Tail Happy Dog Rewards!',
-      text: `Join me at Happy Tail Happy Dog! Use my referral code ${customer.referral_code} and we both earn rewards. Sign up here: ${referralUrl}`,
-      url: referralUrl,
-    };
 
     // Check if Web Share API is available
-    if (navigator.share && navigator.canShare?.(shareData)) {
+    if (navigator.share) {
+      // For Web Share API: use only title and url to avoid duplicate links
+      // iOS share tray includes both text and url if provided, causing duplication
+      const shareData = {
+        title: 'Join Happy Tail Happy Dog Rewards!',
+        url: referralUrl,
+      };
+
       try {
-        await navigator.share(shareData);
+        if (navigator.canShare?.(shareData)) {
+          await navigator.share(shareData);
+        } else {
+          // Browser doesn't support sharing just URL, include text
+          await navigator.share({
+            ...shareData,
+            text: `Join me at Happy Tail Happy Dog! Use code ${customer.referral_code} for rewards.`,
+          });
+        }
         // User successfully shared (or at least opened share tray)
       } catch (error) {
         // User cancelled or share failed - this is normal, no need to show error
@@ -231,22 +253,26 @@ export function DashboardPage() {
         }
       }
     } else {
-      // Fallback: copy to clipboard (URL already in text, so just copy text)
-      const shareText = shareData.text;
+      // Fallback: copy link to clipboard
       try {
-        await navigator.clipboard.writeText(shareText);
+        await navigator.clipboard.writeText(referralUrl);
+        showToast('Link copied to clipboard!');
       } catch {
         // Final fallback - select text for manual copy
         const textArea = document.createElement('textarea');
-        textArea.value = shareText;
+        textArea.value = referralUrl;
         textArea.style.position = 'fixed';
         textArea.style.opacity = '0';
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
+        showToast('Link copied to clipboard!');
       }
     }
+
+    // Debounce - prevent rapid re-shares
+    setTimeout(() => setIsSharing(false), 1000);
   };
 
   if (!customer) {
@@ -907,6 +933,13 @@ export function DashboardPage() {
           onSkip={handleWalkthroughSkip}
         />
       )}
+
+      {/* Toast notifications */}
+      <Toast
+        message={toastMessage}
+        isVisible={isToastVisible}
+        onHide={() => setIsToastVisible(false)}
+      />
     </div>
   );
 }
