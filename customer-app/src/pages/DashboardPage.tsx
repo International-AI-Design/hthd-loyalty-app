@@ -148,9 +148,6 @@ export function DashboardPage() {
     setSelectedTier(null);
   };
 
-  // Share referral code state
-  const [shareSuccess, setShareSuccess] = useState<string | null>(null);
-
   // Referral modal state
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
@@ -223,10 +220,7 @@ export function DashboardPage() {
       const shareText = `${shareData.text}\n\n${shareData.url}`;
       try {
         await navigator.clipboard.writeText(shareText);
-        setShareSuccess('Copied to clipboard!');
-        setTimeout(() => setShareSuccess(null), 3000);
-      } catch (error) {
-        console.error('Clipboard write failed:', error);
+      } catch {
         // Final fallback - select text for manual copy
         const textArea = document.createElement('textarea');
         textArea.value = shareText;
@@ -236,8 +230,6 @@ export function DashboardPage() {
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        setShareSuccess('Copied to clipboard!');
-        setTimeout(() => setShareSuccess(null), 3000);
       }
     }
   };
@@ -308,35 +300,6 @@ export function DashboardPage() {
               {customer.points_balance.toLocaleString()}
             </p>
             <p className="text-gray-500 mt-1">points</p>
-          </div>
-          {/* Referral Code Section */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-gray-600 text-sm mb-3">
-              Your referral code: <span className="font-mono font-bold text-brand-navy">{customer.referral_code}</span>
-            </p>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleShareCode}
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                />
-              </svg>
-              Share Your Code
-            </Button>
-            {shareSuccess && (
-              <p className="text-sm text-brand-soft-green mt-2 font-medium">{shareSuccess}</p>
-            )}
           </div>
         </div>
 

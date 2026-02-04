@@ -24,6 +24,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             type={isPassword && showPassword ? 'text' : type}
+            autoCapitalize={isPassword ? 'off' : props.autoCapitalize}
+            autoCorrect={isPassword ? 'off' : props.autoCorrect}
+            autoComplete={isPassword ? props.autoComplete || 'current-password' : props.autoComplete}
             className={`
               w-full px-3 py-2 border rounded-lg shadow-sm
               placeholder-gray-400
