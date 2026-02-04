@@ -166,6 +166,8 @@ export function ClaimPage() {
 
   // Go to dashboard after success
   const goToDashboard = () => {
+    // Set first-login flag for walkthrough
+    localStorage.setItem('hthd_first_login', 'true');
     navigate('/dashboard');
   };
 

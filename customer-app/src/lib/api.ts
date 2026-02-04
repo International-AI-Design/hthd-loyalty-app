@@ -274,3 +274,15 @@ export const passwordResetApi = {
   resetPassword: (resetToken: string, password: string) =>
     api.post<ResetPasswordResponse>('/auth/reset-password', { resetToken, password }),
 };
+
+// Referral Validation API
+export interface ReferralValidation {
+  valid: boolean;
+  referrer_first_name?: string;
+  error?: string;
+}
+
+export const referralApi = {
+  validate: (code: string) =>
+    api.get<ReferralValidation>(`/referrals/validate/${code}`),
+};

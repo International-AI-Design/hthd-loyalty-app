@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { customerApi } from '../lib/api';
 import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit } from '../lib/api';
 import { Button, Modal, Alert } from '../components/ui';
+import { ReferralModal } from '../components/ReferralModal';
+import { Walkthrough } from '../components/Walkthrough';
 import { useNavigate } from 'react-router-dom';
 
 const REWARD_TIERS = [
@@ -149,6 +151,53 @@ export function DashboardPage() {
   // Share referral code state
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
 
+  // Referral modal state
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+
+  // Walkthrough state
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+
+  const WALKTHROUGH_KEY = 'hthd_walkthrough_seen';
+
+  useEffect(() => {
+    const hasSeenWalkthrough = localStorage.getItem(WALKTHROUGH_KEY);
+    const isFirstLogin = localStorage.getItem('hthd_first_login');
+
+    if (!hasSeenWalkthrough && isFirstLogin) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        setShowWalkthrough(true);
+      }, 500);
+      localStorage.removeItem('hthd_first_login');
+    }
+  }, []);
+
+  const handleWalkthroughComplete = () => {
+    localStorage.setItem(WALKTHROUGH_KEY, 'true');
+    setShowWalkthrough(false);
+  };
+
+  const handleWalkthroughSkip = () => {
+    localStorage.setItem(WALKTHROUGH_KEY, 'true');
+    setShowWalkthrough(false);
+  };
+
+  // Calculate points to next reward
+  const getNextRewardInfo = () => {
+    const balance = customer?.points_balance || 0;
+    for (const tier of REWARD_TIERS) {
+      if (balance < tier.points) {
+        return {
+          needed: tier.points - balance,
+          discount: tier.discount,
+        };
+      }
+    }
+    return null;
+  };
+
+  const nextReward = getNextRewardInfo();
+
   const handleShareCode = async () => {
     if (!customer) return;
 
@@ -225,7 +274,7 @@ export function DashboardPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Points Balance Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+        <div id="points-balance" className="bg-white rounded-2xl shadow-lg p-6 text-center">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-700">
               Welcome back, {customer.first_name}!
@@ -290,6 +339,41 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Refer Friends Tile */}
+        <button
+          id="refer-tile"
+          onClick={() => setIsReferralModalOpen(true)}
+          className="w-full bg-gradient-to-r from-brand-teal to-brand-teal-dark rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-white">
+                Refer Friends, Earn Points!
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                Get 100 points for each friend who joins
+              </p>
+            </div>
+            <div className="ml-4 flex-shrink-0">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </button>
 
         {/* My Pups Section */}
         {!isLoadingDogs && dogs.length > 0 && (
@@ -488,7 +572,7 @@ export function DashboardPage() {
         </div>
 
         {/* Redeem Points / Reward Tiers */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div id="reward-tiers" className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Redeem Points</h3>
           <p className="text-gray-600 text-sm mb-4">
             Click a reward tier to redeem your points for a grooming discount!
@@ -784,6 +868,43 @@ export function DashboardPage() {
           </Button>
         </div>
       </Modal>
+
+      {/* Referral Modal */}
+      <ReferralModal
+        isOpen={isReferralModalOpen}
+        onClose={() => setIsReferralModalOpen(false)}
+        referralCode={customer.referral_code}
+        referralCount={referralCount}
+        bonusPoints={referralBonusPoints}
+        onShare={handleShareCode}
+      />
+
+      {/* First-Login Walkthrough */}
+      {showWalkthrough && (
+        <Walkthrough
+          steps={[
+            {
+              targetId: 'points-balance',
+              title: 'Your Points Balance',
+              message: "You've got 25 points just for signing up! Earn more with every visit.",
+            },
+            {
+              targetId: 'reward-tiers',
+              title: 'Redeem Rewards',
+              message: nextReward
+                ? `You're only ${nextReward.needed} points away from a $${nextReward.discount} discount!`
+                : 'You have enough points to redeem a reward right now!',
+            },
+            {
+              targetId: 'refer-tile',
+              title: 'Invite Friends',
+              message: 'Share with friends and earn 100 bonus points for each one who joins!',
+            },
+          ]}
+          onComplete={handleWalkthroughComplete}
+          onSkip={handleWalkthroughSkip}
+        />
+      )}
     </div>
   );
 }
