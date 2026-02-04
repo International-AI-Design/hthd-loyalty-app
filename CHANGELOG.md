@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - Referral System + Onboarding - 2026-02-04
+
+### Added
+
+**Referral URL Attribution (Bug Fix)**
+- RegisterPage now reads `?ref=HT-XXXXXX` from URL params
+- Validates referral code via `/api/referrals/validate/:code`
+- Shows "Referred by [Name]!" teal badge when valid
+- Pre-fills and locks referral code field for valid referrals
+- Invalid codes silently cleared (no error shown)
+
+**Venmo-Style Referral Modal**
+- New `ReferralModal` component with:
+  - QR code (scannable, links to `/register?ref=CODE`)
+  - Large referral code display
+  - Stats: friends referred + bonus points earned
+  - Share button (native share on mobile, clipboard on desktop)
+- Opens from new "Refer Friends, Earn Points!" tile on dashboard
+
+**Refer Friends Tile**
+- Prominent gradient teal CTA card on dashboard
+- Positioned after points balance card
+- 100 points incentive messaging
+
+**First-Login Walkthrough**
+- New `Walkthrough` component with spotlight tooltip tour
+- 3 steps: Points Balance → Reward Tiers → Refer Tile
+- Dynamic messaging ("You're X points away from $Y discount!")
+- Skip option and localStorage persistence
+- Triggers after registration or account claim
+
+### Technical
+- Added `qrcode.react` dependency for QR generation
+- Walkthrough uses box-shadow spotlight (performant)
+- Scroll-first-then-position pattern for tooltip placement
+
+---
+
 ## [1.3.0] - Rollout & Onboarding Phase - 2026-01-28
 
 ### Added
