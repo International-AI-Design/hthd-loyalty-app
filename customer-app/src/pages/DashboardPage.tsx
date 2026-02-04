@@ -156,27 +156,41 @@ export function DashboardPage() {
 
   const WALKTHROUGH_KEY = 'hthd_walkthrough_seen';
 
+  // Scroll to top on mount
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Track if data has loaded (for walkthrough trigger)
+  const dataLoaded = customer && !isLoadingTransactions && !isLoadingRedemptions;
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+
     const hasSeenWalkthrough = localStorage.getItem(WALKTHROUGH_KEY);
     const isFirstLogin = localStorage.getItem('hthd_first_login');
 
     if (!hasSeenWalkthrough && isFirstLogin) {
-      // Small delay to ensure DOM is ready
+      // Small delay to ensure DOM is fully ready
       setTimeout(() => {
         setShowWalkthrough(true);
       }, 500);
       localStorage.removeItem('hthd_first_login');
     }
-  }, []);
+  }, [dataLoaded]);
 
   const handleWalkthroughComplete = () => {
     localStorage.setItem(WALKTHROUGH_KEY, 'true');
     setShowWalkthrough(false);
+    // Scroll back to top after walkthrough
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleWalkthroughSkip = () => {
     localStorage.setItem(WALKTHROUGH_KEY, 'true');
     setShowWalkthrough(false);
+    // Scroll back to top after skip
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Calculate points to next reward
@@ -257,11 +271,12 @@ export function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-brand-navy font-heading">Happy Tail Happy Dog</h1>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            Sign Out
-          </Button>
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <img
+            src="/logo.png"
+            alt="Happy Tail Happy Dog"
+            className="h-12 mx-auto"
+          />
         </div>
       </header>
 
@@ -759,6 +774,29 @@ export function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Sign Out Footer */}
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full py-3 px-4 text-brand-coral hover:text-red-600 font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            Sign Out
+          </button>
         </div>
       </main>
 
