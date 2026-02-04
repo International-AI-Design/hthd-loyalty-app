@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface WalkthroughStep {
   targetId: string;
@@ -12,164 +12,164 @@ interface WalkthroughProps {
   onSkip: () => void;
 }
 
-interface TooltipPosition {
+interface TargetRect {
   top: number;
   left: number;
-  arrowPosition: 'top' | 'bottom' | 'left' | 'right';
+  width: number;
+  height: number;
 }
 
 export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [position, setPosition] = useState<TooltipPosition | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const calculatePosition = useCallback(() => {
-    const step = steps[currentStep];
+  const step = steps[currentStep];
+
+  // Scroll to element and update position
+  useEffect(() => {
     const targetEl = document.getElementById(step.targetId);
+    if (!targetEl) return;
 
-    if (!targetEl) {
-      return null;
-    }
+    // First scroll the element into view with some padding
+    const scrollToElement = () => {
+      const rect = targetEl.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
 
-    const rect = targetEl.getBoundingClientRect();
+      // Check if element is not fully visible
+      if (rect.top < 100 || rect.bottom > viewportHeight - 200) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    // Initial scroll
+    scrollToElement();
+
+    // Wait for scroll to complete, then show and position
+    const showTimeout = setTimeout(() => {
+      const rect = targetEl.getBoundingClientRect();
+      setTargetRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+      setIsVisible(true);
+    }, 400);
+
+    return () => clearTimeout(showTimeout);
+  }, [step.targetId]);
+
+  // Calculate tooltip position
+  const getTooltipStyle = (): React.CSSProperties => {
+    if (!targetRect) return { opacity: 0 };
+
     const tooltipWidth = 280;
-    const tooltipHeight = 150;
-    const padding = 16;
-    const arrowSize = 12;
-
+    const tooltipHeight = 180;
+    const gap = 16;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Default: position below the element
-    let top = rect.bottom + arrowSize + padding;
-    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-    let arrowPosition: 'top' | 'bottom' | 'left' | 'right' = 'top';
+    // Try to position below first
+    let top = targetRect.top + targetRect.height + gap;
+    let arrowTop = true;
 
-    // If tooltip would go off right edge, align to right
-    if (left + tooltipWidth > viewportWidth - padding) {
-      left = viewportWidth - tooltipWidth - padding;
+    // If not enough room below, position above
+    if (top + tooltipHeight > viewportHeight - 20) {
+      top = targetRect.top - tooltipHeight - gap;
+      arrowTop = false;
     }
 
-    // If tooltip would go off left edge, align to left
-    if (left < padding) {
-      left = padding;
+    // If still off screen (element near top), just position below
+    if (top < 20) {
+      top = targetRect.top + targetRect.height + gap;
+      arrowTop = true;
     }
 
-    // If tooltip would go off bottom, position above
-    if (top + tooltipHeight > viewportHeight - padding) {
-      top = rect.top - tooltipHeight - arrowSize - padding;
-      arrowPosition = 'bottom';
-    }
+    // Horizontal centering with bounds checking
+    let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
+    left = Math.max(16, Math.min(left, viewportWidth - tooltipWidth - 16));
 
-    // Scroll element into view if needed
-    if (rect.top < 0 || rect.bottom > viewportHeight) {
-      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    return { top, left, arrowPosition };
-  }, [currentStep, steps]);
-
-  useEffect(() => {
-    const pos = calculatePosition();
-    setPosition(pos);
-
-    const handleResize = () => {
-      const newPos = calculatePosition();
-      setPosition(newPos);
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleResize);
-    };
-  }, [calculatePosition]);
+    return {
+      position: 'fixed' as const,
+      top,
+      left,
+      width: tooltipWidth,
+      zIndex: 51,
+      '--arrow-top': arrowTop ? '-8px' : 'auto',
+      '--arrow-bottom': arrowTop ? 'auto' : '-8px',
+    } as React.CSSProperties;
+  };
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setIsAnimating(true);
+      setIsVisible(false);
       setTimeout(() => {
         setCurrentStep((prev) => prev + 1);
-        setIsAnimating(false);
-      }, 150);
+      }, 200);
     } else {
       onComplete();
     }
   };
 
-  const step = steps[currentStep];
-  const targetEl = document.getElementById(step.targetId);
-
-  if (!position || !targetEl) {
+  if (!targetRect) {
     return null;
   }
 
-  const targetRect = targetEl.getBoundingClientRect();
+  const tooltipStyle = getTooltipStyle();
+  const arrowOnTop = tooltipStyle['--arrow-top'] === '-8px';
 
   return (
     <>
-      {/* Overlay */}
-      <div className="fixed inset-0 z-40">
-        {/* Dark overlay with cutout */}
-        <svg className="absolute inset-0 w-full h-full">
-          <defs>
-            <mask id="walkthrough-mask">
-              <rect width="100%" height="100%" fill="white" />
-              <rect
-                x={targetRect.left - 8}
-                y={targetRect.top - 8}
-                width={targetRect.width + 16}
-                height={targetRect.height + 16}
-                rx="12"
-                fill="black"
-              />
-            </mask>
-          </defs>
-          <rect
-            width="100%"
-            height="100%"
-            fill="rgba(0, 0, 0, 0.6)"
-            mask="url(#walkthrough-mask)"
-          />
-        </svg>
+      {/* Semi-transparent overlay - allows scrolling through */}
+      <div
+        className="fixed inset-0 z-40 pointer-events-none"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      />
 
-        {/* Highlight ring around target */}
-        <div
-          className="absolute border-2 border-brand-teal rounded-xl pointer-events-none animate-pulse"
-          style={{
-            top: targetRect.top - 8,
-            left: targetRect.left - 8,
-            width: targetRect.width + 16,
-            height: targetRect.height + 16,
-            boxShadow: '0 0 0 4px rgba(45, 183, 166, 0.3)',
-          }}
-        />
-      </div>
+      {/* Spotlight cutout */}
+      <div
+        className="fixed z-40 pointer-events-none rounded-xl"
+        style={{
+          top: targetRect.top - 8,
+          left: targetRect.left - 8,
+          width: targetRect.width + 16,
+          height: targetRect.height + 16,
+          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(45, 183, 166, 0.5)',
+          transition: 'all 0.3s ease-out',
+        }}
+      />
+
+      {/* Pulsing ring */}
+      <div
+        className="fixed z-40 pointer-events-none rounded-xl border-2 border-brand-teal animate-pulse"
+        style={{
+          top: targetRect.top - 8,
+          left: targetRect.left - 8,
+          width: targetRect.width + 16,
+          height: targetRect.height + 16,
+          transition: 'all 0.3s ease-out',
+        }}
+      />
 
       {/* Tooltip */}
       <div
-        className={`fixed z-50 w-[280px] bg-white rounded-xl shadow-2xl transition-opacity duration-150 ${
-          isAnimating ? 'opacity-0' : 'opacity-100'
+        ref={tooltipRef}
+        className={`fixed z-50 bg-white rounded-xl shadow-2xl transition-all duration-300 ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
         }`}
-        style={{
-          top: position.top,
-          left: position.left,
-        }}
+        style={tooltipStyle}
       >
         {/* Arrow */}
         <div
-          className={`absolute w-4 h-4 bg-white transform rotate-45 ${
-            position.arrowPosition === 'top'
-              ? '-top-2 left-1/2 -translate-x-1/2'
-              : '-bottom-2 left-1/2 -translate-x-1/2'
-          }`}
+          className="absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45"
           style={{
-            boxShadow:
-              position.arrowPosition === 'top'
-                ? '-2px -2px 4px rgba(0,0,0,0.05)'
-                : '2px 2px 4px rgba(0,0,0,0.05)',
+            top: arrowOnTop ? '-8px' : 'auto',
+            bottom: arrowOnTop ? 'auto' : '-8px',
+            boxShadow: arrowOnTop
+              ? '-2px -2px 4px rgba(0,0,0,0.05)'
+              : '2px 2px 4px rgba(0,0,0,0.05)',
           }}
         />
 
@@ -182,9 +182,9 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
             </span>
             <button
               onClick={onSkip}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-2"
             >
-              Skip tour
+              Skip
             </button>
           </div>
 
