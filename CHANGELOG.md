@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - Bug Fixes & Branding - 2026-02-04
+
+### Fixed
+- **Walkthrough race condition** - Walkthrough now waits for customer data to load before triggering (was firing on mount, before data available)
+- **Scroll position issues** - Page scrolls to top on dashboard mount and after walkthrough completes
+- **Walkthrough rendering** - Multiple fixes for spotlight stability and positioning
+- **Duplicate referral UI** - Fixed referral badge showing twice on registration page
+- **Password auto-capitalization** - Fixed password inputs auto-capitalizing on mobile (added autoCapitalize="off")
+
+### Added
+- **Open Graph meta tags** - Link previews now show title, description, and branded image for iMessage/social sharing
+- **HTHD logo in header** - Replaced text "Happy Tail Happy Dog" with actual logo
+- **Sign Out moved to footer** - Coral-colored exit button at page bottom (cleaner header)
+- **Referral URL in share text** - Share messages now include full registration URL with referral code
+- **Custom favicon** - Replaced Vite default with HTHD logo favicon
+
+### Changed
+- Header simplified (logo only, no sign out button)
+- Social preview image added (`social-preview.png`, 1200x630)
+
+---
+
 ## [1.4.0] - Referral System + Onboarding - 2026-02-04
 
 ### Added
