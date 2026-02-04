@@ -198,10 +198,11 @@ export function DashboardPage() {
   const handleShareCode = async () => {
     if (!customer) return;
 
+    const referralUrl = `${window.location.origin}/register?ref=${customer.referral_code}`;
     const shareData = {
       title: 'Join Happy Tail Happy Dog Rewards!',
-      text: `Use my referral code ${customer.referral_code} when you sign up at Happy Tail Happy Dog and we both earn rewards! Your pup deserves the best.`,
-      url: `${window.location.origin}/register?ref=${customer.referral_code}`,
+      text: `Join me at Happy Tail Happy Dog! Use my referral code ${customer.referral_code} and we both earn rewards. Sign up here: ${referralUrl}`,
+      url: referralUrl,
     };
 
     // Check if Web Share API is available
@@ -216,8 +217,8 @@ export function DashboardPage() {
         }
       }
     } else {
-      // Fallback: copy to clipboard
-      const shareText = `${shareData.text}\n\n${shareData.url}`;
+      // Fallback: copy to clipboard (URL already in text, so just copy text)
+      const shareText = shareData.text;
       try {
         await navigator.clipboard.writeText(shareText);
       } catch {
