@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { waitForScrollAndLayout, isRectInViewport } from '../lib/waitUntil';
 
 interface WalkthroughStep {
   targetId: string;
@@ -12,188 +14,256 @@ interface WalkthroughProps {
   onSkip: () => void;
 }
 
-interface TargetRect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
 }
 
 export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const step = steps[currentStep];
 
-  // Scroll to element and update position
+  const resolveTarget = () => document.getElementById(step.targetId);
+
+  // Continuous measurement loop - keeps spotlight aligned while user scrolls
   useEffect(() => {
-    const targetEl = document.getElementById(step.targetId);
-    if (!targetEl) return;
+    if (!ready) return;
 
-    // First scroll the element into view with some padding
-    const scrollToElement = () => {
-      const rect = targetEl.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-
-      // Check if element is not fully visible
-      if (rect.top < 100 || rect.bottom > viewportHeight - 200) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+    const measure = () => {
+      const el = resolveTarget();
+      const rect = el?.getBoundingClientRect() ?? null;
+      setTargetRect(rect);
+      rafRef.current = requestAnimationFrame(measure);
     };
 
-    // Initial scroll
-    scrollToElement();
+    rafRef.current = requestAnimationFrame(measure);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [ready, step.targetId]);
 
-    // Wait for scroll to complete, then show and position
-    const showTimeout = setTimeout(() => {
-      const rect = targetEl.getBoundingClientRect();
-      setTargetRect({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
+  // On step change: scroll first, then show (ready=true)
+  useLayoutEffect(() => {
+    let cancelled = false;
+
+    async function go() {
+      setReady(false);
+      setTargetRect(null);
+
+      const el = resolveTarget();
+      if (!el) return;
+
+      // Scroll element into view first (center works best for mobile)
+      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+      // Wait for scroll and layout to stabilize
+      await waitForScrollAndLayout({
+        getRect: () => resolveTarget()?.getBoundingClientRect() ?? null,
       });
-      setIsVisible(true);
-    }, 400);
 
-    return () => clearTimeout(showTimeout);
-  }, [step.targetId]);
+      if (cancelled) return;
 
-  // Calculate tooltip position
-  const getTooltipPosition = () => {
-    if (!targetRect) return { top: 0, left: 0, arrowOnTop: true };
+      const rect = el.getBoundingClientRect();
+      // If still not visible, force it without smooth scroll
+      if (!isRectInViewport(rect, 12)) {
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+        await waitForScrollAndLayout({
+          getRect: () => resolveTarget()?.getBoundingClientRect() ?? null,
+        });
+      }
 
-    const tooltipWidth = 280;
-    const tooltipHeight = 180;
-    const gap = 16;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+      if (cancelled) return;
+      setTargetRect(resolveTarget()?.getBoundingClientRect() ?? null);
+      setReady(true);
+    }
 
-    // Try to position below first
-    let top = targetRect.top + targetRect.height + gap;
+    go();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, step.targetId]);
+
+  // Tooltip positioning
+  const tooltipStyle = useMemo(() => {
+    if (!targetRect) return { opacity: 0, pointerEvents: 'none' as const };
+
+    const margin = 16;
+    const width = Math.min(300, window.innerWidth - margin * 2);
+    const estimatedHeight = 180;
+
+    // Prefer below target; if not enough room, place above
+    const belowTop = targetRect.bottom + 16;
+    const fitsBelow = belowTop + estimatedHeight < window.innerHeight - 20;
+
+    let top: number;
     let arrowOnTop = true;
 
-    // If not enough room below, position above
-    if (top + tooltipHeight > viewportHeight - 20) {
-      top = targetRect.top - tooltipHeight - gap;
+    if (fitsBelow) {
+      top = belowTop;
+    } else {
+      top = targetRect.top - estimatedHeight - 16;
       arrowOnTop = false;
+      // If still off screen, just go below anyway
+      if (top < 20) {
+        top = belowTop;
+        arrowOnTop = true;
+      }
     }
 
-    // If still off screen (element near top), just position below
-    if (top < 20) {
-      top = targetRect.top + targetRect.height + gap;
-      arrowOnTop = true;
-    }
+    const idealLeft = targetRect.left + targetRect.width / 2 - width / 2;
+    const left = clamp(idealLeft, margin, window.innerWidth - margin - width);
 
-    // Horizontal centering with bounds checking
-    let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
-    left = Math.max(16, Math.min(left, viewportWidth - tooltipWidth - 16));
+    // Calculate arrow offset from center based on clamping
+    const arrowOffset = targetRect.left + targetRect.width / 2 - left - width / 2;
 
-    return { top, left, arrowOnTop, width: tooltipWidth };
-  };
+    return {
+      position: 'fixed' as const,
+      top,
+      left,
+      width,
+      zIndex: 10002,
+      pointerEvents: 'auto' as const,
+      opacity: ready ? 1 : 0,
+      transform: ready ? 'translateY(0)' : 'translateY(8px)',
+      transition: 'opacity 0.3s ease, transform 0.3s ease',
+      arrowOnTop,
+      arrowOffset: clamp(arrowOffset, -width / 2 + 24, width / 2 - 24),
+    };
+  }, [targetRect, ready]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setIsVisible(false);
-      setTimeout(() => {
-        setCurrentStep((prev) => prev + 1);
-      }, 200);
+      setCurrentStep((prev) => prev + 1);
     } else {
       onComplete();
     }
   };
 
-  if (!targetRect) {
+  if (!targetRect && !ready) {
+    // Show loading state briefly
     return null;
   }
 
-  const { top, left, arrowOnTop, width } = getTooltipPosition();
+  return createPortal(
+    <div aria-live="polite">
+      {/* Spotlight overlay - pointer-events: none allows touch scrolling */}
+      {ready && targetRect && (
+        <SpotlightOverlay rect={targetRect} padding={10} radius={16} />
+      )}
 
-  return (
-    <>
-      {/* Semi-transparent overlay - allows scrolling through */}
-      <div
-        className="fixed inset-0 z-40 pointer-events-none"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-      />
-
-      {/* Spotlight cutout */}
-      <div
-        className="fixed z-40 pointer-events-none rounded-xl"
-        style={{
-          top: targetRect.top - 8,
-          left: targetRect.left - 8,
-          width: targetRect.width + 16,
-          height: targetRect.height + 16,
-          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(45, 183, 166, 0.5)',
-          transition: 'all 0.3s ease-out',
-        }}
-      />
-
-      {/* Pulsing ring */}
-      <div
-        className="fixed z-40 pointer-events-none rounded-xl border-2 border-brand-teal animate-pulse"
-        style={{
-          top: targetRect.top - 8,
-          left: targetRect.left - 8,
-          width: targetRect.width + 16,
-          height: targetRect.height + 16,
-          transition: 'all 0.3s ease-out',
-        }}
-      />
-
-      {/* Tooltip */}
-      <div
-        ref={tooltipRef}
-        className={`fixed z-50 bg-white rounded-xl shadow-2xl transition-all duration-300 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        }`}
-        style={{ top, left, width, zIndex: 51 }}
-      >
+      {/* Tooltip - in portal, above overlay, pointer-events: auto */}
+      <div style={tooltipStyle}>
         {/* Arrow */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45"
+          className="absolute w-4 h-4 bg-white rotate-45"
           style={{
-            top: arrowOnTop ? '-8px' : 'auto',
-            bottom: arrowOnTop ? 'auto' : '-8px',
-            boxShadow: arrowOnTop
+            left: `calc(50% + ${tooltipStyle.arrowOffset || 0}px)`,
+            transform: 'translateX(-50%) rotate(45deg)',
+            top: tooltipStyle.arrowOnTop ? '-8px' : 'auto',
+            bottom: tooltipStyle.arrowOnTop ? 'auto' : '-8px',
+            boxShadow: tooltipStyle.arrowOnTop
               ? '-2px -2px 4px rgba(0,0,0,0.05)'
               : '2px 2px 4px rgba(0,0,0,0.05)',
           }}
         />
 
-        {/* Content */}
-        <div className="p-4 relative">
+        {/* Content card */}
+        <div className="bg-white rounded-2xl shadow-2xl p-5 relative">
           {/* Step indicator */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-brand-teal">
               Step {currentStep + 1} of {steps.length}
             </span>
             <button
               onClick={onSkip}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-2"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-2 -mt-2"
             >
               Skip
             </button>
           </div>
 
           {/* Title and message */}
-          <h3 className="text-base font-semibold text-brand-navy mb-1">
+          <h3 className="text-lg font-semibold text-brand-navy mb-2 font-heading">
             {step.title}
           </h3>
-          <p className="text-sm text-gray-600 mb-4">{step.message}</p>
+          <p className="text-sm text-gray-600 mb-5 leading-relaxed">{step.message}</p>
 
           {/* Next button */}
           <button
             onClick={handleNext}
-            className="w-full py-2.5 px-4 bg-brand-teal text-white font-medium rounded-lg hover:bg-brand-teal-dark transition-colors min-h-[44px]"
+            className="w-full py-3 px-4 bg-brand-teal text-white font-medium rounded-xl hover:bg-brand-teal-dark transition-colors min-h-[48px] text-base"
           >
             {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
           </button>
         </div>
       </div>
-    </>
+    </div>,
+    document.body
+  );
+}
+
+function SpotlightOverlay({
+  rect,
+  padding,
+  radius,
+}: {
+  rect: DOMRect;
+  padding: number;
+  radius: number;
+}) {
+  const x = Math.max(0, rect.left - padding);
+  const y = Math.max(0, rect.top - padding);
+  const w = rect.width + padding * 2;
+  const h = rect.height + padding * 2;
+
+  // Unique mask id to avoid collisions
+  const maskIdRef = useRef(`walkthrough-mask-${Math.random().toString(36).slice(2)}`);
+
+  return (
+    <svg
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 10001,
+        pointerEvents: 'none', // Critical: allows touch scrolling
+      }}
+    >
+      <defs>
+        <mask id={maskIdRef.current}>
+          {/* White = visible overlay; black = cut out (spotlight hole) */}
+          <rect x="0" y="0" width="100%" height="100%" fill="white" />
+          <rect x={x} y={y} width={w} height={h} rx={radius} ry={radius} fill="black" />
+        </mask>
+      </defs>
+
+      {/* Dark overlay with spotlight hole */}
+      <rect
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        fill="rgba(0,0,0,0.6)"
+        mask={`url(#${maskIdRef.current})`}
+      />
+
+      {/* Highlight ring around the target */}
+      <rect
+        x={x}
+        y={y}
+        width={w}
+        height={h}
+        rx={radius}
+        ry={radius}
+        fill="none"
+        stroke="rgba(45, 183, 166, 0.6)"
+        strokeWidth="3"
+      />
+    </svg>
   );
 }
