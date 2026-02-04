@@ -1,6 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { waitForScrollAndLayout, isRectInViewport } from '../lib/waitUntil';
 
 interface WalkthroughStep {
   targetId: string;
@@ -20,80 +19,87 @@ function clamp(n: number, min: number, max: number) {
 
 export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [ready, setReady] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const rafRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   const step = steps[currentStep];
 
-  const resolveTarget = () => document.getElementById(step.targetId);
+  // Scroll to element and measure its position
+  const scrollAndMeasure = useCallback(async (targetId: string) => {
+    setIsReady(false);
+    setTargetRect(null);
 
-  // Continuous measurement loop - keeps spotlight aligned while user scrolls
+    // Small delay to ensure DOM is ready
+    await new Promise((r) => setTimeout(r, 100));
+
+    const el = document.getElementById(targetId);
+    if (!el || !isMountedRef.current) return;
+
+    // Scroll element into view
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Wait for scroll to settle
+    await new Promise((r) => setTimeout(r, 500));
+
+    if (!isMountedRef.current) return;
+
+    // Measure and show
+    const rect = el.getBoundingClientRect();
+    setTargetRect(rect);
+    setIsReady(true);
+  }, []);
+
+  // Run scroll/measure on step change
   useEffect(() => {
-    if (!ready) return;
+    isMountedRef.current = true;
+    scrollAndMeasure(step.targetId);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [step.targetId, scrollAndMeasure]);
+
+  // Keep spotlight aligned while visible (but don't track during transitions)
+  useEffect(() => {
+    if (!isReady) return;
 
     const measure = () => {
-      const el = resolveTarget();
-      const rect = el?.getBoundingClientRect() ?? null;
-      setTargetRect(rect);
+      const el = document.getElementById(step.targetId);
+      if (el && isMountedRef.current) {
+        setTargetRect(el.getBoundingClientRect());
+      }
       rafRef.current = requestAnimationFrame(measure);
     };
 
     rafRef.current = requestAnimationFrame(measure);
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [ready, step.targetId]);
-
-  // On step change: scroll first, then show (ready=true)
-  useLayoutEffect(() => {
-    let cancelled = false;
-
-    async function go() {
-      setReady(false);
-      setTargetRect(null);
-
-      const el = resolveTarget();
-      if (!el) return;
-
-      // Scroll element into view first (center works best for mobile)
-      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-
-      // Wait for scroll and layout to stabilize
-      await waitForScrollAndLayout({
-        getRect: () => resolveTarget()?.getBoundingClientRect() ?? null,
-      });
-
-      if (cancelled) return;
-
-      const rect = el.getBoundingClientRect();
-      // If still not visible, force it without smooth scroll
-      if (!isRectInViewport(rect, 12)) {
-        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
-        await waitForScrollAndLayout({
-          getRect: () => resolveTarget()?.getBoundingClientRect() ?? null,
-        });
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
-
-      if (cancelled) return;
-      setTargetRect(resolveTarget()?.getBoundingClientRect() ?? null);
-      setReady(true);
-    }
-
-    go();
-    return () => {
-      cancelled = true;
     };
-  }, [currentStep, step.targetId]);
+  }, [isReady, step.targetId]);
 
   // Tooltip positioning
   const tooltipStyle = useMemo(() => {
-    if (!targetRect) return { opacity: 0, pointerEvents: 'none' as const };
+    if (!targetRect) {
+      return {
+        position: 'fixed' as const,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: Math.min(300, window.innerWidth - 32),
+        zIndex: 10002,
+        pointerEvents: 'auto' as const,
+        opacity: 0,
+      };
+    }
 
     const margin = 16;
     const width = Math.min(300, window.innerWidth - margin * 2);
-    const estimatedHeight = 180;
+    const estimatedHeight = 200;
 
     // Prefer below target; if not enough room, place above
     const belowTop = targetRect.bottom + 16;
@@ -107,7 +113,6 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
     } else {
       top = targetRect.top - estimatedHeight - 16;
       arrowOnTop = false;
-      // If still off screen, just go below anyway
       if (top < 20) {
         top = belowTop;
         arrowOnTop = true;
@@ -116,8 +121,6 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
 
     const idealLeft = targetRect.left + targetRect.width / 2 - width / 2;
     const left = clamp(idealLeft, margin, window.innerWidth - margin - width);
-
-    // Calculate arrow offset from center based on clamping
     const arrowOffset = targetRect.left + targetRect.width / 2 - left - width / 2;
 
     return {
@@ -127,13 +130,12 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
       width,
       zIndex: 10002,
       pointerEvents: 'auto' as const,
-      opacity: ready ? 1 : 0,
-      transform: ready ? 'translateY(0)' : 'translateY(8px)',
-      transition: 'opacity 0.3s ease, transform 0.3s ease',
+      opacity: isReady ? 1 : 0,
+      transition: 'opacity 0.3s ease',
       arrowOnTop,
       arrowOffset: clamp(arrowOffset, -width / 2 + 24, width / 2 - 24),
     };
-  }, [targetRect, ready]);
+  }, [targetRect, isReady]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -143,33 +145,30 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
     }
   };
 
-  if (!targetRect && !ready) {
-    // Show loading state briefly
-    return null;
-  }
-
   return createPortal(
     <div aria-live="polite">
-      {/* Spotlight overlay - pointer-events: none allows touch scrolling */}
-      {ready && targetRect && (
+      {/* Spotlight overlay */}
+      {isReady && targetRect && (
         <SpotlightOverlay rect={targetRect} padding={10} radius={16} />
       )}
 
-      {/* Tooltip - in portal, above overlay, pointer-events: auto */}
+      {/* Tooltip */}
       <div style={tooltipStyle}>
         {/* Arrow */}
-        <div
-          className="absolute w-4 h-4 bg-white rotate-45"
-          style={{
-            left: `calc(50% + ${tooltipStyle.arrowOffset || 0}px)`,
-            transform: 'translateX(-50%) rotate(45deg)',
-            top: tooltipStyle.arrowOnTop ? '-8px' : 'auto',
-            bottom: tooltipStyle.arrowOnTop ? 'auto' : '-8px',
-            boxShadow: tooltipStyle.arrowOnTop
-              ? '-2px -2px 4px rgba(0,0,0,0.05)'
-              : '2px 2px 4px rgba(0,0,0,0.05)',
-          }}
-        />
+        {targetRect && (
+          <div
+            className="absolute w-4 h-4 bg-white rotate-45"
+            style={{
+              left: `calc(50% + ${tooltipStyle.arrowOffset || 0}px)`,
+              transform: 'translateX(-50%) rotate(45deg)',
+              top: tooltipStyle.arrowOnTop ? '-8px' : 'auto',
+              bottom: tooltipStyle.arrowOnTop ? 'auto' : '-8px',
+              boxShadow: tooltipStyle.arrowOnTop
+                ? '-2px -2px 4px rgba(0,0,0,0.05)'
+                : '2px 2px 4px rgba(0,0,0,0.05)',
+            }}
+          />
+        )}
 
         {/* Content card */}
         <div className="bg-white rounded-2xl shadow-2xl p-5 relative">
@@ -220,8 +219,7 @@ function SpotlightOverlay({
   const w = rect.width + padding * 2;
   const h = rect.height + padding * 2;
 
-  // Unique mask id to avoid collisions
-  const maskIdRef = useRef(`walkthrough-mask-${Math.random().toString(36).slice(2)}`);
+  const maskId = useRef(`walkthrough-mask-${Math.random().toString(36).slice(2)}`);
 
   return (
     <svg
@@ -231,28 +229,25 @@ function SpotlightOverlay({
         width: '100vw',
         height: '100vh',
         zIndex: 10001,
-        pointerEvents: 'none', // Critical: allows touch scrolling
+        pointerEvents: 'none',
       }}
     >
       <defs>
-        <mask id={maskIdRef.current}>
-          {/* White = visible overlay; black = cut out (spotlight hole) */}
+        <mask id={maskId.current}>
           <rect x="0" y="0" width="100%" height="100%" fill="white" />
           <rect x={x} y={y} width={w} height={h} rx={radius} ry={radius} fill="black" />
         </mask>
       </defs>
 
-      {/* Dark overlay with spotlight hole */}
       <rect
         x="0"
         y="0"
         width="100%"
         height="100%"
         fill="rgba(0,0,0,0.6)"
-        mask={`url(#${maskIdRef.current})`}
+        mask={`url(#${maskId.current})`}
       />
 
-      {/* Highlight ring around the target */}
       <rect
         x={x}
         y={y}
