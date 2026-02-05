@@ -1,5 +1,9 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 800;
+
 interface ApiError {
   error: string;
   details?: unknown;
@@ -9,6 +13,18 @@ interface ApiResponse<T> {
   data?: T;
   error?: string;
   details?: unknown;
+}
+
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+function isRetryable(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof TypeError) return true; // network failure
+  return false;
 }
 
 async function request<T>(
@@ -26,23 +42,35 @@ async function request<T>(
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+  let lastError: unknown;
 
-    const json = await response.json();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE}${endpoint}`,
+        { ...options, headers },
+        REQUEST_TIMEOUT_MS,
+      );
 
-    if (!response.ok) {
-      const apiError = json as ApiError;
-      return { error: apiError.error || 'An error occurred', details: apiError.details };
+      const json = await response.json();
+
+      if (!response.ok) {
+        const apiError = json as ApiError;
+        return { error: apiError.error || 'An error occurred', details: apiError.details };
+      }
+
+      return { data: json as T };
+    } catch (err) {
+      lastError = err;
+      if (!isRetryable(err) || attempt === MAX_RETRIES) break;
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
     }
-
-    return { data: json as T };
-  } catch {
-    return { error: 'Network error. Please check your connection.' };
   }
+
+  if (lastError instanceof DOMException && lastError.name === 'AbortError') {
+    return { error: 'Request timed out. The server may be starting up — please try again.' };
+  }
+  return { error: 'Network error. Please check your connection and try again.' };
 }
 
 export const api = {
