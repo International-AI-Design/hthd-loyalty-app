@@ -60,10 +60,10 @@ export const helmetMiddleware = helmet({
   crossOriginEmbedderPolicy: false, // Allow embedding from apps
 });
 
-// Rate limiting: 100 requests per 15 minutes per IP
+// Rate limiting: 300 requests per 15 minutes per IP
 export const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 300, // Limit each IP to 300 requests per windowMs
   message: {
     error: 'Too many requests',
     message: 'You have exceeded the rate limit. Please try again later.'

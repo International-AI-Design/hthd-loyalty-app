@@ -8,7 +8,21 @@ if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const pool = new pg.Pool({ connectionString });
+const pool = new pg.Pool({
+  connectionString,
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
+  allowExitOnIdle: false,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10_000,
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected pg pool error:', err.message);
+});
+
 const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });
+export { pool };

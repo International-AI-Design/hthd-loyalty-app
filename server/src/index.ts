@@ -22,6 +22,7 @@ import {
   logger
 } from './middleware/security';
 import { startGingrAutoSync } from './jobs/gingrSync';
+import { prisma, pool } from './lib/prisma';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,9 +67,28 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 
   // Start the Gingr auto-sync job
   startGingrAutoSync();
 });
+
+// Graceful shutdown — clean up connections on Railway redeploy / container stop
+function shutdown(signal: string) {
+  logger.info(`${signal} received, shutting down gracefully`);
+  server.close(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+    logger.info('Connections closed, exiting');
+    process.exit(0);
+  });
+  // Force exit after 10s if graceful shutdown stalls
+  setTimeout(() => {
+    logger.warn('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 10_000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
