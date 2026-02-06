@@ -220,6 +220,8 @@ export const customerApi = {
   getRedemptions: () => api.get<RedemptionsListResponse>('/redemptions'),
   getReferralStats: () => api.get<ReferralStatsResponse>('/customers/me/referrals'),
   getDogs: () => api.get<DogsResponse>('/customers/me/dogs'),
+  addDog: (data: { name: string; breed?: string; birthDate?: string; sizeCategory?: string }) =>
+    api.post<Dog>('/customers/me/dogs', data),
   getVisits: (limit = 10, offset = 0) =>
     api.get<VisitsResponse>(`/customers/me/visits?limit=${limit}&offset=${offset}`),
 };
@@ -432,31 +434,31 @@ export interface BundleCalculation {
 
 export const bookingApi = {
   getServiceTypes: () =>
-    api.get<ServiceTypesResponse>('/v2/booking/service-types'),
+    api.get<ServiceTypesResponse>('/v2/bookings/service-types'),
   checkAvailability: (serviceTypeId: string, startDate: string, endDate: string) =>
     api.get<AvailabilityResponse>(
-      `/v2/booking/availability?serviceTypeId=${serviceTypeId}&startDate=${startDate}&endDate=${endDate}`
+      `/v2/bookings/availability?serviceTypeId=${serviceTypeId}&startDate=${startDate}&endDate=${endDate}`
     ),
   getGroomingSlots: (date: string) =>
-    api.get<GroomingSlotsResponse>(`/v2/booking/grooming-slots?date=${date}`),
+    api.get<GroomingSlotsResponse>(`/v2/bookings/grooming-slots?date=${date}`),
   getGroomingPriceRange: (sizeCategory: string) =>
     api.get<GroomingPriceRange>(`/v2/grooming/pricing/${sizeCategory}`),
   createBooking: (data: { serviceTypeId: string; dogIds: string[]; date: string; startTime?: string; notes?: string }) =>
-    api.post<BookingResponse>('/v2/booking', data),
+    api.post<BookingResponse>('/v2/bookings', data),
   getBookings: (params?: { status?: string; limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
     const qs = searchParams.toString();
-    return api.get<BookingsResponse>(`/v2/booking${qs ? `?${qs}` : ''}`);
+    return api.get<BookingsResponse>(`/v2/bookings${qs ? `?${qs}` : ''}`);
   },
   cancelBooking: (bookingId: string, reason?: string) =>
-    api.post<BookingResponse>(`/v2/booking/${bookingId}/cancel`, { reason }),
+    api.post<BookingResponse>(`/v2/bookings/${bookingId}/cancel`, { reason }),
   uploadDogPhoto: (bookingId: string, dogId: string, photo: string) =>
-    api.post<{ success: boolean; message: string }>(`/v2/booking/${bookingId}/dogs/${dogId}/photo`, { photo }),
+    api.post<{ success: boolean; message: string }>(`/v2/bookings/${bookingId}/dogs/${dogId}/photo`, { photo }),
   updateDogSize: (dogId: string, sizeCategory: string) =>
-    api.put<Dog>(`/v2/booking/dogs/${dogId}/size`, { sizeCategory }),
+    api.put<Dog>(`/v2/bookings/dogs/${dogId}/size`, { sizeCategory }),
   getBundleSuggestions: (serviceTypeId: string) =>
     api.get<BundlesResponse>(`/v2/bundles/suggestions?serviceTypeId=${serviceTypeId}`),
   calculateBundlePrice: (bundleId: string, dogIds: string[]) =>

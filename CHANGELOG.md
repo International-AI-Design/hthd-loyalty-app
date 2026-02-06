@@ -2,6 +2,89 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.4] - Sprint 2: Testing & Bug Fixes - 2026-02-06
+
+### Critical Bugs Fixed (10 files, 269 insertions)
+
+**Customer App — Booking API 404s (`customer-app/src/lib/api.ts`)**
+- All 8 booking endpoints used `/v2/booking/` (singular) but server mounts at `/v2/bookings/` (plural)
+- Every customer booking API call was returning 404
+- Fixed all paths to `/v2/bookings/`
+- Added `addDog()` method for dog creation
+
+**Admin Schedule Empty (`server/src/modules/booking/admin-router.ts`)**
+- Backend returned `{ schedule }`, frontend expected `{ bookings, total }`
+- Schedule page always showed empty even with bookings present
+- Changed response shape to `{ bookings, total: bookings.length }`
+
+**Admin Schedule Filter Broken (`server/src/modules/booking/admin-router.ts`)**
+- Frontend sent `serviceType` (name like 'daycare'), backend only read `serviceTypeId` (UUID)
+- Service type filter never worked
+- Now accepts both params; resolves name → UUID via DB lookup
+- Added `/service-types` endpoint for admin UI
+
+**Admin Bundles 401 (`server/src/modules/bundles/router.ts`)**
+- `GET /v2/bundles` used `authenticateCustomer` middleware
+- Admin app sends staff token → always got 401
+- Rewrote to accept both customer tokens (active bundles only) and staff tokens (all bundles)
+
+**Admin Desktop Layout Broken (`admin-app/src/components/Layout.tsx`)**
+- Parent container wasn't flex on desktop — sidebar stacked on top of content
+- Added `lg:flex` to parent and `flex-1` to main content area
+
+**Dog Size Update 500 (`server/src/modules/booking/router.ts`)**
+- Dog size update endpoint used `prisma` but file didn't import it → 500 error
+- Added missing `import { prisma } from '../../lib/prisma'`
+
+**Dogs Missing sizeCategory (`server/src/routes/customers.ts`)**
+- GET /customers/me/dogs didn't return `sizeCategory` field
+- Grooming booking wizard size check failed silently
+- Added sizeCategory to select + response
+
+**No Dog Creation Endpoint (`server/src/routes/customers.ts`)**
+- New customers couldn't add dogs — booking wizard was a dead end
+- Added `POST /customers/me/dogs` with name, breed, birthDate, sizeCategory
+- Added inline "Add Your Dog" form to BookingPage step 2
+
+**Grooming Pricing Matrix Breaks After Edit (`admin-app/src/pages/GroomingPricingPage.tsx`)**
+- Backend returned `{ tier }`, frontend treated response as raw tier object
+- Added unwrapping: `(result.data as any).tier ?? result.data`
+
+**Bundle Management Response Shapes (`admin-app/src/pages/BundleManagementPage.tsx`)**
+- Toggle, create, and update all had response wrapper mismatches
+- Added unwrapping for all three operations
+- Added service type picker (checkboxes) to create/edit modal
+- Added `getServiceTypes` to admin api.ts
+
+### Verified Working (API-Level Testing)
+- Full daycare lifecycle: create → confirm → check-in → check-out
+- Grooming: slots, pricing tiers, condition rating (size × condition matrix), booking
+- Bundles: create, list, toggle active/inactive
+- Staff: list, create, update role
+- Customer: register, add dog, book, cancel
+- Admin schedule: date nav, service type filters
+- Both frontend builds: 0 TypeScript errors
+
+### NOT Yet Tested
+- Browser-based end-to-end (all testing was curl/API)
+- Mobile responsiveness polish
+- Admin role visibility (groomer role nav filtering)
+- StaffPage `handleRoleChange` missing `created_at` in update response (cosmetic, not a crash)
+
+### Files Changed
+1. `customer-app/src/lib/api.ts` — 8 booking path fixes + addDog
+2. `customer-app/src/pages/BookingPage.tsx` — inline dog creation form (step 2)
+3. `server/src/modules/booking/admin-router.ts` — schedule response, filter, service-types
+4. `server/src/modules/booking/router.ts` — prisma import fix
+5. `server/src/modules/bundles/router.ts` — dual auth (customer + staff tokens)
+6. `server/src/routes/customers.ts` — sizeCategory + POST dog creation
+7. `admin-app/src/components/Layout.tsx` — desktop flex layout fix
+8. `admin-app/src/lib/api.ts` — getServiceTypes for admin
+9. `admin-app/src/pages/BundleManagementPage.tsx` — response unwrapping + service type picker
+10. `admin-app/src/pages/GroomingPricingPage.tsx` — response unwrapping
+
+---
+
 ## [2.0.0-alpha.3] - Sprint 2: Frontend Complete - 2026-02-05
 
 ### Added — Customer App

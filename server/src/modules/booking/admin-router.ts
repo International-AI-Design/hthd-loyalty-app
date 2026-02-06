@@ -2,12 +2,24 @@ import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { BookingService, BookingError } from './service';
 import { checkOutSchema } from './types';
+import { prisma } from '../../lib/prisma';
 
 const router = Router();
 const bookingService = new BookingService();
 
 // All admin booking routes require staff authentication
 router.use(authenticateStaff);
+
+// GET /service-types — list service types (for admin UI)
+router.get('/service-types', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const serviceTypes = await bookingService.getServiceTypes();
+    res.json({ serviceTypes });
+  } catch (error) {
+    console.error('Get service types error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET /schedule — get all bookings for a date
 router.get('/schedule', async (req: Request, res: Response): Promise<void> => {
@@ -18,13 +30,29 @@ router.get('/schedule', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const serviceTypeId = req.query.serviceTypeId as string | undefined;
-    const schedule = await bookingService.getSchedule(
+    const serviceFilter = (req.query.serviceTypeId || req.query.serviceType) as string | undefined;
+
+    // Resolve service name to ID if needed (frontend sends name like 'daycare')
+    let resolvedServiceTypeId: string | undefined;
+    if (serviceFilter) {
+      // Check if it's a UUID
+      if (/^[0-9a-fA-F-]{36}$/.test(serviceFilter)) {
+        resolvedServiceTypeId = serviceFilter;
+      } else {
+        // Look up by name
+        const svc = await (prisma as any).serviceType.findUnique({
+          where: { name: serviceFilter },
+        });
+        resolvedServiceTypeId = svc?.id;
+      }
+    }
+
+    const bookings = await bookingService.getSchedule(
       new Date(dateParam + 'T00:00:00Z'),
-      serviceTypeId
+      resolvedServiceTypeId
     );
 
-    res.json({ schedule });
+    res.json({ bookings, total: bookings.length });
   } catch (error) {
     console.error('Get schedule error:', error);
     res.status(500).json({ error: 'Internal server error' });

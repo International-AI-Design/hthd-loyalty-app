@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateCustomer, AuthenticatedCustomerRequest } from '../../middleware/auth';
+import { prisma } from '../../lib/prisma';
 import { BookingService, BookingError } from './service';
 import {
   createBookingSchema,

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { bookingApi, customerApi } from '../lib/api';
+import { Input } from '../components/ui';
 import type {
   ServiceType,
   Dog,
@@ -66,6 +67,12 @@ export function BookingPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+
+  // Add dog inline
+  const [showAddDog, setShowAddDog] = useState(false);
+  const [newDogName, setNewDogName] = useState('');
+  const [newDogBreed, setNewDogBreed] = useState('');
+  const [isAddingDog, setIsAddingDog] = useState(false);
 
   const isGrooming = selectedService?.name === 'grooming';
 
@@ -268,6 +275,22 @@ export function BookingPage() {
       setPhotoData(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAddDog = async () => {
+    if (!newDogName.trim()) return;
+    setIsAddingDog(true);
+    const { data } = await customerApi.addDog({
+      name: newDogName.trim(),
+      breed: newDogBreed.trim() || undefined,
+    });
+    if (data) {
+      setDogs((prev) => [...prev, data]);
+      setNewDogName('');
+      setNewDogBreed('');
+      setShowAddDog(false);
+    }
+    setIsAddingDog(false);
   };
 
   const handleBundleSelect = async (bundle: ServiceBundle) => {
@@ -481,10 +504,49 @@ export function BookingPage() {
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
               </div>
-            ) : dogs.length === 0 ? (
+            ) : dogs.length === 0 && !showAddDog ? (
               <div className="text-center py-12 text-gray-500">
                 <p>No dogs on your profile yet.</p>
-                <p className="text-sm mt-1">Please contact us to add your dogs.</p>
+                <Button className="mt-4" onClick={() => setShowAddDog(true)}>
+                  Add Your Dog
+                </Button>
+              </div>
+            ) : showAddDog && dogs.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
+                <h3 className="font-semibold text-brand-navy">Add Your Dog</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <Input
+                    value={newDogName}
+                    onChange={(e) => setNewDogName(e.target.value)}
+                    placeholder="Dog's name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Breed (optional)</label>
+                  <Input
+                    value={newDogBreed}
+                    onChange={(e) => setNewDogBreed(e.target.value)}
+                    placeholder="e.g., Golden Retriever"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowAddDog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleAddDog}
+                    disabled={!newDogName.trim() || isAddingDog}
+                    isLoading={isAddingDog}
+                  >
+                    Add Dog
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -551,6 +613,38 @@ export function BookingPage() {
                     </div>
                   );
                 })}
+
+                {/* Add another dog */}
+                {!showAddDog ? (
+                  <button
+                    onClick={() => setShowAddDog(true)}
+                    className="w-full text-sm text-brand-teal hover:text-brand-teal-dark font-medium py-2"
+                  >
+                    + Add another dog
+                  </button>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-md p-4 space-y-3">
+                    <h3 className="font-semibold text-brand-navy text-sm">Add a Dog</h3>
+                    <Input
+                      value={newDogName}
+                      onChange={(e) => setNewDogName(e.target.value)}
+                      placeholder="Dog's name"
+                    />
+                    <Input
+                      value={newDogBreed}
+                      onChange={(e) => setNewDogBreed(e.target.value)}
+                      placeholder="Breed (optional)"
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" size="sm" onClick={() => { setShowAddDog(false); setNewDogName(''); setNewDogBreed(''); }}>
+                        Cancel
+                      </Button>
+                      <Button className="flex-1" size="sm" onClick={handleAddDog} disabled={!newDogName.trim() || isAddingDog} isLoading={isAddingDog}>
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   className="w-full mt-4"

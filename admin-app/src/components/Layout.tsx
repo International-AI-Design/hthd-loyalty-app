@@ -146,7 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-brand-warm-white">
+    <div className="min-h-screen bg-brand-warm-white lg:flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -165,7 +165,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content area */}
-      <div className="lg:ml-0 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Top bar (mobile) */}
         <header className="lg:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <button

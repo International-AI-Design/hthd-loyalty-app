@@ -570,7 +570,13 @@ export interface AdminStaffListResponse {
   staff: AdminStaffUser[];
 }
 
+export interface ServiceTypesResponse {
+  serviceTypes: ServiceType[];
+}
+
 export const adminBookingApi = {
+  getServiceTypes: () =>
+    api.get<ServiceTypesResponse>('/v2/admin/bookings/service-types'),
   getSchedule: (date: string, serviceType?: string) => {
     const params = new URLSearchParams({ date });
     if (serviceType) params.set('serviceType', serviceType);

@@ -2,18 +2,50 @@ import { Router, Request, Response } from 'express';
 import { authenticateCustomer, authenticateStaff } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { BundleService, BundleError } from './service';
+import { prisma } from '../../lib/prisma';
 
 const router = Router();
 const bundleService = new BundleService();
 
-// GET / — list active bundles (customer-facing)
-router.get('/', authenticateCustomer, async (req: Request, res: Response): Promise<void> => {
+// GET / — list bundles (accepts both customer and staff tokens)
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
+    // Try staff auth first, then customer auth
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    // Staff tokens include a 'role' claim; check by attempting to decode
+    const jwt = await import('jsonwebtoken');
+    const token = authHeader.replace('Bearer ', '');
+    const decoded = jwt.default.verify(token, process.env.JWT_SECRET!) as Record<string, unknown>;
+
+    // Staff: return all bundles (active + inactive)
+    if (decoded.role) {
+      const allBundles = await (prisma as any).serviceBundle.findMany({
+        include: {
+          items: {
+            include: {
+              serviceType: {
+                select: { id: true, name: true, displayName: true, basePriceCents: true },
+              },
+            },
+          },
+        },
+        orderBy: { sortOrder: 'asc' },
+      });
+      res.json({ bundles: allBundles });
+      return;
+    }
+
+    // Customer: return active bundles only
     const bundles = await bundleService.getActiveBundles();
     res.json({ bundles });
   } catch (error) {
     console.error('List bundles error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 

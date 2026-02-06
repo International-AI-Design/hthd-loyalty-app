@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { adminBundleApi } from '../lib/api';
-import type { ServiceBundle } from '../lib/api';
+import { adminBundleApi, adminBookingApi } from '../lib/api';
+import type { ServiceBundle, ServiceType } from '../lib/api';
 import { Modal } from '../components/ui';
 
 function formatCents(cents: number): string {
@@ -34,9 +34,13 @@ export function BundleManagementPage() {
   const [form, setForm] = useState<BundleFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
 
   useEffect(() => {
     loadBundles();
+    adminBookingApi.getServiceTypes().then(({ data }) => {
+      if (data) setServiceTypes(data.serviceTypes);
+    });
   }, []);
 
   const loadBundles = async () => {
@@ -54,7 +58,8 @@ export function BundleManagementPage() {
   const handleToggle = async (bundleId: string) => {
     const result = await adminBundleApi.toggle(bundleId);
     if (result.data) {
-      setBundles((prev) => prev.map((b) => (b.id === bundleId ? result.data! : b)));
+      const updated = (result.data as any).bundle ?? result.data;
+      setBundles((prev) => prev.map((b) => (b.id === bundleId ? { ...b, isActive: updated.isActive } : b)));
     }
   };
 
@@ -111,10 +116,11 @@ export function BundleManagementPage() {
     if (result.error) {
       setFormError(result.error);
     } else if (result.data) {
+      const bundle = (result.data as any).bundle ?? result.data;
       if (editingId) {
-        setBundles((prev) => prev.map((b) => (b.id === editingId ? result.data! : b)));
+        setBundles((prev) => prev.map((b) => (b.id === editingId ? bundle : b)));
       } else {
-        setBundles((prev) => [...prev, result.data!]);
+        setBundles((prev) => [...prev, bundle]);
       }
       setShowForm(false);
     }
@@ -290,6 +296,37 @@ export function BundleManagementPage() {
                 placeholder={form.discountType === 'percentage' ? '10' : '5.00'}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Services (select at least 2)
+            </label>
+            <div className="space-y-2">
+              {serviceTypes.map((st) => {
+                const isChecked = form.serviceTypeIds.includes(st.id);
+                return (
+                  <label key={st.id} className="flex items-center gap-2 cursor-pointer min-h-[36px]">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          serviceTypeIds: isChecked
+                            ? prev.serviceTypeIds.filter((id) => id !== st.id)
+                            : [...prev.serviceTypeIds, st.id],
+                        }));
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal"
+                    />
+                    <span className="text-sm text-gray-700">
+                      {st.displayName} ({formatCents(st.basePriceCents)})
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

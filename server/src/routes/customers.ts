@@ -141,6 +141,46 @@ router.get('/me/referrals', authenticateCustomer, async (req, res: Response): Pr
   }
 });
 
+// POST /api/customers/me/dogs - Add a dog
+router.post('/me/dogs', authenticateCustomer, async (req, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const customerId = customerReq.customer.id;
+    const { name, breed, birthDate, notes, sizeCategory } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
+
+    const validSizes = ['small', 'medium', 'large', 'xl'];
+    const data: Record<string, unknown> = {
+      name: name.trim(),
+      breed: breed || null,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      notes: notes || null,
+      customerId,
+    };
+    if (sizeCategory && validSizes.includes(sizeCategory)) {
+      data.sizeCategory = sizeCategory;
+    }
+
+    const dog = await prisma.dog.create({ data: data as any });
+
+    res.status(201).json({
+      id: dog.id,
+      name: dog.name,
+      breed: dog.breed,
+      birth_date: dog.birthDate?.toISOString() || null,
+      notes: dog.notes,
+      size_category: dog.sizeCategory || null,
+    });
+  } catch (error) {
+    console.error('Create dog error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/customers/me/dogs - Get customer's dogs
 router.get('/me/dogs', authenticateCustomer, async (req, res: Response): Promise<void> => {
   try {
@@ -156,6 +196,7 @@ router.get('/me/dogs', authenticateCustomer, async (req, res: Response): Promise
         breed: true,
         birthDate: true,
         notes: true,
+        sizeCategory: true,
       },
     });
 
@@ -166,6 +207,7 @@ router.get('/me/dogs', authenticateCustomer, async (req, res: Response): Promise
         breed: dog.breed,
         birth_date: dog.birthDate?.toISOString() || null,
         notes: dog.notes,
+        size_category: dog.sizeCategory || null,
       })),
     });
   } catch (error) {

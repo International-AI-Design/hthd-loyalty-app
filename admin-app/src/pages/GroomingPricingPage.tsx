@@ -102,8 +102,10 @@ export function GroomingPricingPage() {
     setIsSaving(false);
 
     if (result.data) {
+      // API returns { tier: {...} }, extract the tier object
+      const updated = (result.data as any).tier ?? result.data;
       setMatrix((prev) =>
-        prev.map((t) => (t.id === editing.tierId ? result.data! : t)),
+        prev.map((t) => (t.id === editing.tierId ? updated : t)),
       );
       setSaveSuccess(editing.tierId);
       setEditing(null);
