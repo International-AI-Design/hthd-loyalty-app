@@ -74,7 +74,7 @@ export function BookingsPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString + 'T00:00:00');
+    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',

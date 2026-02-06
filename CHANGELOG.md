@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.5] - Sprint 2: Polish & Close-Out - 2026-02-06
+
+### Bug Fixes (10 total across 9 files this session)
+
+**Session 1: Browser Testing Polish (8 fixes, commit `3c37e24`)**
+- `DashboardPage.tsx` — Fixed `formatDate` timezone bug: ISO datetime strings (with `T`) were getting `T00:00:00` appended, creating invalid dates
+- `DashboardPage.tsx` — Fixed upcoming bookings rendering: used wrong variable name for bookings array
+- `DashboardPage.tsx` — Fixed booking card touch targets: cancel button too small for mobile (now min-h-[44px])
+- `BookingsPage.tsx` — Fixed missing `serviceType` include on booking queries causing undefined display names
+- `BookingPage.tsx` — Fixed grooming photo upload state not clearing on service change
+- `admin-app/SchedulePage.tsx` — Fixed status action buttons not updating booking list after state change
+- `admin-app/SchedulePage.tsx` — Fixed grooming condition rating not submitting (missing API call)
+- `admin-app/Layout.tsx` — Fixed mobile sidebar not closing after navigation
+
+**Session 2: Date Format Fixes (2 fixes)**
+- `BookingsPage.tsx` (line 77) — Same timezone bug as DashboardPage: `formatDate` now checks if dateString already contains `T` before appending `T00:00:00`
+- `BookingPage.tsx` (line 181) — Same fix applied to booking wizard's `formatDate` function
+
+### Documentation
+- Created `docs/SPRINT3-ROADMAP.md` — Full Sprint 3 vision organized into 3a/3b/3c sub-sprints
+- Archived session to `ferroai/memory/cold/sessions/2026-02-06-sprint2-polish.md`
+
+### Files Changed
+1. `customer-app/src/pages/DashboardPage.tsx` — timezone fix, variable fix, touch targets
+2. `customer-app/src/pages/BookingsPage.tsx` — serviceType include, date format fix
+3. `customer-app/src/pages/BookingPage.tsx` — photo state, date format fix
+4. `admin-app/src/pages/SchedulePage.tsx` — status actions, grooming rating
+5. `admin-app/src/components/Layout.tsx` — mobile sidebar close
+6. `customer-app/src/pages/DashboardPage.tsx` — upcoming bookings render
+7. `admin-app/src/pages/SchedulePage.tsx` — condition rating API
+8. `admin-app/src/components/Layout.tsx` — sidebar nav fix
+9. `customer-app/src/pages/BookingsPage.tsx` — formatDate timezone
+10. `customer-app/src/pages/BookingPage.tsx` — formatDate timezone
+
+---
+
 ## [2.0.0-alpha.4] - Sprint 2: Testing & Bug Fixes - 2026-02-06
 
 ### Critical Bugs Fixed (10 files, 269 insertions)
