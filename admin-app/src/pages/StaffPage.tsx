@@ -50,10 +50,16 @@ export function StaffPage() {
     }
   };
 
+  const [roleError, setRoleError] = useState<string | null>(null);
+
   const handleRoleChange = async (staffId: string, newRole: string) => {
+    setRoleError(null);
     const result = await adminStaffApi.updateRole(staffId, newRole);
     if (result.data) {
-      setStaffList((prev) => prev.map((s) => (s.id === staffId ? result.data! : s)));
+      // Merge response with existing data to preserve fields the API may not return (e.g., created_at)
+      setStaffList((prev) => prev.map((s) => (s.id === staffId ? { ...s, ...result.data! } : s)));
+    } else if (result.error) {
+      setRoleError(result.error);
     }
   };
 
@@ -132,6 +138,15 @@ export function StaffPage() {
           Add Staff
         </button>
       </div>
+
+      {roleError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <p className="text-red-800 text-sm">Role update failed: {roleError}</p>
+          <button onClick={() => setRoleError(null)} className="text-red-600 hover:text-red-800 text-sm font-medium ml-4">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">

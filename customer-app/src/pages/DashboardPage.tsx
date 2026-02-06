@@ -299,7 +299,8 @@ export function DashboardPage() {
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // For date-only strings (e.g., "2026-02-10"), append T00:00:00 to avoid UTC interpretation
+    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

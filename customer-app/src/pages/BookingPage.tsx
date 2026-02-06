@@ -248,10 +248,13 @@ export function BookingPage() {
 
   const handleSizeUpdate = async (dogId: string, size: string) => {
     setUpdatingSize(true);
-    const { data } = await bookingApi.updateDogSize(dogId, size);
+    setError(null);
+    const { data, error: err } = await bookingApi.updateDogSize(dogId, size);
     if (data) {
       setDogs((prev) => prev.map((d) => (d.id === dogId ? { ...d, size_category: size } : d)));
       setSizePendingDogId(null);
+    } else if (err) {
+      setError(err);
     }
     setUpdatingSize(false);
   };
@@ -315,9 +318,13 @@ export function BookingPage() {
     });
 
     if (data) {
-      // Upload photo if provided
+      // Upload photo if provided (non-blocking — booking is already confirmed)
       if (photoData && selectedDogIds.length === 1) {
-        await bookingApi.uploadDogPhoto(data.booking.id, selectedDogIds[0], photoData);
+        const photoResult = await bookingApi.uploadDogPhoto(data.booking.id, selectedDogIds[0], photoData);
+        if (photoResult.error) {
+          console.warn('Photo upload failed:', photoResult.error);
+          setError('Booking confirmed, but photo upload failed. You can share a photo at your appointment.');
+        }
       }
       setConfirmedBooking(data.booking);
     } else if (err) {

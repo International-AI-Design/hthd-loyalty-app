@@ -136,10 +136,13 @@ export function SchedulePage() {
     setDate(toDateString(new Date()));
   };
 
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const handleAction = async (
     bookingId: string,
     action: 'confirm' | 'checkIn' | 'checkOut' | 'noShow',
   ) => {
+    setActionError(null);
     const apiMap = {
       confirm: adminBookingApi.confirmBooking,
       checkIn: adminBookingApi.checkIn,
@@ -151,6 +154,8 @@ export function SchedulePage() {
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? result.data!.booking : b)),
       );
+    } else if (result.error) {
+      setActionError(result.error);
     }
   };
 
@@ -245,6 +250,15 @@ export function SchedulePage() {
           </button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <p className="text-red-800 text-sm">{actionError}</p>
+          <button onClick={() => setActionError(null)} className="text-red-600 hover:text-red-800 text-sm font-medium ml-4">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       {isLoading ? (

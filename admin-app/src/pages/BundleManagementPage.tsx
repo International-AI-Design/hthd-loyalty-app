@@ -55,11 +55,16 @@ export function BundleManagementPage() {
     }
   };
 
+  const [toggleError, setToggleError] = useState<string | null>(null);
+
   const handleToggle = async (bundleId: string) => {
+    setToggleError(null);
     const result = await adminBundleApi.toggle(bundleId);
     if (result.data) {
       const updated = (result.data as any).bundle ?? result.data;
       setBundles((prev) => prev.map((b) => (b.id === bundleId ? { ...b, isActive: updated.isActive } : b)));
+    } else if (result.error) {
+      setToggleError(result.error);
     }
   };
 
@@ -87,6 +92,10 @@ export function BundleManagementPage() {
   const handleSubmit = async () => {
     if (!form.name.trim()) {
       setFormError('Bundle name is required');
+      return;
+    }
+    if (form.serviceTypeIds.length < 2) {
+      setFormError('Please select at least 2 services');
       return;
     }
     const discountValue = parseFloat(form.discountValue);
@@ -170,6 +179,15 @@ export function BundleManagementPage() {
           Create Bundle
         </button>
       </div>
+
+      {toggleError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <p className="text-red-800 text-sm">{toggleError}</p>
+          <button onClick={() => setToggleError(null)} className="text-red-600 hover:text-red-800 text-sm font-medium ml-4">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {bundles.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">

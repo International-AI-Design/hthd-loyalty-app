@@ -76,16 +76,20 @@ export function GroomingPricingPage() {
     setEditing(null);
   };
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleSave = async () => {
     if (!editing) return;
 
     setIsSaving(true);
+    setSaveError(null);
     const data: { priceCents?: number; estimatedMinutes?: number } = {};
 
     if (editing.field === 'price') {
       const cents = parseDollars(editing.value);
       if (cents === null) {
         setIsSaving(false);
+        setSaveError('Please enter a valid price (e.g., 45.00)');
         return;
       }
       data.priceCents = cents;
@@ -93,6 +97,7 @@ export function GroomingPricingPage() {
       const mins = parseInt(editing.value, 10);
       if (isNaN(mins) || mins < 0) {
         setIsSaving(false);
+        setSaveError('Please enter a valid number of minutes');
         return;
       }
       data.estimatedMinutes = mins;
@@ -109,7 +114,10 @@ export function GroomingPricingPage() {
       );
       setSaveSuccess(editing.tierId);
       setEditing(null);
+      setSaveError(null);
       setTimeout(() => setSaveSuccess(null), 2000);
+    } else if (result.error) {
+      setSaveError(result.error);
     }
   };
 
@@ -149,6 +157,15 @@ export function GroomingPricingPage() {
         <h1 className="font-heading text-2xl font-bold text-brand-navy">Grooming Pricing</h1>
         <p className="text-gray-500 text-sm mt-1">Click any cell to edit price or estimated time</p>
       </div>
+
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <p className="text-red-800 text-sm">{saveError}</p>
+          <button onClick={() => setSaveError(null)} className="text-red-600 hover:text-red-800 text-sm font-medium ml-4">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Desktop: Table view */}
       <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
