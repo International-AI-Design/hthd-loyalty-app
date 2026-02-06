@@ -1,6 +1,13 @@
 import { prisma } from '../../lib/prisma';
 import { AvailabilityResult, CreateBookingInput, BookingStatus } from './types';
 
+interface GroomingSlotAvailability {
+  startTime: string;
+  endTime: string;
+  available: boolean;
+  spotsRemaining: number;
+}
+
 interface CapacityRuleRow {
   id: string;
   serviceTypeId: string;
@@ -363,6 +370,67 @@ export class BookingService {
         customer: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
       },
       orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
+   * Get all active service types.
+   */
+  async getServiceTypes() {
+    return (prisma as any).serviceType.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  /**
+   * Get grooming slot availability for a specific date.
+   * Queries CapacityRules with startTime (grooming slots) and counts bookings per slot.
+   */
+  async getGroomingSlots(date: Date): Promise<GroomingSlotAvailability[]> {
+    // Find the grooming service type
+    const grooming = await (prisma as any).serviceType.findUnique({
+      where: { name: 'grooming' },
+    });
+    if (!grooming) {
+      throw new BookingError('Grooming service type not found', 404);
+    }
+
+    // Get all grooming time slots (capacity rules with startTime)
+    const slots = await (prisma as any).capacityRule.findMany({
+      where: {
+        serviceTypeId: grooming.id,
+        startTime: { not: null },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    // Count existing active bookings per slot for this date
+    const existingBookings = await (prisma as any).booking.findMany({
+      where: {
+        serviceTypeId: grooming.id,
+        date,
+        status: { in: ['pending', 'confirmed', 'checked_in'] },
+        startTime: { not: null },
+      },
+      select: { startTime: true },
+    });
+
+    const bookingCountBySlot = new Map<string, number>();
+    for (const b of existingBookings) {
+      const count = bookingCountBySlot.get(b.startTime) ?? 0;
+      bookingCountBySlot.set(b.startTime, count + 1);
+    }
+
+    return slots.map((slot: any) => {
+      const booked = bookingCountBySlot.get(slot.startTime) ?? 0;
+      const remaining = Math.max(0, slot.maxCapacity - booked);
+      return {
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        available: remaining > 0,
+        spotsRemaining: remaining,
+      };
     });
   }
 

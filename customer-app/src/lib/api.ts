@@ -179,6 +179,7 @@ export interface Dog {
   breed: string | null;
   birth_date: string | null;
   notes: string | null;
+  size_category: string | null;
 }
 
 export interface DogsResponse {
@@ -313,4 +314,153 @@ export interface ReferralValidation {
 export const referralApi = {
   validate: (code: string) =>
     api.get<ReferralValidation>(`/referrals/validate/${code}`),
+};
+
+// === V2 Booking Types ===
+
+export interface ServiceType {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  basePriceCents: number;
+  durationMinutes: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface ServiceTypesResponse {
+  serviceTypes: ServiceType[];
+}
+
+export interface AvailabilityDay {
+  date: string;
+  available: boolean;
+  spotsRemaining: number;
+  totalCapacity: number;
+}
+
+export interface AvailabilityResponse {
+  availability: AvailabilityDay[];
+}
+
+export interface GroomingSlot {
+  startTime: string;
+  endTime: string;
+  available: boolean;
+  spotsRemaining: number;
+}
+
+export interface GroomingSlotsResponse {
+  slots: GroomingSlot[];
+}
+
+export interface GroomingPriceRange {
+  sizeCategory: string;
+  minPriceCents: number;
+  maxPriceCents: number;
+}
+
+export interface BookingDog {
+  id: string;
+  bookingId: string;
+  dogId: string;
+  conditionRating: number | null;
+  conditionPhoto: string | null;
+  quotedPriceCents: number | null;
+  notes: string | null;
+  dog: Dog;
+}
+
+export interface Booking {
+  id: string;
+  customerId: string;
+  serviceTypeId: string;
+  date: string;
+  startTime: string | null;
+  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show';
+  totalCents: number;
+  notes: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  serviceType: ServiceType;
+  dogs: BookingDog[];
+}
+
+export interface BookingResponse {
+  booking: Booking;
+}
+
+export interface BookingsResponse {
+  bookings: Booking[];
+  total: number;
+}
+
+export interface ServiceBundleItem {
+  id: string;
+  serviceType: {
+    id: string;
+    name: string;
+    displayName: string;
+    basePriceCents: number;
+  };
+}
+
+export interface ServiceBundle {
+  id: string;
+  name: string;
+  description: string | null;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  isActive: boolean;
+  sortOrder: number;
+  items: ServiceBundleItem[];
+}
+
+export interface BundlesResponse {
+  bundles: ServiceBundle[];
+}
+
+export interface BundleCalculation {
+  bundle: { id: string; name: string; discountType: string; discountValue: number };
+  services: { serviceType: string; basePriceCents: number }[];
+  dogCount: number;
+  baseTotalCents: number;
+  discountCents: number;
+  finalTotalCents: number;
+}
+
+export const bookingApi = {
+  getServiceTypes: () =>
+    api.get<ServiceTypesResponse>('/v2/booking/service-types'),
+  checkAvailability: (serviceTypeId: string, startDate: string, endDate: string) =>
+    api.get<AvailabilityResponse>(
+      `/v2/booking/availability?serviceTypeId=${serviceTypeId}&startDate=${startDate}&endDate=${endDate}`
+    ),
+  getGroomingSlots: (date: string) =>
+    api.get<GroomingSlotsResponse>(`/v2/booking/grooming-slots?date=${date}`),
+  getGroomingPriceRange: (sizeCategory: string) =>
+    api.get<GroomingPriceRange>(`/v2/grooming/pricing/${sizeCategory}`),
+  createBooking: (data: { serviceTypeId: string; dogIds: string[]; date: string; startTime?: string; notes?: string }) =>
+    api.post<BookingResponse>('/v2/booking', data),
+  getBookings: (params?: { status?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const qs = searchParams.toString();
+    return api.get<BookingsResponse>(`/v2/booking${qs ? `?${qs}` : ''}`);
+  },
+  cancelBooking: (bookingId: string, reason?: string) =>
+    api.post<BookingResponse>(`/v2/booking/${bookingId}/cancel`, { reason }),
+  uploadDogPhoto: (bookingId: string, dogId: string, photo: string) =>
+    api.post<{ success: boolean; message: string }>(`/v2/booking/${bookingId}/dogs/${dogId}/photo`, { photo }),
+  updateDogSize: (dogId: string, sizeCategory: string) =>
+    api.put<Dog>(`/v2/booking/dogs/${dogId}/size`, { sizeCategory }),
+  getBundleSuggestions: (serviceTypeId: string) =>
+    api.get<BundlesResponse>(`/v2/bundles/suggestions?serviceTypeId=${serviceTypeId}`),
+  calculateBundlePrice: (bundleId: string, dogIds: string[]) =>
+    api.get<BundleCalculation>(`/v2/bundles/calculate?bundleId=${bundleId}&dogIds=${dogIds.join(',')}`),
+  updateSmsPreference: (smsDealsOptedOut: boolean) =>
+    api.put<{ success: boolean; smsDealsOptedOut: boolean }>('/customers/me/preferences', { smsDealsOptedOut }),
 };

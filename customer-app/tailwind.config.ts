@@ -6,8 +6,8 @@ export default {
     extend: {
       colors: {
         brand: {
-          teal: '#5BBFBA',
-          'teal-dark': '#4AA9A4',
+          teal: '#62A2C3',
+          'teal-dark': '#4F8BA8',
           navy: '#1B365D',
           cream: '#FDF8F3',
           'warm-white': '#F8F6F3',

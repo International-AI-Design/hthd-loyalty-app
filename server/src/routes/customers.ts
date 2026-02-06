@@ -226,4 +226,28 @@ router.get('/me/visits', authenticateCustomer, async (req, res: Response): Promi
   }
 });
 
+// PUT /api/customers/me/preferences - Update customer preferences (SMS opt-out)
+router.put('/me/preferences', authenticateCustomer, async (req, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const customerId = customerReq.customer.id;
+    const { smsDealsOptedOut } = req.body;
+
+    if (typeof smsDealsOptedOut !== 'boolean') {
+      res.status(400).json({ error: 'smsDealsOptedOut must be a boolean' });
+      return;
+    }
+
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: { smsDealsOptedOut },
+    });
+
+    res.status(200).json({ success: true, smsDealsOptedOut });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

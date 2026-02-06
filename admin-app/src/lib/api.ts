@@ -85,7 +85,7 @@ export const api = {
 export interface StaffUser {
   id: string;
   username: string;
-  role: 'admin' | 'staff' | 'groomer';
+  role: 'owner' | 'admin' | 'manager' | 'staff' | 'groomer';
   first_name: string;
   last_name: string;
 }
@@ -457,4 +457,160 @@ export interface DemoResetResponse {
 export const adminDemoApi = {
   status: () => api.get<DemoStatusResponse>('/admin/demo/status'),
   reset: () => api.post<DemoResetResponse>('/admin/demo/reset', {}),
+};
+
+// === V2 Admin Booking Types ===
+export interface ServiceType {
+  id: string;
+  name: string;
+  displayName: string;
+  basePriceCents: number;
+  durationMinutes: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface BookingDog {
+  id: string;
+  bookingId: string;
+  dogId: string;
+  conditionRating: number | null;
+  conditionPhoto: string | null;
+  quotedPriceCents: number | null;
+  notes: string | null;
+  dog: {
+    id: string;
+    name: string;
+    breed: string | null;
+    sizeCategory: string | null;
+  };
+}
+
+export interface AdminBooking {
+  id: string;
+  customerId: string;
+  serviceTypeId: string;
+  date: string;
+  startTime: string | null;
+  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show';
+  totalCents: number;
+  notes: string | null;
+  createdAt: string;
+  serviceType: ServiceType;
+  dogs: BookingDog[];
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+export interface ScheduleResponse {
+  bookings: AdminBooking[];
+  total: number;
+}
+
+export interface GroomingPriceTier {
+  id: string;
+  sizeCategory: 'small' | 'medium' | 'large' | 'xl';
+  conditionRating: number;
+  label: string;
+  estimatedMinutes: number;
+  priceCents: number;
+  isActive: boolean;
+}
+
+export interface GroomingMatrixResponse {
+  matrix: GroomingPriceTier[];
+}
+
+export interface RateConditionResponse {
+  bookingDog: BookingDog;
+  priceTier: GroomingPriceTier;
+}
+
+export interface ServiceBundleItem {
+  id: string;
+  serviceType: {
+    id: string;
+    name: string;
+    displayName: string;
+    basePriceCents: number;
+  };
+}
+
+export interface ServiceBundle {
+  id: string;
+  name: string;
+  description: string | null;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  isActive: boolean;
+  sortOrder: number;
+  items: ServiceBundleItem[];
+  createdAt: string;
+}
+
+export interface BundlesResponse {
+  bundles: ServiceBundle[];
+}
+
+export interface AdminStaffUser {
+  id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  role: 'owner' | 'admin' | 'manager' | 'staff';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AdminStaffListResponse {
+  staff: AdminStaffUser[];
+}
+
+export const adminBookingApi = {
+  getSchedule: (date: string, serviceType?: string) => {
+    const params = new URLSearchParams({ date });
+    if (serviceType) params.set('serviceType', serviceType);
+    return api.get<ScheduleResponse>(`/v2/admin/bookings/schedule?${params}`);
+  },
+  confirmBooking: (bookingId: string) =>
+    api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/confirm`, {}),
+  checkIn: (bookingId: string) =>
+    api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/check-in`, {}),
+  checkOut: (bookingId: string) =>
+    api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/check-out`, {}),
+  markNoShow: (bookingId: string) =>
+    api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/no-show`, {}),
+};
+
+export const adminGroomingApi = {
+  rateCondition: (bookingDogId: string, conditionRating: number) =>
+    api.post<RateConditionResponse>(`/v2/grooming/rate/${bookingDogId}`, { conditionRating }),
+  getMatrix: () =>
+    api.get<GroomingMatrixResponse>('/v2/grooming/matrix'),
+  updatePrice: (tierId: string, data: { priceCents?: number; estimatedMinutes?: number }) =>
+    api.put<GroomingPriceTier>(`/v2/grooming/matrix/${tierId}`, data),
+};
+
+export const adminStaffApi = {
+  getStaff: () =>
+    api.get<AdminStaffListResponse>('/v2/admin/staff'),
+  createStaff: (data: { username: string; password: string; firstName: string; lastName: string; role?: string }) =>
+    api.post<AdminStaffUser>('/v2/admin/staff', data),
+  updateRole: (staffId: string, role: string) =>
+    api.put<AdminStaffUser>(`/v2/admin/staff/${staffId}/role`, { role }),
+};
+
+export const adminBundleApi = {
+  list: () =>
+    api.get<BundlesResponse>('/v2/bundles'),
+  create: (data: { name: string; description?: string; discountType: string; discountValue: number; serviceTypeIds: string[]; sortOrder?: number }) =>
+    api.post<ServiceBundle>('/v2/bundles', data),
+  update: (bundleId: string, data: Partial<{ name: string; description: string; discountType: string; discountValue: number; serviceTypeIds: string[]; sortOrder: number }>) =>
+    api.put<ServiceBundle>(`/v2/bundles/${bundleId}`, data),
+  toggle: (bundleId: string) =>
+    api.delete<ServiceBundle>(`/v2/bundles/${bundleId}`),
 };

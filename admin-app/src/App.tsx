@@ -1,7 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage, DashboardPage, CustomersPage, CustomerDetailPage, GingrSyncPage } from './pages';
+import { Layout } from './components/Layout';
+import {
+  LoginPage,
+  DashboardPage,
+  CustomersPage,
+  CustomerDetailPage,
+  GingrSyncPage,
+  SchedulePage,
+  GroomingPricingPage,
+  BundleManagementPage,
+  StaffPage,
+} from './pages';
 
 function App() {
   return (
@@ -13,7 +24,19 @@ function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <Layout>
+                  <DashboardPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SchedulePage />
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -21,7 +44,9 @@ function App() {
             path="/customers"
             element={
               <ProtectedRoute>
-                <CustomersPage />
+                <Layout>
+                  <CustomersPage />
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -29,7 +54,39 @@ function App() {
             path="/customers/:id"
             element={
               <ProtectedRoute>
-                <CustomerDetailPage />
+                <Layout>
+                  <CustomerDetailPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/grooming-pricing"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GroomingPricingPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bundles"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BundleManagementPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StaffPage />
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -37,7 +94,9 @@ function App() {
             path="/gingr-sync"
             element={
               <ProtectedRoute>
-                <GingrSyncPage />
+                <Layout>
+                  <GingrSyncPage />
+                </Layout>
               </ProtectedRoute>
             }
           />

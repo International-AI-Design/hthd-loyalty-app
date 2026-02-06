@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { customerApi } from '../lib/api';
-import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit } from '../lib/api';
+import { customerApi, bookingApi } from '../lib/api';
+import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking } from '../lib/api';
 import { Button, Modal, Alert, Toast } from '../components/ui';
 import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
@@ -36,6 +36,10 @@ export function DashboardPage() {
   const [isLoadingDogs, setIsLoadingDogs] = useState(true);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoadingVisits, setIsLoadingVisits] = useState(true);
+
+  // Upcoming bookings state
+  const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
   // Redemption state
   const [selectedTier, setSelectedTier] = useState<{ points: number; discount: number } | null>(null);
@@ -88,17 +92,32 @@ export function DashboardPage() {
     setIsLoadingVisits(false);
   }, []);
 
+  const fetchBookings = useCallback(async () => {
+    const [pendingRes, confirmedRes] = await Promise.all([
+      bookingApi.getBookings({ status: 'pending', limit: 2 }),
+      bookingApi.getBookings({ status: 'confirmed', limit: 2 }),
+    ]);
+    const pending = pendingRes.data?.bookings || [];
+    const confirmed = confirmedRes.data?.bookings || [];
+    const combined = [...pending, ...confirmed]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 2);
+    setUpcomingBookings(combined);
+    setIsLoadingBookings(false);
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
     fetchRedemptions();
     fetchReferralStats();
     fetchDogs();
     fetchVisits();
-  }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits]);
+    fetchBookings();
+  }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits, fetchBookings]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refreshProfile(), fetchTransactions(), fetchRedemptions(), fetchReferralStats(), fetchDogs(), fetchVisits()]);
+    await Promise.all([refreshProfile(), fetchTransactions(), fetchRedemptions(), fetchReferralStats(), fetchDogs(), fetchVisits(), fetchBookings()]);
     setIsRefreshing(false);
   };
 
@@ -379,6 +398,93 @@ export function DashboardPage() {
             </div>
           </div>
         </button>
+
+        {/* Book Appointment CTA */}
+        <button
+          onClick={() => navigate('/book')}
+          className="w-full bg-gradient-to-r from-brand-navy to-brand-navy/80 rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-white">
+                Book an Appointment
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                Daycare, boarding, or grooming
+              </p>
+            </div>
+            <div className="ml-4 flex-shrink-0">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {/* Upcoming Bookings */}
+        {!isLoadingBookings && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-brand-teal"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Upcoming Bookings
+            </h3>
+            {upcomingBookings.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                <p>No upcoming bookings</p>
+                <button
+                  onClick={() => navigate('/book')}
+                  className="text-brand-teal font-medium mt-1 hover:underline min-h-[44px]"
+                >
+                  Book your first appointment
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcomingBookings.map((booking) => (
+                  <button
+                    key={booking.id}
+                    onClick={() => navigate('/bookings')}
+                    className="w-full flex items-center justify-between py-3 px-3 rounded-xl bg-brand-cream hover:bg-brand-cream/80 transition-colors text-left min-h-[64px]"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-brand-navy">{booking.serviceType.displayName}</p>
+                      <p className="text-sm text-gray-600">
+                        {formatDate(booking.date)} {booking.dogs.length > 0 && `\u2022 ${booking.dogs.map((bd) => bd.dog.name).join(', ')}`}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    } capitalize`}>
+                      {booking.status}
+                    </span>
+                  </button>
+                ))}
+                {upcomingBookings.length > 0 && (
+                  <button
+                    onClick={() => navigate('/bookings')}
+                    className="w-full text-center text-sm text-brand-teal font-medium hover:underline py-2 min-h-[44px]"
+                  >
+                    View all bookings
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* My Pups Section */}
         {!isLoadingDogs && dogs.length > 0 && (

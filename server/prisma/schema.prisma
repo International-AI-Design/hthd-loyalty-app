@@ -19,6 +19,7 @@ model Customer {
   accountStatus   String              @default("active") @map("account_status") // 'unclaimed' | 'active'
   source          String              @default("organic") // 'organic' | 'gingr_import'
   gingrOwnerId    String?             @unique @map("gingr_owner_id") // For syncing with Gingr
+  smsDealsOptedOut Boolean            @default(false) @map("sms_deals_opted_out")
   claimedAt       DateTime?           @map("claimed_at")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
@@ -49,6 +50,7 @@ model Dog {
   breed         String?
   birthDate     DateTime? @map("birth_date")
   notes         String?
+  sizeCategory  String?   @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
   gingrAnimalId String?   @unique @map("gingr_animal_id") // For syncing with Gingr
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -96,7 +98,7 @@ model StaffUser {
   id           String        @id @default(uuid())
   username     String        @unique
   passwordHash String        @map("password_hash")
-  role         String        @default("staff") // 'admin', 'staff', 'groomer'
+  role         String        @default("staff") // 'owner' | 'manager' | 'staff' | 'admin' (legacy)
   firstName    String        @map("first_name")
   lastName     String        @map("last_name")
   isActive     Boolean       @default(true) @map("is_active")
@@ -207,9 +209,10 @@ model ServiceType {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
-  capacityRules   CapacityRule[]
-  bookings        Booking[]
-  pricingRules    PricingRule[]
+  capacityRules      CapacityRule[]
+  bookings           Booking[]
+  pricingRules       PricingRule[]
+  serviceBundleItems ServiceBundleItem[]
 
   @@map("service_types")
 }
@@ -277,10 +280,13 @@ model Booking {
 }
 
 model BookingDog {
-  id         String   @id @default(uuid())
-  bookingId  String   @map("booking_id")
-  dogId      String   @map("dog_id")
-  notes      String?
+  id               String   @id @default(uuid())
+  bookingId        String   @map("booking_id")
+  dogId            String   @map("dog_id")
+  notes            String?
+  conditionRating  Int?     @map("condition_rating") // groomer's 1-5 rating (null until rated)
+  conditionPhoto   String?  @map("condition_photo") // base64 data URL of dog photo
+  quotedPriceCents Int?     @map("quoted_price_cents") // price after groomer rates condition
 
   booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   dog        Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
@@ -519,4 +525,49 @@ model IntakeForm {
 
   @@index([phoneNumber])
   @@map("intake_forms")
+}
+
+// --- Grooming Pricing ---
+
+model GroomingPriceTier {
+  id               String   @id @default(uuid())
+  sizeCategory     String   @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
+  conditionRating  Int      @map("condition_rating") // 1-5 (1=normal, 5=severely matted)
+  label            String   // e.g. "Normal", "Slightly Matted", "Moderately Matted", "Heavy", "Severe"
+  estimatedMinutes Int      @map("estimated_minutes")
+  priceCents       Int      @map("price_cents")
+  isActive         Boolean  @default(true) @map("is_active")
+
+  @@unique([sizeCategory, conditionRating])
+  @@map("grooming_price_tiers")
+}
+
+// --- Service Bundles ---
+
+model ServiceBundle {
+  id            String              @id @default(uuid())
+  name          String              // e.g. "Daycare + Grooming Combo"
+  description   String?
+  discountType  String              @map("discount_type") // 'percentage' | 'fixed'
+  discountValue Int                 @map("discount_value") // percentage (e.g. 10) or cents (e.g. 1000 = $10 off)
+  isActive      Boolean             @default(true) @map("is_active")
+  sortOrder     Int                 @default(0) @map("sort_order")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  items         ServiceBundleItem[]
+
+  @@map("service_bundles")
+}
+
+model ServiceBundleItem {
+  id            String        @id @default(uuid())
+  bundleId      String        @map("bundle_id")
+  serviceTypeId String        @map("service_type_id")
+
+  bundle        ServiceBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  serviceType   ServiceType   @relation(fields: [serviceTypeId], references: [id])
+
+  @@unique([bundleId, serviceTypeId])
+  @@map("service_bundle_items")
 }

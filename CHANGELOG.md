@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.3] - Sprint 2: Frontend Complete - 2026-02-05
+
+### Added — Customer App
+- **BookingPage** (`pages/BookingPage.tsx`) — 7-step booking wizard: select service → select dogs → pick date (calendar grid, 30-day availability) → pick time (grooming only) → photo upload (grooming only, skippable) → bundle upsell → review & confirm. Progress dots, back nav, mobile-first, 44px touch targets
+- **BookingsPage** (`pages/BookingsPage.tsx`) — Upcoming/Past tabs with status badges, cancel with confirmation dialog
+- **Dashboard booking CTA** — "Book an Appointment" gradient navy card + "Upcoming Bookings" section on DashboardPage
+- **Booking API layer** (`lib/api.ts`) — `bookingApi` object with 12 methods: getServiceTypes, checkAvailability, getGroomingSlots, getGroomingPriceRange, createBooking, getBookings, cancelBooking, uploadDogPhoto, updateDogSize, getBundleSuggestions, calculateBundlePrice, updateSmsPreference
+- **Routes** — `/book` and `/bookings` as ProtectedRoutes in App.tsx
+
+### Added — Admin App
+- **SchedulePage** (`pages/SchedulePage.tsx`) — Daily schedule view with date nav, summary bar, filter tabs (All/Daycare/Boarding/Grooming), booking cards with status actions (confirm, check-in, check-out, no-show), inline grooming coat rating (1-5) with auto-price
+- **GroomingPricingPage** (`pages/GroomingPricingPage.tsx`) — 4×5 price matrix editor (owner/manager only), editable prices and estimated minutes
+- **BundleManagementPage** (`pages/BundleManagementPage.tsx`) — Bundle CRUD with active/inactive toggles (owner only)
+- **StaffPage** (`pages/StaffPage.tsx`) — Staff list with role management, create staff form (owner only)
+- **Layout** (`components/Layout.tsx`) — Sidebar nav with role-based visibility: Dashboard, Schedule, Customers, Grooming Pricing (owner/manager), Bundles (owner), Staff (owner), Gingr Sync. Collapsible on mobile
+- **Admin API layer** (`lib/api.ts`) — 4 new API objects: adminBookingApi, adminGroomingApi, adminStaffApi, adminBundleApi
+- **Brand theme** — Full @theme block in admin-app/src/index.css with brand colors and fonts
+
+### Added — Backend
+- **Grooming pricing engine** — `GroomingPriceTier` model with 4×5 size/condition matrix, price range lookups, groomer coat rating with auto-price calculation
+- **Service bundles** — `ServiceBundle` + `ServiceBundleItem` models for package deals, CRUD endpoints, bundle price calculator
+- **RBAC middleware** (`middleware/rbac.ts`) — role-based access control with owner/manager/staff permission tiers
+- **Grooming module** (`modules/grooming/`) — pricing service + routes: GET /pricing/:size, POST /rate/:bookingDogId, GET /matrix, PUT /matrix/:id
+- **Bundles module** (`modules/bundles/`) — bundle service + routes: list, suggestions, calculate, CRUD
+- **Admin staff management** (`routes/v2/admin/staff.ts`) — list staff, update roles, create staff users (owner only)
+- **Booking module extensions** — GET /service-types, GET /grooming-slots, PUT /dogs/:id/size, POST /:bookingId/dogs/:dogId/photo
+- **SMS preferences** — PUT /customers/me/preferences for deal opt-out
+- **Seed data** — 3 service types, 11 capacity rules (inc. 8 grooming time slots), 20 grooming price tiers, multi-dog discount rule
+
+### Changed
+- **Schema** — added Dog.sizeCategory, BookingDog.conditionRating/conditionPhoto/quotedPriceCents, Customer.smsDealsOptedOut, 3 new models (GroomingPriceTier, ServiceBundle, ServiceBundleItem)
+- **Color migration** — brand-teal #5BBFBA → #62A2C3, brand-teal-dark #4AA9A4 → #4F8BA8 (customer + admin apps, both CSS and Tailwind config)
+- **Route mounting** — 3 new server route groups: /api/v2/grooming, /api/v2/bundles, /api/v2/admin/staff
+- **StaffUser roles** — expanded from admin/staff/groomer to owner/manager/staff (admin preserved as legacy)
+- **Admin AuthContext** — updated StaffUser role type to include owner/manager
+- **Admin App.tsx** — all protected routes wrapped in Layout component
+
+### Fixed
+- **Placeholder route wildcards** — `router.all('*')` → `router.all('/{*path}')` in payments, memberships, intakes, report-cards (Express 5 / path-to-regexp v8 compat)
+- **Seed script** — added PrismaPg adapter + dotenv for Prisma 7 compatibility, replaced upsert with delete+create for nullable composite keys
+- **Staff route import** — `bcryptjs` → `bcrypt` (matching existing codebase dependency)
+
+---
+
 ## [2.0.0-alpha.1] - v2 Platform Foundation (Sprint 1) - 2026-02-05
 
 ### Added

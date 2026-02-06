@@ -3,3 +3,5 @@ export { LoginPage } from './LoginPage';
 export { ClaimPage } from './ClaimPage';
 export { DashboardPage } from './DashboardPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { BookingPage } from './BookingPage';
+export { BookingsPage } from './BookingsPage';
