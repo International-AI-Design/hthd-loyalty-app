@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.1] - v2 Platform Foundation (Sprint 1) - 2026-02-05
+
+### Added
+- **500-point cap** on loyalty points balance — enforced in admin points, registration referral bonus, and Gingr auto-sync
+- **Points utility** (`lib/points.ts`) — shared `capPoints()` function and constants
+- **v2 Prisma schema** — 16 new models: ServiceType, CapacityRule, CapacityOverride, Booking, BookingDog, PricingRule, Wallet, WalletTransaction, Payment, MembershipPlan, Subscription, Conversation, Message, ScheduledNotification, StaffSchedule, ReportCard, IntakeForm
+- **Booking module** (`modules/booking/`) — availability checking, booking CRUD, check-in/check-out, pricing rules, admin schedule view
+- **Wallet module** (`modules/wallet/`) — Starbucks-style prepaid balance, 2x points for wallet payments, auto-reload config, daily load limits, transaction history
+- **v2 route scaffold** — all new endpoints under `/api/v2/` namespace; existing v1 routes unchanged
+- **Seed data** (`prisma/seed-v2.ts`) — daycare ($45), boarding ($65), grooming ($75) service types with capacity rules
+- **v2 platform plan** (`docs/v2-platform-plan.md`) — full architecture, market analysis, sprint roadmap, security audit, AI cost projections
+
+### Changed
+- `.env.example` — added STRIPE_*, TWILIO_*, ANTHROPIC_API_KEY variables
+
+### Note
+- Schema is NOT migrated yet — requires `prisma migrate dev` + `prisma generate`
+- v2 models use `(prisma as any)` casts until migration completes
+- No production behavior changes — all v2 code is additive
+
+---
+
+## [1.4.2] - Production Stability - 2026-02-05
+
+### Fixed
+- **Intermittent network errors on login** - Root cause: unconfigured pg.Pool + Railway container sleep causing stale DB connections
+- **Database connection pool** - Configured with keepAlive, 10s connection timeout, 30s idle timeout, max 10 connections, and error handler for stale connections
+- **Rate limiter too aggressive** - Increased from 100 to 300 requests per 15 minutes (was causing issues during multi-device/demo scenarios)
+- **Frontend requests hang forever** - Added 10s request timeout via AbortController to both customer-app and admin-app
+- **Single-failure user errors** - Added retry logic (2 retries with exponential backoff) for transient network failures in both frontend apps
+- **Graceful shutdown** - Server now cleanly closes HTTP server, Prisma client, and pg pool on SIGTERM/SIGINT (prevents connection leaks during Railway redeploys)
+
+### Changed
+- Better error messaging: distinguishes "server starting up" (timeout) from "check your connection" (offline)
+
+### Action Required
+- **Railway dashboard**: Verify container is not set to auto-sleep (needs paid plan setting)
+
+---
+
 ## [1.4.1] - Bug Fixes & Branding - 2026-02-04
 
 ### Fixed

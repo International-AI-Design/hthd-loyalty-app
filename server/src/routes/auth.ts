@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { WELCOME_BONUS_POINTS, REFERRAL_BONUS_POINTS, capPoints } from '../lib/points';
 import { sendNewSignupWelcomeEmail, sendPasswordResetEmail } from '../services/email';
 
 const router = Router();
@@ -86,13 +87,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       attempts++;
     }
 
-    // Bonus points
-    const REFERRAL_BONUS_POINTS = 100;
-    const WELCOME_BONUS_POINTS = 25;
-
     // Create customer and award bonuses in a transaction
     const customer = await prisma.$transaction(async (tx) => {
-      // Create new customer with welcome bonus
+      // Create new customer with welcome bonus (25 pts, well under 500 cap)
       const newCustomer = await tx.customer.create({
         data: {
           phone,
@@ -116,25 +113,34 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         },
       });
 
-      // Award referral bonus to referrer if applicable
+      // Award referral bonus to referrer if applicable (with cap enforcement)
       if (referrer) {
-        // Create points transaction for referrer
-        await tx.pointsTransaction.create({
-          data: {
-            customerId: referrer.id,
-            type: 'referral',
-            amount: REFERRAL_BONUS_POINTS,
-            description: `Referral bonus for ${first_name} ${last_name.charAt(0)}.`,
-          },
+        const referrerData = await tx.customer.findUnique({
+          where: { id: referrer.id },
+          select: { pointsBalance: true },
         });
 
-        // Update referrer's points balance
-        await tx.customer.update({
-          where: { id: referrer.id },
-          data: {
-            pointsBalance: { increment: REFERRAL_BONUS_POINTS },
-          },
-        });
+        if (referrerData) {
+          const { pointsAwarded } = capPoints(referrerData.pointsBalance, REFERRAL_BONUS_POINTS);
+
+          if (pointsAwarded > 0) {
+            await tx.pointsTransaction.create({
+              data: {
+                customerId: referrer.id,
+                type: 'referral',
+                amount: pointsAwarded,
+                description: `Referral bonus for ${first_name} ${last_name.charAt(0)}.${pointsAwarded < REFERRAL_BONUS_POINTS ? ' (capped at max)' : ''}`,
+              },
+            });
+
+            await tx.customer.update({
+              where: { id: referrer.id },
+              data: {
+                pointsBalance: { increment: pointsAwarded },
+              },
+            });
+          }
+        }
       }
 
       return newCustomer;

@@ -14,6 +14,16 @@ import adminPointsRoutes from './routes/admin/points';
 import adminRedemptionsRoutes from './routes/admin/redemptions';
 import adminGingrRoutes from './routes/admin/gingr';
 import adminDemoRoutes from './routes/admin/demo';
+// v2 routes
+import v2BookingsRoutes from './routes/v2/bookings';
+import v2WalletRoutes from './routes/v2/wallet';
+import v2PaymentsRoutes from './routes/v2/payments';
+import v2MembershipsRoutes from './routes/v2/memberships';
+import v2WebhooksRoutes from './routes/v2/webhooks';
+import v2SmsRoutes from './routes/v2/sms';
+import v2AdminBookingsRoutes from './routes/v2/admin/bookings';
+import v2AdminReportCardsRoutes from './routes/v2/admin/report-cards';
+import v2AdminIntakesRoutes from './routes/v2/admin/intakes';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -60,6 +70,17 @@ app.use('/api/admin/points', adminPointsRoutes);
 app.use('/api/admin/redemptions', adminRedemptionsRoutes);
 app.use('/api/admin/gingr', adminGingrRoutes);
 app.use('/api/admin/demo', adminDemoRoutes);
+
+// v2 API routes (new platform)
+app.use('/api/v2/bookings', v2BookingsRoutes);
+app.use('/api/v2/wallet', v2WalletRoutes);
+app.use('/api/v2/payments', v2PaymentsRoutes);
+app.use('/api/v2/memberships', v2MembershipsRoutes);
+app.use('/api/v2/webhooks', v2WebhooksRoutes);
+app.use('/api/v2/sms', v2SmsRoutes);
+app.use('/api/v2/admin/bookings', v2AdminBookingsRoutes);
+app.use('/api/v2/admin/report-cards', v2AdminReportCardsRoutes);
+app.use('/api/v2/admin/intakes', v2AdminIntakesRoutes);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

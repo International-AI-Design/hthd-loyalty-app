@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
+import { capPoints } from '../../lib/points';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 
 const router = Router();
@@ -48,7 +49,25 @@ router.post('/add', async (req: Request, res: Response): Promise<void> => {
 
     // Calculate points: 1 point per dollar, 1.5x for grooming
     const multiplier = service_type === 'grooming' ? 1.5 : 1;
-    const pointsEarned = Math.floor(dollar_amount * multiplier);
+    const rawPoints = Math.floor(dollar_amount * multiplier);
+
+    // Apply 500-point cap
+    const { pointsAwarded, pointsCapped, newBalance } = capPoints(customer.pointsBalance, rawPoints);
+
+    if (pointsAwarded <= 0) {
+      res.status(200).json({
+        success: true,
+        message: 'Customer is already at the 500 point maximum',
+        customer: {
+          id: customer.id,
+          name: `${customer.firstName} ${customer.lastName}`,
+          previous_balance: customer.pointsBalance,
+          new_balance: customer.pointsBalance,
+          points_capped: rawPoints,
+        },
+      });
+      return;
+    }
 
     // Create transaction and update balance in a transaction
     const [transaction, updatedCustomer] = await prisma.$transaction([
@@ -57,8 +76,8 @@ router.post('/add', async (req: Request, res: Response): Promise<void> => {
         data: {
           customerId: customer_id,
           type: 'purchase',
-          amount: pointsEarned,
-          description: `${service_type.charAt(0).toUpperCase() + service_type.slice(1)} purchase - $${dollar_amount.toFixed(2)}`,
+          amount: pointsAwarded,
+          description: `${service_type.charAt(0).toUpperCase() + service_type.slice(1)} purchase - $${dollar_amount.toFixed(2)}${pointsCapped > 0 ? ` (${pointsCapped} pts capped at max)` : ''}`,
           serviceType: service_type,
           dollarAmount: dollar_amount,
         },
@@ -67,9 +86,7 @@ router.post('/add', async (req: Request, res: Response): Promise<void> => {
       prisma.customer.update({
         where: { id: customer_id },
         data: {
-          pointsBalance: {
-            increment: pointsEarned,
-          },
+          pointsBalance: newBalance,
         },
         select: { id: true, pointsBalance: true },
       }),
@@ -83,10 +100,12 @@ router.post('/add', async (req: Request, res: Response): Promise<void> => {
           details: {
             dollar_amount,
             service_type,
-            points_earned: pointsEarned,
+            points_calculated: rawPoints,
+            points_awarded: pointsAwarded,
+            points_capped: pointsCapped,
             multiplier,
             previous_balance: customer.pointsBalance,
-            new_balance: customer.pointsBalance + pointsEarned,
+            new_balance: newBalance,
           },
         },
       }),
@@ -97,7 +116,8 @@ router.post('/add', async (req: Request, res: Response): Promise<void> => {
       transaction: {
         id: transaction.id,
         type: transaction.type,
-        points_earned: pointsEarned,
+        points_earned: pointsAwarded,
+        points_capped: pointsCapped,
         dollar_amount,
         service_type,
         description: transaction.description,

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { capPoints } from '../lib/points';
 import { logger } from '../middleware/security';
 
 const GINGR_API_KEY = process.env.GINGR_API_KEY || '';
@@ -402,25 +403,39 @@ export async function syncInvoices(staffId: string): Promise<SyncResult> {
             },
           });
 
-          // Add points to customer
-          await tx.customer.update({
+          // Get current balance for cap calculation
+          const currentCustomer = await tx.customer.findUnique({
             where: { id: customerId },
-            data: {
-              pointsBalance: { increment: points },
-            },
+            select: { pointsBalance: true },
           });
 
-          // Create points transaction
-          await tx.pointsTransaction.create({
-            data: {
-              customerId,
-              type: 'purchase',
-              amount: points,
-              description: `Gingr sync: Invoice ${invoice.invoice_number || invoice.id}${hasGrooming ? ' (1.5x grooming bonus)' : ''}`,
-              serviceType: hasGrooming ? 'grooming' : 'daycare',
-              dollarAmount: new Prisma.Decimal(invoice.total),
-            },
-          });
+          const { pointsAwarded, pointsCapped } = capPoints(
+            currentCustomer?.pointsBalance ?? 0,
+            points
+          );
+
+          // Update import row with actual points applied (may be less due to cap)
+          if (pointsAwarded > 0) {
+            // Add points to customer (capped)
+            await tx.customer.update({
+              where: { id: customerId },
+              data: {
+                pointsBalance: { increment: pointsAwarded },
+              },
+            });
+
+            // Create points transaction with actual awarded amount
+            await tx.pointsTransaction.create({
+              data: {
+                customerId,
+                type: 'purchase',
+                amount: pointsAwarded,
+                description: `Gingr sync: Invoice ${invoice.invoice_number || invoice.id}${hasGrooming ? ' (1.5x grooming bonus)' : ''}${pointsCapped > 0 ? ` (${pointsCapped} pts capped at max)` : ''}`,
+                serviceType: hasGrooming ? 'grooming' : 'daycare',
+                dollarAmount: new Prisma.Decimal(invoice.total),
+              },
+            });
+          }
 
           // Create audit log
           await tx.auditLog.create({
@@ -432,7 +447,9 @@ export async function syncInvoices(staffId: string): Promise<SyncResult> {
               details: {
                 gingrInvoiceId: invoice.id,
                 invoiceTotal: invoice.total,
-                pointsApplied: points,
+                pointsCalculated: points,
+                pointsApplied: pointsAwarded,
+                pointsCapped,
                 hasGrooming,
               },
             },
