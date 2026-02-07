@@ -2,6 +2,124 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.7] - Sprint 3b/3c: Dog Profiles, Messaging, Report Cards, Operations Dashboard, Staff Scheduling - 2026-02-07
+
+### Added — Server: New Modules
+
+- **Dog Profile module** (`modules/dog-profile/`) — Full pet health record management:
+  - Health records, vaccination tracking, medication management, behavior notes
+  - Vaccination compliance checking against facility requirements
+  - Customer routes: CRUD for dogs, vaccinations, medications, behavior notes
+  - Admin routes: view any dog's full profile, add staff behavior notes
+- **Messaging module** (`modules/messaging/`) — In-app communication:
+  - AI-powered chat with Claude (Anthropic SDK) for customer questions
+  - Automatic staff escalation when AI cannot resolve
+  - Conversation history, read receipts, typing indicators
+  - Customer routes: list conversations, send/receive messages
+  - Admin routes: view all conversations, send staff replies
+- **Report Card module** (`modules/report-card/`) — Post-visit pet reports:
+  - Staff-created report cards with photos, mood tracking, activity notes
+  - Customer routes: view report cards for their dogs
+  - Admin routes: create, update, and manage report cards
+- **Dashboard module** (`modules/dashboard/`) — Operations intelligence:
+  - Facility status: current occupancy, arrivals/departures, capacity
+  - Staff coverage tracking and scheduling gaps
+  - Vaccination compliance alerts for upcoming bookings
+  - Admin route: `GET /v2/admin/dashboard/stats`
+- **Staff Schedule module** (`modules/staff-schedule/`) — Workforce management:
+  - Week-view scheduling with shift management
+  - Coverage tracking against capacity needs
+  - Bulk schedule operations (copy week, clear week)
+  - Admin routes: CRUD for schedules, coverage reports
+
+### Added — Server: Schema Changes
+
+- **New models:** `Vaccination`, `Medication`, `BehaviorNote`, `VaccinationRequirement`
+- **Enhanced models:** `Dog` (health records relations), `StaffUser` (schedule relations), `Conversation` (AI/staff routing), `StaffSchedule` (shift types), `ReportCard` (photos, mood)
+- **Prisma migration:** `20260207000000_v2_platform/migration.sql` (549 lines)
+
+### Added — Server: Enhancements
+
+- **Points-based checkout** — Checkout service now supports paying with loyalty points (partial or full)
+- **Vaccination compliance** — Booking flow checks vaccination status, warns on non-compliant dogs
+- **Route mounting** — 5 new server route groups: dog-profile, messaging, report-card, dashboard, staff-schedule
+
+### Added — Customer App: New Pages
+
+- **DogProfilePage** (`pages/DogProfilePage.tsx`, 719 lines) — Full pet health profile:
+  - Vaccination records with expiry tracking and compliance status
+  - Medication management with dosage and schedule
+  - Behavior notes from staff visible to owners
+  - Health summary with alerts for expiring vaccinations
+- **MessagingPage** (`pages/MessagingPage.tsx`, 470 lines) — In-app chat:
+  - AI-powered concierge for instant answers
+  - Typing indicators and real-time message updates
+  - Staff escalation for complex issues
+  - Conversation history with timestamps
+- **ReportCardsPage** (`pages/ReportCardsPage.tsx`, 358 lines) — Pet visit reports:
+  - Timeline view of all report cards
+  - Photo gallery from visits
+  - Mood and activity tracking per visit
+- **VaccinationStatus component** (`components/VaccinationStatus.tsx`, 220 lines) — Reusable compliance display
+
+### Added — Customer App: Enhancements
+
+- **Dashboard updates** — New navigation cards for Dog Profiles, Messages, and Report Cards
+- **Booking flow** — Vaccination compliance warnings before booking confirmation
+- **Pet setup** — Made skippable during registration (backlog fix)
+- **Welcome message** — Fixed for new user accounts (backlog fix)
+- **Points checkout** — Added loyalty points as payment option in CheckoutPage
+
+### Added — Admin App: New Pages
+
+- **Operations Dashboard** (`pages/DashboardPage.tsx`, rewritten ~1466 lines) — Complete overhaul:
+  - Facility status: real-time occupancy, capacity utilization
+  - Today's arrivals and departures
+  - Staff coverage overview with gap alerts
+  - Vaccination compliance alerts for upcoming bookings
+  - Quick-action cards for common operations
+- **StaffSchedulePage** (`pages/StaffSchedulePage.tsx`, 692 lines) — Workforce scheduling:
+  - Week-view calendar with drag-and-drop shift management
+  - Coverage tracking against capacity requirements
+  - Bulk operations: copy week, clear week
+  - Staff availability indicators
+- **LoyaltyPage** (`pages/LoyaltyPage.tsx`, 992 lines) — Extracted from old dashboard:
+  - Points management, customer lookup, redemptions
+  - All original dashboard loyalty features preserved in dedicated page
+
+### Added — Admin App: Enhancements
+
+- **CustomerDetailPage** — Expanded with pet profiles, health status, vaccination compliance, booking history
+- **Layout navigation** — New nav items for Operations, Staff Schedule, and Loyalty pages
+- **Admin API layer** — New API methods for dashboard stats, staff schedules, dog profiles, messaging, report cards
+
+### Changed
+
+- **Admin Dashboard** — Completely rewritten from loyalty-focused to operations-focused
+- **Admin navigation** — Reorganized: Operations (home), Schedule, Customers, Staff Schedule, Grooming Pricing, Bundles, Loyalty, Staff, Gingr Sync
+- **Customer App routing** — Added routes for `/dogs/:id`, `/messages`, `/report-cards`
+- **Checkout service** — Extended to support points-based payments alongside wallet/card/cash/split
+
+### Fixed (Backlog Items)
+
+- **Pet setup flow** — Made skippable during registration so new customers are not blocked
+- **Welcome message** — Fixed display for newly registered users
+- **500-point cap** — Enforced consistently across all point-earning operations
+
+### Files Changed (78 total)
+
+- **New (28):** DogProfilePage, MessagingPage, ReportCardsPage, VaccinationStatus, LoyaltyPage, StaffSchedulePage, dog-profile module (4 files), messaging module (4 files), report-card module (4 files), dashboard module (3 files), staff-schedule module (3 files), migration SQL, BACKLOG.md
+- **Modified (50):** Schema, server index, checkout module (3 files), customer App/api/pages (12 files), admin App/api/pages (10 files), routes, components, styles, configs
+
+### Stats
+
+- **78 files changed**, 9,748 insertions, 1,431 deletions
+- Customer app: 6 new files, 12 modified
+- Admin app: 3 new pages, 8 modified files
+- Server: 5 new modules (20 files), migration, enhanced routes
+
+---
+
 ## [2.0.0-alpha.6] - Sprint 3a: Foundation — Multi-Day Booking, Checkout, Admin Payments - 2026-02-07
 
 ### Added — Server

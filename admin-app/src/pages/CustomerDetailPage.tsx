@@ -25,14 +25,6 @@ const REWARD_TIERS = [
   { points: 250, discount: 25 },
   { points: 500, discount: 50 },
 ];
-
-const SIZE_LABELS: Record<string, string> = {
-  small: 'Small',
-  medium: 'Medium',
-  large: 'Large',
-  xl: 'X-Large',
-};
-
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { staff, logout } = useAuth();
