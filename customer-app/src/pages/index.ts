@@ -5,3 +5,5 @@ export { DashboardPage } from './DashboardPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { BookingPage } from './BookingPage';
 export { BookingsPage } from './BookingsPage';
+export { CheckoutPage } from './CheckoutPage';
+export { CheckoutConfirmationPage } from './CheckoutConfirmationPage';

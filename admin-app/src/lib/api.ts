@@ -491,6 +491,7 @@ export interface AdminBooking {
   customerId: string;
   serviceTypeId: string;
   date: string;
+  endDate?: string;
   startTime: string | null;
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show';
   totalCents: number;
@@ -619,4 +620,33 @@ export const adminBundleApi = {
     api.put<ServiceBundle>(`/v2/bundles/${bundleId}`, data),
   toggle: (bundleId: string) =>
     api.delete<ServiceBundle>(`/v2/bundles/${bundleId}`),
+};
+
+// === Checkout / Payment Types ===
+
+export interface CheckoutResponse {
+  transactionId: string;
+  paymentMethod: string;
+  totalCharged: number;
+  changeDue?: number;
+  walletAmountCents?: number;
+  cardAmountCents?: number;
+  status: string;
+}
+
+export interface WalletBalanceResponse {
+  balanceCents: number;
+}
+
+export const adminCheckoutApi = {
+  getWalletBalance: (customerId: string) =>
+    api.get<WalletBalanceResponse>(`/v2/admin/checkout/wallet-balance/${customerId}`),
+
+  processPayment: (data: {
+    bookingIds: string[];
+    paymentMethod: string;
+    walletAmount?: number;
+    cashReceived?: number;
+  }) =>
+    api.post<CheckoutResponse>('/v2/admin/checkout/process', data),
 };

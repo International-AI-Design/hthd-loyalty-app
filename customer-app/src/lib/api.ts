@@ -466,3 +466,97 @@ export const bookingApi = {
   updateSmsPreference: (smsDealsOptedOut: boolean) =>
     api.put<{ success: boolean; smsDealsOptedOut: boolean }>('/customers/me/preferences', { smsDealsOptedOut }),
 };
+
+
+// === V2 Multi-Day Booking & Checkout Types ===
+
+export interface DateAvailability {
+  available: number;
+  capacity: number;
+}
+
+export interface MultiDayAvailabilityResponse {
+  dates: Record<string, DateAvailability>;
+}
+
+export interface MultiDayBookingResponse {
+  booking: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    totalAmount: number;
+    serviceType: string;
+    dogIds: string[];
+  };
+}
+
+export interface WalletResponse {
+  id: string;
+  balance_cents: number;
+  tier: string;
+  auto_reload: {
+    enabled: boolean;
+    threshold_cents: number;
+    reload_amount_cents: number;
+  };
+}
+
+export interface CheckoutResult {
+  paymentId: string;
+  transactionId: string;
+  totalCents: number;
+  walletAmountCents: number;
+  cardAmountCents: number;
+  tipCents: number;
+  status: string;
+  bookings: Array<{ id: string; status: string }>;
+  createdAt: string;
+}
+
+export interface ReceiptData {
+  paymentId: string;
+  transactionId: string;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  bookings: Array<{
+    id: string;
+    serviceType: string;
+    date: string;
+    startDate: string | null;
+    endDate: string | null;
+    dogs: string[];
+    totalCents: number;
+  }>;
+  totalCents: number;
+  walletAmountCents: number;
+  cardAmountCents: number;
+  tipCents: number;
+  paymentMethod: string;
+  status: string;
+  createdAt: string;
+}
+
+export const multiDayBookingApi = {
+  getAvailability: (startDate: string, endDate: string, serviceType: string) =>
+    api.get<MultiDayAvailabilityResponse>(
+      `/v2/bookings/availability?startDate=${startDate}&endDate=${endDate}&serviceType=${serviceType}`
+    ),
+  createMultiDayBooking: (data: { startDate: string; endDate: string; serviceTypeId: string; dogIds: string[] }) =>
+    api.post<MultiDayBookingResponse>('/v2/bookings', data),
+};
+
+export const checkoutApi = {
+  getWallet: () => api.get<WalletResponse>('/v2/wallet'),
+  checkout: (data: {
+    bookingIds: string[];
+    paymentMethod: 'wallet' | 'card' | 'split';
+    walletAmountCents?: number;
+    tipCents?: number;
+  }) => api.post<CheckoutResult>('/v2/checkout', data),
+  getReceipt: (paymentId: string) => api.get<ReceiptData>(`/v2/checkout/${paymentId}/receipt`),
+};

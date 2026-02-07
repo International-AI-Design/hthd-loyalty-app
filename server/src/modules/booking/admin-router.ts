@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { BookingService, BookingError } from './service';
-import { checkOutSchema } from './types';
+import { checkOutSchema, adminDateRangeSchema } from './types';
 import { prisma } from '../../lib/prisma';
 
 const router = Router();
@@ -55,6 +55,41 @@ router.get('/schedule', async (req: Request, res: Response): Promise<void> => {
     res.json({ bookings, total: bookings.length });
   } catch (error) {
     console.error('Get schedule error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// GET /schedule-range — get bookings across a date range (includes multi-day)
+router.get('/schedule-range', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validation = adminDateRangeSchema.safeParse(req.query);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation error', details: validation.error.issues });
+      return;
+    }
+
+    const { startDate, endDate, serviceTypeId, status } = validation.data;
+
+    // Resolve service name to ID if needed
+    let resolvedServiceTypeId: string | undefined = serviceTypeId;
+    if (serviceTypeId && !/^[0-9a-fA-F-]{36}$/.test(serviceTypeId)) {
+      const svc = await (prisma as any).serviceType.findUnique({
+        where: { name: serviceTypeId },
+      });
+      resolvedServiceTypeId = svc?.id;
+    }
+
+    const bookings = await bookingService.getScheduleRange(
+      new Date(startDate + 'T00:00:00Z'),
+      new Date(endDate + 'T00:00:00Z'),
+      resolvedServiceTypeId,
+      status
+    );
+
+    res.json({ bookings, total: bookings.length });
+  } catch (error) {
+    console.error('Get schedule range error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

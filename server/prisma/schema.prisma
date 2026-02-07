@@ -251,6 +251,8 @@ model Booking {
   customerId      String      @map("customer_id")
   serviceTypeId   String      @map("service_type_id")
   date            DateTime    @db.Date
+  startDate       DateTime?   @map("start_date") @db.Date // Multi-day booking start (null = single-day, use date)
+  endDate         DateTime?   @map("end_date") @db.Date   // Multi-day booking end
   startTime       String?     @map("start_time") // HH:MM for grooming
   endTime         String?     @map("end_time")
   status          String      @default("pending") // pending, confirmed, checked_in, checked_out, cancelled, no_show

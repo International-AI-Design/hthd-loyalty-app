@@ -434,12 +434,18 @@ export function BookingPage() {
             </div>
 
             <div className="space-y-3">
-              <Button className="w-full" size="lg" onClick={() => navigate('/bookings')}>
+              <Button className="w-full" size="lg" onClick={() => navigate(`/checkout/${confirmedBooking.id}`, { state: { booking: confirmedBooking } })}>
+                Pay Now
+              </Button>
+              <Button variant="outline" className="w-full" size="lg" onClick={() => navigate('/bookings')}>
                 View My Bookings
               </Button>
-              <Button variant="outline" className="w-full" size="lg" onClick={() => navigate('/dashboard')}>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="w-full text-center text-sm text-brand-teal font-medium hover:underline py-2 min-h-[44px]"
+              >
                 Back to Dashboard
-              </Button>
+              </button>
             </div>
           </div>
         </main>

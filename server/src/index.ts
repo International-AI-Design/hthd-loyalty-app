@@ -27,6 +27,7 @@ import v2AdminIntakesRoutes from './routes/v2/admin/intakes';
 import v2GroomingRoutes from './routes/v2/grooming';
 import v2BundlesRoutes from './routes/v2/bundles';
 import v2AdminStaffRoutes from './routes/v2/admin/staff';
+import { checkoutRouter, adminCheckoutRouter } from './modules/checkout';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -87,6 +88,8 @@ app.use('/api/v2/admin/intakes', v2AdminIntakesRoutes);
 app.use('/api/v2/grooming', v2GroomingRoutes);
 app.use('/api/v2/bundles', v2BundlesRoutes);
 app.use('/api/v2/admin/staff', v2AdminStaffRoutes);
+app.use('/api/v2/checkout', checkoutRouter);
+app.use('/api/v2/admin/checkout', adminCheckoutRouter);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

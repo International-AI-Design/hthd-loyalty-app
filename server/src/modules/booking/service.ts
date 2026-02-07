@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { AvailabilityResult, CreateBookingInput, BookingStatus } from './types';
+import { AvailabilityResult, CreateBookingInput, CreateMultiDayBookingInput, BookingStatus } from './types';
 
 interface GroomingSlotAvailability {
   startTime: string;
@@ -22,10 +22,20 @@ interface CapacityRuleRow {
 // Active statuses that count toward capacity
 const ACTIVE_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'checked_in'];
 
+// Max dogs per day across all services (business constraint)
+const MAX_DOGS_PER_DAY = 40;
+
+// Business hours
+const BUSINESS_HOURS = {
+  weekday: { open: '07:00', close: '19:00' }, // 7 AM - 7 PM
+  weekend: { open: '07:00', close: '18:30' }, // 7 AM - 6:30 PM
+};
+
 export class BookingService {
   /**
    * Check availability for a service type over a date range.
    * Considers capacity rules, overrides (closures), and existing bookings.
+   * Also enforces the 40 dogs/day global limit.
    */
   async checkAvailability(
     serviceTypeId: string,
@@ -48,7 +58,7 @@ export class BookingService {
       },
     });
 
-    // Count existing active bookings per date
+    // Count existing active bookings per date for THIS service type
     const existingBookings = await (prisma as any).booking.groupBy({
       by: ['date'],
       where: {
@@ -58,6 +68,41 @@ export class BookingService {
       },
       _count: { id: true },
     });
+
+    // Count ALL active bookings per date (for global 40 dogs/day limit)
+    // We count BookingDog records (each dog = 1 slot) across all multi-day ranges
+    const allBookingsInRange = await (prisma as any).booking.findMany({
+      where: {
+        status: { in: ACTIVE_STATUSES },
+        OR: [
+          // Single-day bookings in range
+          { startDate: null, date: { gte: startDate, lte: endDate } },
+          // Multi-day bookings overlapping range
+          { AND: [{ startDate: { not: null } }, { startDate: { lte: endDate } }, { endDate: { gte: startDate } }] },
+        ],
+      },
+      include: { _count: { select: { dogs: true } } },
+    });
+
+    // Build a map of total dogs per date across ALL services
+    const globalDogCountByDate = new Map<string, number>();
+    for (const b of allBookingsInRange) {
+      const dogCount = b._count.dogs;
+      if (b.startDate && b.endDate) {
+        // Multi-day: count dogs for each day in the range
+        const cur = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        while (cur <= end) {
+          const dk = cur.toISOString().split('T')[0];
+          globalDogCountByDate.set(dk, (globalDogCountByDate.get(dk) ?? 0) + dogCount);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        // Single-day
+        const dk = b.date.toISOString().split('T')[0];
+        globalDogCountByDate.set(dk, (globalDogCountByDate.get(dk) ?? 0) + dogCount);
+      }
+    }
 
     const bookingCountByDate = new Map<string, number>();
     for (const b of existingBookings) {
@@ -102,10 +147,15 @@ export class BookingService {
       const booked = bookingCountByDate.get(dateKey) ?? 0;
       const spotsRemaining = Math.max(0, totalCapacity - booked);
 
+      // Also check global 40 dogs/day limit
+      const globalDogs = globalDogCountByDate.get(dateKey) ?? 0;
+      const globalSpotsLeft = Math.max(0, MAX_DOGS_PER_DAY - globalDogs);
+      const effectiveSpots = Math.min(spotsRemaining, globalSpotsLeft);
+
       results.push({
         date: dateKey,
-        available: spotsRemaining > 0,
-        spotsRemaining,
+        available: effectiveSpots > 0,
+        spotsRemaining: effectiveSpots,
         totalCapacity,
       });
 
@@ -116,7 +166,7 @@ export class BookingService {
   }
 
   /**
-   * Create a new booking.
+   * Create a new booking (single-day, backward compatible).
    * Validates service type, dog ownership, availability, and duplicates.
    */
   async createBooking(input: CreateBookingInput) {
@@ -174,6 +224,103 @@ export class BookingService {
         serviceTypeId,
         date: bookingDate,
         startTime: startTime ?? null,
+        status: 'pending',
+        totalCents,
+        notes: notes ?? null,
+        dogs: {
+          create: dogIds.map((dogId) => ({ dogId })),
+        },
+      },
+      include: {
+        serviceType: true,
+        dogs: { include: { dog: true } },
+        customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    return booking;
+  }
+
+  /**
+   * Create a multi-day booking (e.g. boarding over several days).
+   * Validates availability for EVERY day in the range and enforces 40 dogs/day.
+   */
+  async createMultiDayBooking(input: CreateMultiDayBookingInput) {
+    const { customerId, serviceTypeId, dogIds, startDate, endDate, notes } = input;
+
+    // Validate service type exists and is active
+    const serviceType = await (prisma as any).serviceType.findUnique({
+      where: { id: serviceTypeId },
+    });
+    if (!serviceType) {
+      throw new BookingError('Service type not found', 404);
+    }
+    if (!serviceType.isActive) {
+      throw new BookingError('Service type is not currently available', 400);
+    }
+
+    // Validate all dogs belong to the customer
+    const dogs = await prisma.dog.findMany({
+      where: { id: { in: dogIds }, customerId },
+    });
+    if (dogs.length !== dogIds.length) {
+      throw new BookingError('One or more dogs not found or do not belong to you', 400);
+    }
+
+    const start = new Date(startDate + 'T00:00:00Z');
+    const end = new Date(endDate + 'T00:00:00Z');
+
+    // Validate date range is reasonable (max 30 days)
+    const daysDiff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 30) {
+      throw new BookingError('Booking cannot exceed 30 days', 400);
+    }
+    if (daysDiff < 0) {
+      throw new BookingError('End date must be on or after start date', 400);
+    }
+
+    // Check availability for every day in the range
+    const availability = await this.checkAvailability(serviceTypeId, start, end);
+    const unavailableDates = availability.filter((a) => !a.available);
+    if (unavailableDates.length > 0) {
+      const dates = unavailableDates.map((a) => a.date).join(', ');
+      throw new BookingError(`No availability on: ${dates}`, 409);
+    }
+
+    // Check for duplicate bookings across the date range
+    const duplicates = await (prisma as any).booking.findMany({
+      where: {
+        serviceTypeId,
+        status: { in: ACTIVE_STATUSES },
+        dogs: {
+          some: { dogId: { in: dogIds } },
+        },
+        OR: [
+          // Single-day bookings in our range
+          { startDate: null, date: { gte: start, lte: end } },
+          // Multi-day bookings overlapping our range
+          { AND: [{ startDate: { not: null } }, { startDate: { lte: end } }, { endDate: { gte: start } }] },
+        ],
+      },
+      include: { dogs: true },
+    });
+    if (duplicates.length > 0) {
+      throw new BookingError('One or more dogs already have an overlapping booking for this service', 409);
+    }
+
+    // Calculate price: per-day price * number of days
+    const numDays = daysDiff + 1; // inclusive
+    const dailyPrice = await this.calculatePrice(serviceType, dogIds.length, start);
+    const totalCents = dailyPrice * numDays;
+
+    // Create the booking with startDate/endDate; set date = startDate for backward compat
+    const booking = await (prisma as any).booking.create({
+      data: {
+        customerId,
+        serviceTypeId,
+        date: start,       // backward compat: date = startDate
+        startDate: start,
+        endDate: end,
         status: 'pending',
         totalCents,
         notes: notes ?? null,
@@ -374,6 +521,37 @@ export class BookingService {
   }
 
   /**
+   * Admin schedule view: bookings across a date range, optionally filtered by service and status.
+   * Includes multi-day bookings that overlap the range.
+   */
+  async getScheduleRange(startDate: Date, endDate: Date, serviceTypeId?: string, status?: string) {
+    const where: Record<string, any> = {
+      OR: [
+        // Single-day bookings in range
+        { startDate: null, date: { gte: startDate, lte: endDate } },
+        // Multi-day bookings overlapping range
+        { AND: [{ startDate: { not: null } }, { startDate: { lte: endDate } }, { endDate: { gte: startDate } }] },
+      ],
+    };
+    if (serviceTypeId) {
+      where.serviceTypeId = serviceTypeId;
+    }
+    if (status) {
+      where.status = status;
+    }
+
+    return (prisma as any).booking.findMany({
+      where,
+      include: {
+        serviceType: true,
+        dogs: { include: { dog: true } },
+        customer: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
    * Get all active service types.
    */
   async getServiceTypes() {
@@ -438,7 +616,7 @@ export class BookingService {
    * Calculate total price for a booking.
    * Starts with base price * number of dogs, then applies active pricing rules.
    */
-  private async calculatePrice(
+  async calculatePrice(
     serviceType: { id: string; basePriceCents: number },
     dogCount: number,
     date: Date

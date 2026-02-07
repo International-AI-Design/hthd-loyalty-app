@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import { BookingService, BookingError } from './service';
 import {
   createBookingSchema,
+  createMultiDayBookingSchema,
   availabilityQuerySchema,
   cancelBookingSchema,
   BookingStatus,
@@ -184,6 +185,33 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       return;
     }
     console.error('Create booking error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// POST /multi-day — create a multi-day booking (startDate/endDate)
+router.post('/multi-day', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const validation = createMultiDayBookingSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation error', details: validation.error.issues });
+      return;
+    }
+
+    const booking = await bookingService.createMultiDayBooking({
+      customerId: customerReq.customer.id,
+      ...validation.data,
+    });
+
+    res.status(201).json({ booking });
+  } catch (error) {
+    if (error instanceof BookingError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('Create multi-day booking error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminBookingApi, adminGroomingApi } from '../lib/api';
 import type { AdminBooking, BookingDog } from '../lib/api';
+import { PaymentModal } from '../components/PaymentModal';
 
 const STATUS_COLORS: Record<AdminBooking['status'], { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
@@ -108,6 +109,7 @@ export function SchedulePage() {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentBooking, setPaymentBooking] = useState<AdminBooking | null>(null);
 
   const fetchSchedule = useCallback(async () => {
     setIsLoading(true);
@@ -356,6 +358,15 @@ export function SchedulePage() {
                         Confirm
                       </button>
                       <button
+                        onClick={() => setPaymentBooking(booking)}
+                        className="min-h-[44px] px-4 py-2.5 bg-[#5BBFBA] text-white rounded-lg font-medium hover:bg-[#4aa9a4] transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        Payment
+                      </button>
+                      <button
                         onClick={() => handleAction(booking.id, 'noShow')}
                         className="min-h-[44px] px-4 py-2.5 bg-white border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors"
                       >
@@ -370,6 +381,15 @@ export function SchedulePage() {
                         className="flex-1 min-w-[120px] min-h-[44px] px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                       >
                         Check In
+                      </button>
+                      <button
+                        onClick={() => setPaymentBooking(booking)}
+                        className="min-h-[44px] px-4 py-2.5 bg-[#5BBFBA] text-white rounded-lg font-medium hover:bg-[#4aa9a4] transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        Payment
                       </button>
                       <button
                         onClick={() => handleAction(booking.id, 'noShow')}
@@ -392,6 +412,19 @@ export function SchedulePage() {
             );
           })}
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {paymentBooking && (
+        <PaymentModal
+          isOpen={true}
+          onClose={() => setPaymentBooking(null)}
+          booking={paymentBooking}
+          onPaymentComplete={() => {
+            setPaymentBooking(null);
+            fetchSchedule();
+          }}
+        />
       )}
     </div>
   );
