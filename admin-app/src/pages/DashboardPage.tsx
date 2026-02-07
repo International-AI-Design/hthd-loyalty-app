@@ -91,7 +91,7 @@ export function DashboardPage() {
   const [isLoadingFacility, setIsLoadingFacility] = useState(true);
   const [isLoadingArrivals, setIsLoadingArrivals] = useState(true);
   const [isLoadingStaff, setIsLoadingStaff] = useState(true);
-  const [isLoadingCompliance, setIsLoadingCompliance] = useState(true);
+  const [_isLoadingCompliance, setIsLoadingCompliance] = useState(true);
 
   // Error states
   const [facilityError, setFacilityError] = useState<string | null>(null);

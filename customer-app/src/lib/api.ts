@@ -186,7 +186,7 @@ export interface CustomerProfile {
   phone: string;
   points_balance: number;
   referral_code: string;
-  points_cap: number;
+  points_cap?: number;
 }
 
 export interface PointsTransaction {
