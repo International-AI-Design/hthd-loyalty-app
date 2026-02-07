@@ -5,6 +5,8 @@ import { Button, Input, Alert } from '../components/ui';
 import { adminCustomersListApi } from '../lib/api';
 import type { CustomerListItem, PaginationInfo } from '../lib/api';
 
+const POINTS_CAP = 500;
+
 type SortField = 'name' | 'phone' | 'email' | 'points_balance' | 'join_date';
 type SortOrder = 'asc' | 'desc';
 
@@ -181,8 +183,10 @@ export function CustomersPage() {
                         <p className="text-sm text-gray-500">{customer.phone}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
-                        <p className="text-xs text-gray-500">points</p>
+                        <p className={`text-lg font-bold ${customer.points_balance >= POINTS_CAP ? "text-amber-600" : "text-green-600"}`}>{customer.points_balance.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">
+                          {customer.points_balance >= POINTS_CAP ? "AT CAP" : "points"}
+                        </p>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-sm text-gray-500">
@@ -246,8 +250,13 @@ export function CustomersPage() {
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
                           {customer.email}
                         </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-semibold text-green-600">
+                        <td className={`px-4 lg:px-6 py-4 whitespace-nowrap text-base font-semibold ${customer.points_balance >= POINTS_CAP ? "text-amber-600" : "text-green-600"}`}>
                           {customer.points_balance.toLocaleString()} pts
+                          {customer.points_balance >= POINTS_CAP && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                              CAP
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
                           {formatDate(customer.join_date)}

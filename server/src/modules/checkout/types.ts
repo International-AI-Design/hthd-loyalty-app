@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 // --- Payment Methods ---
 
-export const PAYMENT_METHODS = ['wallet', 'card', 'split', 'cash'] as const;
+export const PAYMENT_METHODS = ['wallet', 'card', 'split', 'cash', 'points'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Points-to-dollar conversion: 100 points = $10.00 = 1000 cents */
+export const POINTS_VALUE_CENTS = 10; // 1 point = $0.10 = 10 cents
 
 // --- Zod Schemas ---
 
@@ -12,12 +15,18 @@ export const checkoutSchema = z.object({
     .array(z.string().uuid('Invalid booking ID'))
     .min(1, 'At least one booking is required'),
   paymentMethod: z.enum(PAYMENT_METHODS, {
-    message: 'paymentMethod must be one of: wallet, card, split, cash',
+    message: 'paymentMethod must be one of: wallet, card, split, cash, points',
   }),
   walletAmountCents: z
     .number()
     .int('Amount must be a whole number of cents')
     .min(0, 'Wallet amount cannot be negative')
+    .optional()
+    .default(0),
+  pointsToRedeem: z
+    .number()
+    .int('Points must be a whole number')
+    .min(0, 'Points cannot be negative')
     .optional()
     .default(0),
   tipCents: z
@@ -37,6 +46,15 @@ export const checkoutSchema = z.object({
     return true;
   },
   { message: 'Split payment requires walletAmountCents > 0', path: ['walletAmountCents'] }
+).refine(
+  (data) => {
+    // points method requires pointsToRedeem > 0
+    if (data.paymentMethod === 'points' && (!data.pointsToRedeem || data.pointsToRedeem <= 0)) {
+      return false;
+    }
+    return true;
+  },
+  { message: 'Points payment requires pointsToRedeem > 0', path: ['pointsToRedeem'] }
 );
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -49,6 +67,8 @@ export interface CheckoutResult {
   totalCents: number;
   walletAmountCents: number;
   cardAmountCents: number;
+  pointsRedeemed: number;
+  pointsAmountCents: number;
   tipCents: number;
   status: string;
   bookings: Array<{

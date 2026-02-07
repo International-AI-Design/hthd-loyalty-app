@@ -9,3 +9,6 @@ export { CheckoutPage } from './CheckoutPage';
 export { CheckoutConfirmationPage } from './CheckoutConfirmationPage';
 export { PrivacyPolicyPage } from './PrivacyPolicyPage';
 export { TermsPage } from './TermsPage';
+export { DogProfilePage } from './DogProfilePage';
+export { MessagingPage } from './MessagingPage';
+export { ReportCardsPage } from './ReportCardsPage';

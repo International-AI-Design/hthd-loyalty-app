@@ -2,14 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { checkoutApi } from '../lib/api';
 import type { Booking, WalletResponse } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Button, Alert } from '../components/ui';
 
-type PaymentTab = 'wallet' | 'card' | 'split';
+/** 1 point = $0.10 */
+const POINTS_VALUE_CENTS = 10;
+
+type PaymentTab = 'wallet' | 'card' | 'points' | 'split';
 
 export function CheckoutPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { customer, refreshProfile } = useAuth();
   const booking = (location.state as { booking?: Booking } | null)?.booking ?? null;
 
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
@@ -22,6 +27,10 @@ export function CheckoutPage() {
   const [cardCvv, setCardCvv] = useState('');
   const [cardName, setCardName] = useState('');
   const [splitWalletCents, setSplitWalletCents] = useState(0);
+
+  // Points state
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [pointsToUse, setPointsToUse] = useState(0);
 
   const totalCents = booking?.totalCents ?? 0;
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -37,6 +46,12 @@ export function CheckoutPage() {
     return `${h % 12 || 12}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
   };
 
+  // Derived points calculations
+  const pointsValueCents = pointsToUse * POINTS_VALUE_CENTS;
+  const pointsNeededForTotal = Math.ceil(totalCents / POINTS_VALUE_CENTS);
+  const pointsCoversTotal = pointsBalance >= pointsNeededForTotal;
+  const pointsCardRemainder = Math.max(0, totalCents - pointsValueCents);
+
   const loadWallet = useCallback(async () => {
     setIsLoadingWallet(true);
     const { data } = await checkoutApi.getWallet();
@@ -47,6 +62,15 @@ export function CheckoutPage() {
     }
     setIsLoadingWallet(false);
   }, [totalCents]);
+
+  // Load points balance from customer profile
+  useEffect(() => {
+    if (customer) {
+      setPointsBalance(customer.points_balance);
+      // Default: use all points up to the total needed
+      setPointsToUse(Math.min(customer.points_balance, pointsNeededForTotal));
+    }
+  }, [customer, pointsNeededForTotal]);
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
   useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -70,6 +94,11 @@ export function CheckoutPage() {
     if (totalCents === 0) return false;
     if (activeTab === 'wallet') return walletCoversTotal;
     if (activeTab === 'card') return isCardFormValid;
+    if (activeTab === 'points') {
+      if (pointsCoversTotal) return true; // Full points payment
+      // Partial points + card
+      return pointsToUse > 0 && pointsCardRemainder > 0 && isCardFormValid;
+    }
     if (activeTab === 'split') return splitWalletCents > 0 && splitWalletCents <= walletBalanceCents && isCardFormValid;
     return false;
   })();
@@ -79,14 +108,33 @@ export function CheckoutPage() {
     setIsProcessing(true);
     setError(null);
 
-    const payload: { bookingIds: string[]; paymentMethod: 'wallet' | 'card' | 'split'; walletAmountCents?: number } = {
+    const payload: {
+      bookingIds: string[];
+      paymentMethod: 'wallet' | 'card' | 'split' | 'points';
+      walletAmountCents?: number;
+      pointsToRedeem?: number;
+    } = {
       bookingIds: [bookingId],
       paymentMethod: activeTab,
     };
-    if (activeTab === 'split') payload.walletAmountCents = splitWalletCents;
+
+    if (activeTab === 'split') {
+      payload.walletAmountCents = splitWalletCents;
+    } else if (activeTab === 'points') {
+      if (pointsCoversTotal) {
+        // Full points payment
+        payload.pointsToRedeem = pointsNeededForTotal;
+      } else {
+        // Partial points + card = split with points
+        payload.paymentMethod = 'split';
+        payload.pointsToRedeem = pointsToUse;
+      }
+    }
 
     const { data, error: err } = await checkoutApi.checkout(payload);
     if (data) {
+      // Refresh profile so points balance is updated
+      refreshProfile();
       navigate(`/checkout/confirmation/${data.paymentId}`, { state: { checkoutResult: data, booking } });
     } else if (err) {
       setError(err);
@@ -146,6 +194,24 @@ export function CheckoutPage() {
       </div>
     </div>
   );
+
+  const tabLabel = (tab: PaymentTab) => {
+    switch (tab) {
+      case 'wallet': return 'Wallet';
+      case 'card': return 'Card';
+      case 'points': return 'Points';
+      case 'split': return 'Split';
+    }
+  };
+
+  const payButtonLabel = () => {
+    if (activeTab === 'wallet') return `Pay ${formatPrice(totalCents)} with Wallet`;
+    if (activeTab === 'points') {
+      if (pointsCoversTotal) return `Pay ${formatPrice(totalCents)} with Points`;
+      return `Pay ${formatPrice(totalCents)} (Points + Card)`;
+    }
+    return `Pay ${formatPrice(totalCents)}`;
+  };
 
   return (
     <div className="min-h-screen bg-brand-cream">
@@ -207,9 +273,9 @@ export function CheckoutPage() {
         <div className="bg-white rounded-2xl shadow-md p-5">
           <h2 className="font-heading text-lg font-bold text-brand-navy mb-4">Payment Method</h2>
           <div className="flex rounded-xl bg-brand-cream p-1 mb-5">
-            {(['wallet', 'card', 'split'] as const).map((tab) => (
+            {(['wallet', 'card', 'points', 'split'] as const).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 px-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] ${activeTab === tab ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-brand-navy'}`}>
-                {tab === 'wallet' ? 'Wallet' : tab === 'card' ? 'Card' : 'Split'}
+                {tabLabel(tab)}
               </button>
             ))}
           </div>
@@ -233,6 +299,107 @@ export function CheckoutPage() {
           )}
 
           {activeTab === 'card' && renderCardForm()}
+
+          {/* Points Payment Tab */}
+          {activeTab === 'points' && (
+            <div className="space-y-4">
+              {/* Points balance display */}
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: '#F5C65D15' }}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5C65D30' }}>
+                  <svg className="w-6 h-6" style={{ color: '#D4A843' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600">Your Points</p>
+                  <p className="text-2xl font-bold text-brand-navy">
+                    {pointsBalance.toLocaleString()} pts
+                  </p>
+                  <p className="text-sm" style={{ color: '#D4A843' }}>
+                    Worth {formatPrice(pointsBalance * POINTS_VALUE_CENTS)}
+                  </p>
+                </div>
+              </div>
+
+              {pointsBalance === 0 ? (
+                <Alert variant="warning">
+                  You don't have any points yet. Earn points by booking services!
+                </Alert>
+              ) : pointsCoversTotal ? (
+                <>
+                  <div className="p-4 rounded-xl border-2" style={{ borderColor: '#F5C65D', backgroundColor: '#F5C65D10' }}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-brand-navy">Full Points Payment</p>
+                        <p className="text-sm text-gray-600">
+                          Using {pointsNeededForTotal.toLocaleString()} points ({formatPrice(totalCents)})
+                        </p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F5C65D' }}>
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Remaining after payment: {(pointsBalance - pointsNeededForTotal).toLocaleString()} points
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Partial points: slider */}
+                  <div className="p-4 rounded-xl" style={{ backgroundColor: '#F5C65D10' }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-brand-navy">Points to Use</span>
+                      <span className="text-sm font-semibold" style={{ color: '#D4A843' }}>
+                        {pointsToUse.toLocaleString()} pts ({formatPrice(pointsValueCents)})
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={pointsBalance}
+                      step={1}
+                      value={pointsToUse}
+                      onChange={(e) => setPointsToUse(parseInt(e.target.value, 10))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, #F5C65D 0%, #F5C65D ${(pointsToUse / pointsBalance) * 100}%, #e5e7eb ${(pointsToUse / pointsBalance) * 100}%, #e5e7eb 100%)`,
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0 pts</span>
+                      <span>{pointsBalance.toLocaleString()} pts</span>
+                    </div>
+                  </div>
+
+                  {/* Breakdown */}
+                  <div className="p-4 bg-gray-50 rounded-xl space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Points applied</span>
+                      <span className="font-medium" style={{ color: '#D4A843' }}>
+                        -{formatPrice(pointsValueCents)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t border-gray-200 pt-2">
+                      <span className="font-medium text-brand-navy">Remaining on Card</span>
+                      <span className="font-bold text-brand-navy">{formatPrice(pointsCardRemainder)}</span>
+                    </div>
+                  </div>
+
+                  {/* Card form for remainder */}
+                  {pointsToUse > 0 && pointsCardRemainder > 0 && renderCardForm()}
+
+                  {pointsToUse === 0 && (
+                    <Alert variant="warning">
+                      Use the slider above to select how many points to redeem.
+                    </Alert>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {activeTab === 'split' && (
             <div className="space-y-4">
@@ -271,7 +438,7 @@ export function CheckoutPage() {
         </div>
 
         <Button className="w-full" size="lg" onClick={handlePay} disabled={!canPay || isProcessing} isLoading={isProcessing}>
-          {activeTab === 'wallet' ? `Pay ${formatPrice(totalCents)} with Wallet` : `Pay ${formatPrice(totalCents)}`}
+          {payButtonLabel()}
         </Button>
       </main>
     </div>

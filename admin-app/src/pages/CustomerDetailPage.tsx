@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button, Input, Select, Alert, Modal } from '../components/ui';
-import { adminCustomersListApi, adminPointsApi, adminRedemptionsApi } from '../lib/api';
+import { adminCustomersListApi, adminPointsApi, adminRedemptionsApi, adminDogApi } from '../lib/api';
 import type {
   CustomerDetail,
   CustomerTransaction,
@@ -10,6 +10,8 @@ import type {
   AddPointsResponse,
   CreateRedemptionResponse,
 } from '../lib/api';
+
+const POINTS_CAP = 500;
 
 const SERVICE_TYPES = [
   { value: 'daycare', label: 'Daycare' },
@@ -58,6 +60,21 @@ export function CustomerDetailPage() {
   const [isProcessingRedemption, setIsProcessingRedemption] = useState(false);
   const [redemptionError, setRedemptionError] = useState<string | null>(null);
   const [redemptionSuccess, setRedemptionSuccess] = useState<CreateRedemptionResponse | null>(null);
+
+  // Dogs expanded state
+  const [expandedDogId, setExpandedDogId] = useState<string | null>(null);
+
+  // Behavior note modal
+  const [showBehaviorNoteModal, setShowBehaviorNoteModal] = useState(false);
+  const [behaviorNoteDogId, setBehaviorNoteDogId] = useState<string | null>(null);
+  const [behaviorNoteText, setBehaviorNoteText] = useState('');
+  const [behaviorNoteType, setBehaviorNoteType] = useState<'positive' | 'concern' | 'info'>('info');
+  const [isSubmittingBehaviorNote, setIsSubmittingBehaviorNote] = useState(false);
+  const [behaviorNoteSuccess, setBehaviorNoteSuccess] = useState(false);
+
+  // Booking history pagination (for recent/past bookings from the customer object)
+  const [bookingHistoryPage, setBookingHistoryPage] = useState(1);
+  const bookingHistoryLimit = 10;
 
   const handleLogout = () => {
     logout();
@@ -205,6 +222,44 @@ export function CustomerDetailPage() {
     setRedemptionSuccess(null);
   };
 
+  // Behavior note handlers
+  const handleOpenBehaviorNote = (dogId: string) => {
+    setBehaviorNoteDogId(dogId);
+    setBehaviorNoteText('');
+    setBehaviorNoteType('info');
+    setBehaviorNoteSuccess(false);
+    setShowBehaviorNoteModal(true);
+  };
+
+  const handleSubmitBehaviorNote = async () => {
+    if (!behaviorNoteDogId || !behaviorNoteText.trim()) return;
+    setIsSubmittingBehaviorNote(true);
+    const result = await adminDogApi.addBehaviorNote(behaviorNoteDogId, {
+      note: behaviorNoteText.trim(),
+      type: behaviorNoteType,
+    });
+    setIsSubmittingBehaviorNote(false);
+    if (!result.error) {
+      setBehaviorNoteSuccess(true);
+      setBehaviorNoteText('');
+    }
+  };
+
+  const handleCloseBehaviorNoteModal = () => {
+    setShowBehaviorNoteModal(false);
+    setBehaviorNoteDogId(null);
+    setBehaviorNoteText('');
+    setBehaviorNoteSuccess(false);
+  };
+
+  // Paginated booking history
+  const paginatedRecentBookings = customer
+    ? (customer.recent_bookings || []).slice(0, bookingHistoryPage * bookingHistoryLimit)
+    : [];
+  const hasMoreBookingHistory = customer
+    ? (customer.recent_bookings || []).length > bookingHistoryPage * bookingHistoryLimit
+    : false;
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -312,10 +367,20 @@ export function CustomerDetailPage() {
             </div>
             <div className="text-left sm:text-right bg-green-50 sm:bg-transparent p-3 sm:p-0 rounded-lg">
               <p className="text-sm text-gray-600">Points Balance</p>
-              <p className="text-3xl sm:text-4xl font-bold text-green-600">
+              <p className={`text-3xl sm:text-4xl font-bold ${customer.points_balance >= POINTS_CAP ? "text-amber-600" : "text-green-600"}`}>
                 {customer.points_balance.toLocaleString()}
               </p>
               <p className="text-sm text-gray-500">points</p>
+              {customer.points_balance >= POINTS_CAP && (
+                <span className="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  AT CAP ({POINTS_CAP})
+                </span>
+              )}
+              {customer.points_balance >= 450 && customer.points_balance < POINTS_CAP && (
+                <span className="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Near cap ({POINTS_CAP - customer.points_balance} to max)
+                </span>
+              )}
             </div>
           </div>
 
@@ -551,6 +616,14 @@ export function CustomerDetailPage() {
             <p className="text-sm text-gray-500">
               Current balance: {customer.points_balance.toLocaleString()} pts
             </p>
+            {customer.points_balance >= POINTS_CAP && (
+              <div className="mt-2 flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-sm font-medium">Customer is at the {POINTS_CAP}-point cap. No additional points can be earned until they redeem.</p>
+              </div>
+            )}
           </div>
 
           {pointsSuccess && (

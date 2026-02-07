@@ -1,992 +1,670 @@
-import { useState, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { Button, Input, Select, Alert, Modal } from '../components/ui';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminCustomersApi, adminPointsApi, adminRedemptionsApi, adminDemoApi } from '../lib/api';
-import type { CustomerSearchResult, AddPointsResponse, RedemptionLookupResponse, CompleteRedemptionResponse, CreateRedemptionResponse, DemoResetResponse } from '../lib/api';
+import { adminDashboardApi } from '../lib/api';
 
-const SERVICE_TYPES = [
-  { value: 'daycare', label: 'Daycare' },
-  { value: 'boarding', label: 'Boarding' },
-  { value: 'grooming', label: 'Grooming (1.5x points)' },
-];
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
 
-// Reward tier configuration
-const REWARD_TIERS = [
-  { points: 100, discount: 10 },
-  { points: 250, discount: 25 },
-  { points: 500, discount: 50 },
-];
+function formatTime(timeStr: string | null): string {
+  if (!timeStr) return '--:--';
+  try {
+    const d = new Date(timeStr);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return timeStr;
+  }
+}
+
+function capacityColor(pct: number): string {
+  if (pct >= 90) return 'bg-red-500';
+  if (pct >= 70) return 'bg-amber-500';
+  return 'bg-emerald-500';
+}
+
+function capacityTextColor(pct: number): string {
+  if (pct >= 90) return 'text-red-600';
+  if (pct >= 70) return 'text-amber-600';
+  return 'text-emerald-600';
+}
+
+function capacityBgColor(pct: number): string {
+  if (pct >= 90) return 'bg-red-50';
+  if (pct >= 70) return 'bg-amber-50';
+  return 'bg-emerald-50';
+}
+
+interface FacilityData {
+  totalDogs: number;
+  capacity: number;
+  daycare: number;
+  boarding: number;
+  grooming: number;
+}
+
+interface ArrivalItem {
+  id: string;
+  customerName: string;
+  dogs: string[];
+  service: string;
+  expectedTime: string | null;
+  status: string;
+}
+
+interface DepartureItem {
+  id: string;
+  customerName: string;
+  dogs: string[];
+  service: string;
+  expectedTime: string | null;
+  status: string;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  role: string;
+  shiftStart: string;
+  shiftEnd: string;
+}
+
+interface ComplianceAlert {
+  dogId: string;
+  dogName: string;
+  ownerName: string;
+  issue: string;
+  bookingDate: string | null;
+}
 
 export function DashboardPage() {
-  const { staff, logout } = useAuth();
   const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState<string>(formatDate(new Date()));
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  // Data states
+  const [facility, setFacility] = useState<FacilityData | null>(null);
+  const [arrivals, setArrivals] = useState<ArrivalItem[]>([]);
+  const [departures, setDepartures] = useState<DepartureItem[]>([]);
+  const [staffOnDuty, setStaffOnDuty] = useState<StaffMember[]>([]);
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
 
-  // Selected customer state
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+  // Loading states
+  const [isLoadingFacility, setIsLoadingFacility] = useState(true);
+  const [isLoadingArrivals, setIsLoadingArrivals] = useState(true);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+  const [isLoadingCompliance, setIsLoadingCompliance] = useState(true);
 
-  // Points form state
-  const [dollarAmount, setDollarAmount] = useState('');
-  const [serviceType, setServiceType] = useState<'daycare' | 'boarding' | 'grooming'>('daycare');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successResult, setSuccessResult] = useState<AddPointsResponse | null>(null);
+  // Error states
+  const [facilityError, setFacilityError] = useState<string | null>(null);
+  const [arrivalsError, setArrivalsError] = useState<string | null>(null);
+  const [staffError, setStaffError] = useState<string | null>(null);
 
-  // Redemption lookup state
-  const [redemptionCode, setRedemptionCode] = useState('');
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-  const [redemptionResult, setRedemptionResult] = useState<RedemptionLookupResponse | null>(null);
+  // Mobile tab for arrivals/departures
+  const [activeTab, setActiveTab] = useState<'arrivals' | 'departures'>('arrivals');
 
-  // Redemption completion state
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [completionResult, setCompletionResult] = useState<CompleteRedemptionResponse | null>(null);
+  const isToday = selectedDate === formatDate(new Date());
 
-  // Direct redemption state (for selected customer)
-  const [selectedRedemptionTier, setSelectedRedemptionTier] = useState<{ points: number; discount: number } | null>(null);
-  const [showDirectRedemptionModal, setShowDirectRedemptionModal] = useState(false);
-  const [isProcessingDirectRedemption, setIsProcessingDirectRedemption] = useState(false);
-  const [directRedemptionError, setDirectRedemptionError] = useState<string | null>(null);
-  const [directRedemptionResult, setDirectRedemptionResult] = useState<CreateRedemptionResponse | null>(null);
-
-  // Quick phone lookup state
-  const [quickPhone, setQuickPhone] = useState('');
-  const [quickResults, setQuickResults] = useState<CustomerSearchResult[]>([]);
-  const [isQuickSearching, setIsQuickSearching] = useState(false);
-
-  // Demo reset state
-  const [showDemoResetModal, setShowDemoResetModal] = useState(false);
-  const [isResettingDemo, setIsResettingDemo] = useState(false);
-  const [demoResetResult, setDemoResetResult] = useState<DemoResetResponse | null>(null);
-  const [demoResetError, setDemoResetError] = useState<string | null>(null);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      setSearchError('Please enter a phone, email, or name to search');
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchError(null);
-    setHasSearched(true);
-
-    const result = await adminCustomersApi.search(searchQuery.trim());
-
-    setIsSearching(false);
-
+  const fetchFacility = useCallback(async () => {
+    setIsLoadingFacility(true);
+    setFacilityError(null);
+    const result = await adminDashboardApi.getFacility(selectedDate);
+    setIsLoadingFacility(false);
     if (result.error) {
-      setSearchError(result.error);
-      setSearchResults([]);
+      setFacilityError(result.error);
+      // Provide fallback data so UI still renders
+      setFacility({ totalDogs: 0, capacity: 40, daycare: 0, boarding: 0, grooming: 0 });
     } else if (result.data) {
-      setSearchResults(result.data.customers);
+      setFacility(result.data);
     }
-  }, [searchQuery]);
+  }, [selectedDate]);
 
-  const handleSelectCustomer = (customer: CustomerSearchResult) => {
-    setSelectedCustomer(customer);
-    setSearchResults([]);
-    setHasSearched(false);
-    setSearchQuery('');
-    setSuccessResult(null);
-    setSubmitError(null);
-    setDollarAmount('');
-    setServiceType('daycare');
-  };
-
-  const handleClearSelection = () => {
-    setSelectedCustomer(null);
-    setDollarAmount('');
-    setServiceType('daycare');
-    setSuccessResult(null);
-    setSubmitError(null);
-    // Clear direct redemption state
-    setSelectedRedemptionTier(null);
-    setDirectRedemptionError(null);
-    setDirectRedemptionResult(null);
-  };
-
-  const calculatePoints = (amount: number, service: string): number => {
-    const multiplier = service === 'grooming' ? 1.5 : 1;
-    return Math.floor(amount * multiplier);
-  };
-
-  const handleAddPoints = async () => {
-    if (!selectedCustomer) return;
-
-    const amount = parseFloat(dollarAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setSubmitError('Please enter a valid dollar amount');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    const result = await adminPointsApi.add({
-      customer_id: selectedCustomer.id,
-      dollar_amount: amount,
-      service_type: serviceType,
-    });
-
-    setIsSubmitting(false);
-
+  const fetchArrivals = useCallback(async () => {
+    setIsLoadingArrivals(true);
+    setArrivalsError(null);
+    const result = await adminDashboardApi.getArrivals(selectedDate);
+    setIsLoadingArrivals(false);
     if (result.error) {
-      setSubmitError(result.error);
+      setArrivalsError(result.error);
+      setArrivals([]);
+      setDepartures([]);
     } else if (result.data) {
-      setSuccessResult(result.data);
-      // Update selected customer with new balance
-      setSelectedCustomer({
-        ...selectedCustomer,
-        points_balance: result.data.customer.new_balance,
-      });
-      // Clear the form for next entry
-      setDollarAmount('');
-      setServiceType('daycare');
+      setArrivals(result.data.arrivals || []);
+      setDepartures(result.data.departures || []);
     }
-  };
+  }, [selectedDate]);
 
-  const parsedAmount = parseFloat(dollarAmount) || 0;
-  const previewPoints = parsedAmount > 0 ? calculatePoints(parsedAmount, serviceType) : 0;
-
-  const handleRedemptionLookup = useCallback(async () => {
-    if (!redemptionCode.trim()) {
-      setLookupError('Please enter a redemption code');
-      return;
-    }
-
-    setIsLookingUp(true);
-    setLookupError(null);
-    setRedemptionResult(null);
-    setCompletionResult(null);
-
-    const result = await adminRedemptionsApi.lookup(redemptionCode.trim());
-
-    setIsLookingUp(false);
-
+  const fetchStaff = useCallback(async () => {
+    setIsLoadingStaff(true);
+    setStaffError(null);
+    const result = await adminDashboardApi.getStaff(selectedDate);
+    setIsLoadingStaff(false);
     if (result.error) {
-      setLookupError(result.error);
+      setStaffError(result.error);
+      setStaffOnDuty([]);
     } else if (result.data) {
-      setRedemptionResult(result.data);
+      setStaffOnDuty(result.data.staff || []);
     }
-  }, [redemptionCode]);
+  }, [selectedDate]);
 
-  const handleCompleteRedemption = async () => {
-    if (!redemptionResult) return;
-
-    setIsCompleting(true);
-
-    const result = await adminRedemptionsApi.complete(redemptionResult.redemption_code);
-
-    setIsCompleting(false);
-    setShowConfirmModal(false);
-
-    if (result.error) {
-      setLookupError(result.error);
-    } else if (result.data) {
-      setCompletionResult(result.data);
-      setRedemptionResult(null);
-      setRedemptionCode('');
-    }
-  };
-
-  const handleClearRedemption = () => {
-    setRedemptionCode('');
-    setRedemptionResult(null);
-    setLookupError(null);
-    setCompletionResult(null);
-  };
-
-  // Direct redemption handlers
-  const handleSelectRedemptionTier = (tier: { points: number; discount: number }) => {
-    setSelectedRedemptionTier(tier);
-    setShowDirectRedemptionModal(true);
-    setDirectRedemptionError(null);
-  };
-
-  const handleProcessDirectRedemption = async () => {
-    if (!selectedCustomer || !selectedRedemptionTier) return;
-
-    setIsProcessingDirectRedemption(true);
-    setDirectRedemptionError(null);
-
-    const result = await adminRedemptionsApi.create({
-      customer_id: selectedCustomer.id,
-      reward_tier: String(selectedRedemptionTier.points) as '100' | '250' | '500',
-    });
-
-    setIsProcessingDirectRedemption(false);
-    setShowDirectRedemptionModal(false);
-
-    if (result.error) {
-      setDirectRedemptionError(result.error);
-    } else if (result.data) {
-      setDirectRedemptionResult(result.data);
-      // Update selected customer with new balance
-      setSelectedCustomer({
-        ...selectedCustomer,
-        points_balance: result.data.customer.new_balance,
-      });
-    }
-    setSelectedRedemptionTier(null);
-  };
-
-  const handleClearDirectRedemption = () => {
-    setDirectRedemptionResult(null);
-    setDirectRedemptionError(null);
-  };
-
-  // Quick phone lookup - instant search as you type
-  const handleQuickPhoneChange = useCallback(async (phone: string) => {
-    setQuickPhone(phone);
-
-    // Only search if we have at least 4 digits
-    const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length < 4) {
-      setQuickResults([]);
-      return;
-    }
-
-    setIsQuickSearching(true);
-    const result = await adminCustomersApi.search(digitsOnly);
-    setIsQuickSearching(false);
-
+  const fetchCompliance = useCallback(async () => {
+    setIsLoadingCompliance(true);
+    const result = await adminDashboardApi.getCompliance();
+    setIsLoadingCompliance(false);
     if (result.data) {
-      setQuickResults(result.data.customers);
+      setComplianceAlerts(result.data.alerts || []);
     } else {
-      setQuickResults([]);
+      setComplianceAlerts([]);
     }
   }, []);
 
-  const handleQuickSelect = (customer: CustomerSearchResult) => {
-    handleSelectCustomer(customer);
-    setQuickPhone('');
-    setQuickResults([]);
+  useEffect(() => {
+    fetchFacility();
+    fetchArrivals();
+    fetchStaff();
+  }, [fetchFacility, fetchArrivals, fetchStaff]);
+
+  useEffect(() => {
+    fetchCompliance();
+  }, [fetchCompliance]);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(e.target.value);
   };
 
-  const handleDemoReset = async () => {
-    setIsResettingDemo(true);
-    setDemoResetError(null);
-    const result = await adminDemoApi.reset();
-    setIsResettingDemo(false);
-
-    if (result.error) {
-      setDemoResetError(result.error);
-    } else if (result.data) {
-      setDemoResetResult(result.data);
-    }
+  const goToToday = () => {
+    setSelectedDate(formatDate(new Date()));
   };
 
-  const handleCloseDemoResetModal = () => {
-    setShowDemoResetModal(false);
-    setDemoResetResult(null);
-    setDemoResetError(null);
-  };
+  const capacityPct = facility ? Math.round((facility.totalDogs / facility.capacity) * 100) : 0;
+
+  const staffDogRatio = facility && staffOnDuty.length > 0
+    ? `1:${Math.round(facility.totalDogs / staffOnDuty.length)}`
+    : '--';
+
+  // Role breakdown
+  const roleBreakdown = staffOnDuty.reduce<Record<string, number>>((acc, s) => {
+    const role = s.role || 'Staff';
+    acc[role] = (acc[role] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-green-600">Happy Tail Happy Dog</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Button variant="outline" size="sm" onClick={() => navigate('/gingr-sync')}>
-                Gingr Sync
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/customers')}>
-                Customers
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowDemoResetModal(true)} className="text-orange-600 border-orange-300 hover:bg-orange-50">
-                Reset Demo
-              </Button>
-              <span className="hidden sm:inline text-gray-700 text-sm">
-                {staff?.first_name}
-                <span className="ml-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full capitalize">
-                  {staff?.role}
-                </span>
-              </span>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#1B365D]">
+            {isToday ? 'Today at Happy Tail' : 'Happy Tail Dashboard'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
         </div>
-      </header>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={handleDateChange}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#62A2C3] focus:border-[#62A2C3] min-h-[44px]"
+          />
+          {!isToday && (
+            <button
+              onClick={goToToday}
+              className="px-4 py-2.5 bg-[#1B365D] text-white text-sm font-medium rounded-lg hover:bg-[#152a4a] transition-colors min-h-[44px]"
+            >
+              Today
+            </button>
+          )}
+        </div>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Quick Phone Lookup - Checkout Speed */}
-        {!selectedCustomer && (
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-2">Quick Lookup</h2>
-            <p className="text-green-100 text-sm mb-4">Enter last 4+ digits of phone for instant lookup</p>
-            <div className="flex gap-4 items-start">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder="Last 4 digits of phone..."
-                  value={quickPhone}
-                  onChange={(e) => handleQuickPhoneChange(e.target.value)}
-                  className="w-full px-3 py-3 border rounded-lg shadow-sm min-h-[44px] text-lg border-white/30 bg-white/20 text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
-                />
-                {isQuickSearching && (
-                  <div className="absolute right-3 top-3">
-                    <svg className="animate-spin h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                )}
-                {/* Inline results */}
-                {quickResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-10 max-h-80 overflow-y-auto">
-                    {quickResults.map((customer) => (
-                      <button
-                        key={customer.id}
-                        onClick={() => handleQuickSelect(customer)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-green-50 border-b border-gray-100 last:border-0 transition-colors"
-                      >
-                        <div className="text-left">
-                          <p className="font-medium text-gray-900">{customer.name}</p>
-                          <p className="text-sm text-gray-500">{customer.phone}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">points</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {quickPhone.replace(/\D/g, '').length >= 4 && quickResults.length === 0 && !isQuickSearching && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-4 text-center text-gray-500 z-10">
-                    No customers found
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Customer Search Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Customer Lookup</h2>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search by phone, email, or name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-            <Button onClick={handleSearch} isLoading={isSearching} className="w-full sm:w-auto">
-              Search
-            </Button>
+      {/* Top Row: Facility Status + Staff On Duty */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Facility Status Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-lg font-semibold text-[#1B365D]">Facility Status</h2>
+            {isLoadingFacility && (
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-[#62A2C3] rounded-full animate-spin" />
+            )}
           </div>
 
-          {searchError && (
-            <Alert variant="error" className="mb-4">{searchError}</Alert>
+          {facilityError && (
+            <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+              {facilityError}
+            </div>
           )}
 
-          {/* Search Results - Card layout on mobile, table on desktop */}
-          {searchResults.length > 0 && (
+          {facility && (
             <>
-              {/* Mobile: Card Layout */}
-              <div className="md:hidden space-y-3">
-                {searchResults.map((customer) => (
+              {/* Dog count gauge */}
+              <div className="text-center mb-4">
+                <div className="text-4xl font-bold text-[#1B365D]">
+                  {facility.totalDogs}
+                  <span className="text-lg text-gray-400 font-normal">/{facility.capacity}</span>
+                </div>
+                <p className="text-sm text-gray-500">dogs on site</p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Capacity</span>
+                  <span className={`text-sm font-semibold ${capacityTextColor(capacityPct)}`}>
+                    {capacityPct}%
+                  </span>
+                </div>
+                <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    key={customer.id}
-                    className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors"
+                    className={`h-full rounded-full transition-all duration-500 ${capacityColor(capacityPct)}`}
+                    style={{ width: `${Math.min(capacityPct, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Service breakdown */}
+              <div className={`grid grid-cols-3 gap-3 p-3 rounded-lg ${capacityBgColor(capacityPct)}`}>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-[#1B365D]">{facility.daycare}</div>
+                  <div className="text-xs text-gray-500">Daycare</div>
+                </div>
+                <div className="text-center border-x border-gray-200">
+                  <div className="text-lg font-bold text-[#1B365D]">{facility.boarding}</div>
+                  <div className="text-xs text-gray-500">Boarding</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-[#1B365D]">{facility.grooming}</div>
+                  <div className="text-xs text-gray-500">Grooming</div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Staff On Duty Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-lg font-semibold text-[#1B365D]">Staff On Duty</h2>
+            {isLoadingStaff && (
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-[#62A2C3] rounded-full animate-spin" />
+            )}
+          </div>
+
+          {staffError && (
+            <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+              {staffError}
+            </div>
+          )}
+
+          {/* Ratio indicator */}
+          <div className="flex items-center gap-4 mb-4 p-3 bg-[#F8F6F3] rounded-lg">
+            <div className="flex-1">
+              <div className="text-sm text-gray-500">Staff : Dogs</div>
+              <div className="text-xl font-bold text-[#1B365D]">{staffDogRatio}</div>
+            </div>
+            <div className="flex-1 border-l border-gray-200 pl-4">
+              <div className="text-sm text-gray-500">On Duty</div>
+              <div className="text-xl font-bold text-[#1B365D]">{staffOnDuty.length}</div>
+            </div>
+            <div className="flex-1 border-l border-gray-200 pl-4">
+              <div className="text-sm text-gray-500">Roles</div>
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {Object.entries(roleBreakdown).map(([role, count]) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#62A2C3]/15 text-[#1B365D]"
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-semibold text-gray-900">{customer.name}</p>
-                        <p className="text-sm text-gray-500">{customer.phone}</p>
-                        <p className="text-sm text-gray-500 truncate max-w-[200px]">{customer.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-green-600">{customer.points_balance.toLocaleString()}</p>
-                        <p className="text-xs text-gray-500">points</p>
-                      </div>
-                    </div>
-                    <Button size="sm" className="w-full" onClick={() => handleSelectCustomer(customer)}>
-                      Select Customer
-                    </Button>
-                  </div>
+                    {count} {role}
+                  </span>
                 ))}
               </div>
-
-              {/* Desktop: Table Layout */}
-              <div className="hidden md:block border rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Phone
-                      </th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Points
-                      </th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {searchResults.map((customer) => (
-                      <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">
-                          {customer.name}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
-                          {customer.phone}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base text-gray-500">
-                          {customer.email}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-base font-semibold text-green-600">
-                          {customer.points_balance.toLocaleString()} pts
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <Button size="sm" onClick={() => handleSelectCustomer(customer)}>
-                            Select
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
-          {/* No Results */}
-          {hasSearched && searchResults.length === 0 && !searchError && !isSearching && (
-            <div className="text-center py-8 text-gray-500">
-              No customers found matching "{searchQuery}"
-            </div>
-          )}
-        </div>
-
-        {/* Redemption Code Lookup Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Customer Has a Code</h2>
-          <p className="text-gray-600 text-sm mb-4">
-            Use this when a customer presents a redemption code they received in the app.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Enter redemption code (e.g., RD-ABC123)..."
-                value={redemptionCode}
-                onChange={(e) => setRedemptionCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleRedemptionLookup()}
-              />
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={handleRedemptionLookup} isLoading={isLookingUp} className="flex-1 sm:flex-none">
-                Look Up
-              </Button>
-              {(redemptionResult || completionResult) && (
-                <Button variant="outline" onClick={handleClearRedemption} className="flex-1 sm:flex-none">
-                  Clear
-                </Button>
-              )}
             </div>
           </div>
 
-          {lookupError && (
-            <Alert variant="error" className="mb-4">{lookupError}</Alert>
-          )}
-
-          {/* Completion Success Message - PROMINENT DISCOUNT DISPLAY */}
-          {completionResult && (
-            <div className="mb-4 rounded-lg overflow-hidden border-4 border-green-500">
-              <div className="bg-green-500 p-3">
-                <p className="text-white font-semibold text-center">
-                  Redemption completed for {completionResult.customer.name}
-                </p>
+          {/* Staff list */}
+          <div className="space-y-2 max-h-[240px] overflow-y-auto">
+            {staffOnDuty.length === 0 && !isLoadingStaff && (
+              <div className="text-center py-6 text-gray-400 text-sm">
+                No staff scheduled for this day
               </div>
-              <div className="bg-yellow-300 p-6 text-center">
-                <p className="text-yellow-800 font-semibold text-lg mb-2">APPLY IN GINGR:</p>
-                <p className="text-6xl font-black text-yellow-900">${completionResult.discount_to_apply}</p>
-                <p className="text-yellow-800 text-sm mt-2">
-                  {completionResult.redemption.reward_tier} points redeemed
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Redemption Details */}
-          {redemptionResult && (
-            <div className={`border rounded-lg p-4 ${
-              redemptionResult.status === 'pending'
-                ? 'border-yellow-400 bg-yellow-50'
-                : 'border-gray-200 bg-gray-50'
-            }`}>
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Redemption Code</p>
-                  <p className="text-2xl font-mono font-bold tracking-wider text-gray-900">
-                    {redemptionResult.redemption_code}
-                  </p>
-                </div>
-                <span className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                  redemptionResult.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : redemptionResult.status === 'completed'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {redemptionResult.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-600">Customer</p>
-                  <p className="font-medium text-gray-900">{redemptionResult.customer.name}</p>
-                  <p className="text-sm text-gray-500">{redemptionResult.customer.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Discount Value</p>
-                  <p className="text-2xl font-bold text-green-600">${redemptionResult.discount_value}</p>
-                  <p className="text-sm text-gray-500">{redemptionResult.reward_tier} points</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-600">Customer Balance</p>
-                  <p className="font-medium text-base">{redemptionResult.customer.points_balance.toLocaleString()} pts</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Date Requested</p>
-                  <p className="font-medium text-base">{new Date(redemptionResult.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-
-              {redemptionResult.status === 'pending' && (
-                <Button
-                  onClick={() => setShowConfirmModal(true)}
-                  className="w-full"
-                  size="lg"
-                >
-                  Complete Redemption
-                </Button>
-              )}
-
-              {redemptionResult.status === 'completed' && redemptionResult.approved_at && (
-                <div className="text-center text-gray-500 text-sm">
-                  Completed on {new Date(redemptionResult.approved_at).toLocaleString()}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!redemptionResult && !completionResult && !lookupError && (
-            <div className="text-center py-4 text-gray-500">
-              Enter a redemption code above to look up its details.
-            </div>
-          )}
-        </div>
-
-        {/* Selected Customer & Points Entry */}
-        {selectedCustomer && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Add Points</h2>
-                <p className="text-gray-600">Add points for a purchase</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleClearSelection}>
-                Clear Selection
-              </Button>
-            </div>
-
-            {/* Customer Info Card */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-900">{selectedCustomer.name}</h3>
-                  <p className="text-gray-600">{selectedCustomer.phone} | {selectedCustomer.email}</p>
+            )}
+            {staffOnDuty.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#62A2C3]/20 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-[#1B365D]">
+                      {member.name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Current Balance</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {selectedCustomer.points_balance.toLocaleString()} pts
+                  <p className="text-sm text-gray-600">
+                    {formatTime(member.shiftStart)} - {formatTime(member.shiftEnd)}
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Success Message */}
-            {successResult && (
-              <Alert variant="success" className="mb-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <strong>Points added successfully!</strong>
-                    <p className="text-sm mt-1">
-                      {successResult.customer.name} earned {successResult.transaction.points_earned} points.
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm">New Balance</p>
-                    <p className="text-xl font-bold">{successResult.customer.new_balance.toLocaleString()} pts</p>
-                  </div>
-                </div>
-              </Alert>
-            )}
-
-            {/* Error Message */}
-            {submitError && (
-              <Alert variant="error" className="mb-6">{submitError}</Alert>
-            )}
-
-            {/* Points Entry Form */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <Input
-                label="Dollar Amount"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={dollarAmount}
-                onChange={(e) => setDollarAmount(e.target.value)}
-              />
-              <Select
-                label="Service Type"
-                options={SERVICE_TYPES}
-                value={serviceType}
-                onChange={(e) => setServiceType(e.target.value as 'daycare' | 'boarding' | 'grooming')}
-              />
-            </div>
-
-            {/* Points Preview */}
-            {previewPoints > 0 && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-gray-600">Points to be earned</p>
-                    {serviceType === 'grooming' && (
-                      <p className="text-sm text-green-600 font-medium">1.5x bonus for grooming!</p>
-                    )}
-                  </div>
-                  <p className="text-3xl font-bold text-green-600">
-                    +{previewPoints.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleAddPoints}
-              isLoading={isSubmitting}
-              disabled={!dollarAmount || parsedAmount <= 0}
-              className="w-full"
-              size="lg"
-            >
-              Add {previewPoints > 0 ? `${previewPoints.toLocaleString()} Points` : 'Points'}
-            </Button>
-
-            {/* Divider */}
-            <div className="border-t border-gray-200 my-6"></div>
-
-            {/* Redeem Points Section */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Quick Redemption (No Code Needed)</h3>
-              <p className="text-gray-600 mb-4">
-                Use this when a customer wants to redeem points at checkout but hasn't generated a code in the app.
-              </p>
-
-              {/* Direct Redemption Error */}
-              {directRedemptionError && (
-                <Alert variant="error" className="mb-4">{directRedemptionError}</Alert>
-              )}
-
-              {/* Direct Redemption Success - PROMINENT DISCOUNT DISPLAY */}
-              {directRedemptionResult && (
-                <div className="mb-4 rounded-lg overflow-hidden border-4 border-green-500">
-                  <div className="bg-green-500 p-3 flex justify-between items-center">
-                    <p className="text-white font-semibold">
-                      Redemption completed for {directRedemptionResult.customer.name}
-                    </p>
-                    <Button size="sm" variant="outline" onClick={handleClearDirectRedemption} className="bg-white text-green-700 hover:bg-green-50">
-                      Dismiss
-                    </Button>
-                  </div>
-                  <div className="bg-yellow-300 p-6 text-center">
-                    <p className="text-yellow-800 font-semibold text-lg mb-2">APPLY IN GINGR:</p>
-                    <p className="text-6xl font-black text-yellow-900">${directRedemptionResult.discount_to_apply}</p>
-                    <p className="text-yellow-800 text-sm mt-2">
-                      {directRedemptionResult.redemption.reward_tier} points redeemed
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Reward Tiers Grid */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                {REWARD_TIERS.map((tier) => {
-                  const canAfford = selectedCustomer.points_balance >= tier.points;
-                  const pointsNeeded = tier.points - selectedCustomer.points_balance;
-
-                  return (
-                    <button
-                      key={tier.points}
-                      onClick={() => canAfford && handleSelectRedemptionTier(tier)}
-                      disabled={!canAfford}
-                      className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[100px] ${
-                        canAfford
-                          ? 'border-green-500 bg-green-50 hover:bg-green-100 cursor-pointer'
-                          : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="text-xl sm:text-2xl font-bold mb-1">
-                        ${tier.discount}
-                      </div>
-                      <div className={`text-sm ${canAfford ? 'text-green-700' : 'text-gray-400'}`}>
-                        {tier.points} pts
-                      </div>
-                      {!canAfford && (
-                        <div className="text-xs text-red-500 mt-1">
-                          Need {pointsNeeded}
-                        </div>
-                      )}
-                      {canAfford && (
-                        <div className="text-xs text-green-600 mt-1 font-medium">
-                          Available
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            ))}
           </div>
-        )}
-
-        {/* Empty State */}
-        {!selectedCustomer && (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-            Search for a customer above to add points for their purchase.
-          </div>
-        )}
-
-        {/* Sign Out Footer */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="w-full py-3 px-4 text-red-600 hover:text-red-700 font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            Sign Out
-          </button>
         </div>
-      </main>
+      </div>
 
-      {/* Confirmation Modal */}
-      <Modal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        title="Complete Redemption"
-      >
-        {redemptionResult && (
-          <div>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to complete this redemption?
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Customer</span>
-                <span className="font-medium">{redemptionResult.customer.name}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Code</span>
-                <span className="font-mono font-medium">{redemptionResult.redemption_code}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Points to Deduct</span>
-                <span className="font-medium text-red-600">-{redemptionResult.reward_tier}</span>
-              </div>
-              <div className="flex justify-between items-center border-t border-gray-200 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Discount to Apply</span>
-                <span className="text-xl font-bold text-green-600">${redemptionResult.discount_value}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowConfirmModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleCompleteRedemption}
-                isLoading={isCompleting}
-              >
-                Complete Redemption
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Direct Redemption Confirmation Modal */}
-      <Modal
-        isOpen={showDirectRedemptionModal}
-        onClose={() => setShowDirectRedemptionModal(false)}
-        title="Process Redemption"
-      >
-        {selectedCustomer && selectedRedemptionTier && (
-          <div>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to process this redemption for the customer?
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Customer</span>
-                <span className="font-medium">{selectedCustomer.name}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Current Balance</span>
-                <span className="font-medium">{selectedCustomer.points_balance.toLocaleString()} pts</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Points to Deduct</span>
-                <span className="font-medium text-red-600">-{selectedRedemptionTier.points}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Balance After</span>
-                <span className="font-medium">{(selectedCustomer.points_balance - selectedRedemptionTier.points).toLocaleString()} pts</span>
-              </div>
-              <div className="flex justify-between items-center border-t border-gray-200 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Discount to Apply</span>
-                <span className="text-xl font-bold text-green-600">${selectedRedemptionTier.discount}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowDirectRedemptionModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleProcessDirectRedemption}
-                isLoading={isProcessingDirectRedemption}
-              >
-                Process Redemption
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Demo Reset Modal */}
-      <Modal
-        isOpen={showDemoResetModal}
-        onClose={handleCloseDemoResetModal}
-        title="Reset Demo Data"
-      >
-        <div>
-          {!demoResetResult ? (
-            <>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                <p className="text-orange-800 font-medium mb-2">This will:</p>
-                <ul className="text-orange-700 text-sm space-y-1">
-                  <li>Reset all claimed Gingr-imported accounts to unclaimed</li>
-                  <li>Clear customer passwords</li>
-                  <li>Clear all verification codes</li>
-                </ul>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Use this to reset the demo environment for a fresh walkthrough.
-              </p>
-              {demoResetError && (
-                <Alert variant="error" className="mb-4">{demoResetError}</Alert>
-              )}
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleCloseDemoResetModal}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-orange-500 hover:bg-orange-600"
-                  onClick={handleDemoReset}
-                  isLoading={isResettingDemo}
-                >
-                  Reset Demo
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <p className="text-green-800 font-medium mb-2">Reset Complete!</p>
-                <ul className="text-green-700 text-sm space-y-1">
-                  <li>{demoResetResult.accounts_reset} account(s) reset to unclaimed</li>
-                  <li>{demoResetResult.verification_codes_cleared} verification code(s) cleared</li>
-                </ul>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Customers can now go through the claim flow fresh.
-              </p>
-              <Button
-                className="w-full"
-                onClick={handleCloseDemoResetModal}
-              >
-                Done
-              </Button>
-            </>
+      {/* Arrivals & Departures */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-lg font-semibold text-[#1B365D]">
+            Arrivals & Departures
+          </h2>
+          {isLoadingArrivals && (
+            <div className="w-5 h-5 border-2 border-gray-200 border-t-[#62A2C3] rounded-full animate-spin" />
           )}
         </div>
-      </Modal>
+
+        {arrivalsError && (
+          <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+            {arrivalsError}
+          </div>
+        )}
+
+        {/* Mobile tabs */}
+        <div className="flex sm:hidden gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('arrivals')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+              activeTab === 'arrivals'
+                ? 'bg-[#1B365D] text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Arrivals
+            {arrivals.length > 0 && (
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                activeTab === 'arrivals' ? 'bg-white/20' : 'bg-[#1B365D] text-white'
+              }`}>
+                {arrivals.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('departures')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+              activeTab === 'departures'
+                ? 'bg-[#1B365D] text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Departures
+            {departures.length > 0 && (
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                activeTab === 'departures' ? 'bg-white/20' : 'bg-[#1B365D] text-white'
+              }`}>
+                {departures.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Desktop: Two columns */}
+        <div className="hidden sm:grid sm:grid-cols-2 gap-6">
+          {/* Arrivals column */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Arrivals
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium normal-case">
+                  {arrivals.length}
+                </span>
+              </h3>
+            </div>
+            <div className="space-y-2 max-h-[360px] overflow-y-auto">
+              {arrivals.length === 0 && !isLoadingArrivals && (
+                <div className="text-center py-8 text-gray-400 text-sm">No arrivals scheduled</div>
+              )}
+              {arrivals.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.dogs.join(', ')} &middot; {item.service}
+                    </p>
+                    {item.expectedTime && (
+                      <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
+                    )}
+                  </div>
+                  <button
+                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[36px] whitespace-nowrap"
+                  >
+                    Check In
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Departures column */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-[#62A2C3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Departures
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-[#62A2C3]/15 text-[#1B365D] text-xs font-medium normal-case">
+                  {departures.length}
+                </span>
+              </h3>
+            </div>
+            <div className="space-y-2 max-h-[360px] overflow-y-auto">
+              {departures.length === 0 && !isLoadingArrivals && (
+                <div className="text-center py-8 text-gray-400 text-sm">No departures scheduled</div>
+              )}
+              {departures.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-[#62A2C3]/30 hover:bg-[#62A2C3]/5 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.dogs.join(', ')} &middot; {item.service}
+                    </p>
+                    {item.expectedTime && (
+                      <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
+                    )}
+                  </div>
+                  <button
+                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[36px] whitespace-nowrap"
+                  >
+                    Check Out
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: Single column with tab switching */}
+        <div className="sm:hidden">
+          {activeTab === 'arrivals' && (
+            <div className="space-y-2">
+              {arrivals.length === 0 && !isLoadingArrivals && (
+                <div className="text-center py-8 text-gray-400 text-sm">No arrivals scheduled</div>
+              )}
+              {arrivals.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.dogs.join(', ')} &middot; {item.service}
+                    </p>
+                    {item.expectedTime && (
+                      <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
+                    )}
+                  </div>
+                  <button
+                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[44px] whitespace-nowrap"
+                  >
+                    Check In
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'departures' && (
+            <div className="space-y-2">
+              {departures.length === 0 && !isLoadingArrivals && (
+                <div className="text-center py-8 text-gray-400 text-sm">No departures scheduled</div>
+              )}
+              {departures.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.dogs.join(', ')} &middot; {item.service}
+                    </p>
+                    {item.expectedTime && (
+                      <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
+                    )}
+                  </div>
+                  <button
+                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[44px] whitespace-nowrap"
+                  >
+                    Check Out
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Compliance Alerts */}
+      {complianceAlerts.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E8837B]/30 p-5 sm:p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-full bg-[#E8837B]/15 flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#E8837B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-heading text-lg font-semibold text-[#1B365D]">Compliance Alerts</h2>
+              <p className="text-sm text-[#E8837B] font-medium">
+                {complianceAlerts.length} issue{complianceAlerts.length !== 1 ? 's' : ''} need attention
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {complianceAlerts.map((alert, idx) => (
+              <div
+                key={`${alert.dogId}-${idx}`}
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-[#E8837B]/5 border border-[#E8837B]/15 gap-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {alert.dogName}
+                    <span className="text-gray-400 font-normal"> &mdash; {alert.ownerName}</span>
+                  </p>
+                  <p className="text-xs text-[#E8837B] font-medium">{alert.issue}</p>
+                  {alert.bookingDate && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Next booking: {new Date(alert.bookingDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate(`/customers`)}
+                  className="px-3 py-2 text-[#1B365D] text-xs font-medium border border-[#1B365D]/20 rounded-lg hover:bg-[#1B365D]/5 transition-colors min-h-[36px] sm:min-h-[auto] whitespace-nowrap"
+                >
+                  View Profile
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <button
+          onClick={() => navigate('/staff-schedule')}
+          className="flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[#62A2C3]/30 hover:shadow-md transition-all min-h-[100px] group"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#62A2C3]/15 flex items-center justify-center mb-2 group-hover:bg-[#62A2C3]/25 transition-colors">
+            <svg className="w-5 h-5 text-[#62A2C3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-[#1B365D]">Manage Schedule</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/customers')}
+          className="flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[#62A2C3]/30 hover:shadow-md transition-all min-h-[100px] group"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#62A2C3]/15 flex items-center justify-center mb-2 group-hover:bg-[#62A2C3]/25 transition-colors">
+            <svg className="w-5 h-5 text-[#62A2C3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-[#1B365D]">Customer Lookup</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/loyalty')}
+          className="flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[#F5C65D]/40 hover:shadow-md transition-all min-h-[100px] group"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#F5C65D]/20 flex items-center justify-center mb-2 group-hover:bg-[#F5C65D]/30 transition-colors">
+            <svg className="w-5 h-5 text-[#D4A843]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-[#1B365D]">Loyalty Points</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/report-cards-admin')}
+          className="flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[#7FB685]/30 hover:shadow-md transition-all min-h-[100px] group"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#7FB685]/15 flex items-center justify-center mb-2 group-hover:bg-[#7FB685]/25 transition-colors">
+            <svg className="w-5 h-5 text-[#7FB685]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-[#1B365D]">Report Cards</span>
+        </button>
+      </div>
     </div>
   );
 }

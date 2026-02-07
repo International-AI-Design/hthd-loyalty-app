@@ -168,6 +168,8 @@ export function ClaimPage() {
   const goToDashboard = () => {
     // Set first-login flag for walkthrough
     localStorage.setItem('hthd_first_login', 'true');
+    // Claimed accounts are returning customers — show 'Welcome back'
+    localStorage.setItem('hthd_has_visited', 'true');
     navigate('/dashboard');
   };
 

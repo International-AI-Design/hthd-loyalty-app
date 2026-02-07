@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { bookingApi, customerApi } from '../lib/api';
+import { bookingApi, customerApi, dogProfileApi } from '../lib/api';
 import { Input } from '../components/ui';
 import type {
   ServiceType,
@@ -13,6 +13,12 @@ import type {
   Booking,
 } from '../lib/api';
 import { Button, Alert } from '../components/ui';
+
+interface VaxWarning {
+  dogId: string;
+  dogName: string;
+  issues: string[];
+}
 
 type BookingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -68,6 +74,9 @@ export function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
 
+  // Vaccination warnings
+  const [vaxWarnings, setVaxWarnings] = useState<VaxWarning[]>([]);
+
   // Add dog inline
   const [showAddDog, setShowAddDog] = useState(false);
   const [newDogName, setNewDogName] = useState('');
@@ -101,6 +110,32 @@ export function BookingPage() {
     };
     loadDogs();
   }, []);
+
+  // Check vaccination compliance when dogs are selected
+  useEffect(() => {
+    if (selectedDogIds.length === 0) {
+      setVaxWarnings([]);
+      return;
+    }
+    const checkCompliance = async () => {
+      const warnings: VaxWarning[] = [];
+      for (const dogId of selectedDogIds) {
+        const dog = dogs.find((d) => d.id === dogId);
+        if (!dog) continue;
+        const { data } = await dogProfileApi.getCompliance(dogId);
+        if (data && !data.isFullyCompliant) {
+          const issues = (data.compliance as Array<{ requirement: string; status: string }>)
+            .filter((c) => c.status === 'expired' || c.status === 'missing')
+            .map((c) => c.requirement);
+          if (issues.length > 0) {
+            warnings.push({ dogId, dogName: dog.name, issues });
+          }
+        }
+      }
+      setVaxWarnings(warnings);
+    };
+    checkCompliance();
+  }, [selectedDogIds, dogs]);
 
   // Load availability when service and step 3
   const loadAvailability = useCallback(async () => {
@@ -463,6 +498,24 @@ export function BookingPage() {
           </Alert>
         )}
 
+        {/* Vaccination compliance warning */}
+        {vaxWarnings.length > 0 && step >= 2 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div className="flex-1">
+                {vaxWarnings.map((w) => (
+                  <p key={w.dogId} className="text-sm text-yellow-800">
+                    <span className="font-semibold">{w.dogName}</span> has expired or missing vaccinations ({w.issues.join(', ')}). Some services may require current vaccinations.
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Step 1: Select Service */}
         {step === 1 && (
           <div className="space-y-4">
@@ -518,15 +571,32 @@ export function BookingPage() {
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
               </div>
             ) : dogs.length === 0 && !showAddDog ? (
-              <div className="text-center py-12 text-gray-500">
-                <p>No dogs on your profile yet.</p>
-                <Button className="mt-4" onClick={() => setShowAddDog(true)}>
+              <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+                <div className="mx-auto w-16 h-16 bg-brand-teal/10 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-heading text-lg font-bold text-brand-navy mb-2">
+                  Quick — what's your dog's name?
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Just a name is all we need to book. You can add more details later.
+                </p>
+                <Button className="w-full" size="lg" onClick={() => setShowAddDog(true)}>
                   Add Your Dog
                 </Button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full mt-3 py-3 text-sm text-gray-500 hover:text-brand-teal font-medium transition-colors min-h-[44px]"
+                >
+                  Skip for now — just browsing
+                </button>
               </div>
             ) : showAddDog && dogs.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
                 <h3 className="font-semibold text-brand-navy">Add Your Dog</h3>
+                <p className="text-sm text-gray-500">Just a name is enough to get started!</p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                   <Input

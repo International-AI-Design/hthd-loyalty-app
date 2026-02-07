@@ -270,6 +270,36 @@ export interface CustomerReferral {
   join_date: string;
 }
 
+export interface CustomerDog {
+  id: string;
+  name: string;
+  breed: string | null;
+  size_category: string | null;
+  weight: number | null;
+  birth_date: string | null;
+  notes: string | null;
+  temperament: string | null;
+  care_instructions: string | null;
+  is_neutered: boolean;
+  photo_url: string | null;
+}
+
+export interface CustomerBooking {
+  id: string;
+  date: string;
+  start_date: string | null;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  status: string;
+  total_cents: number;
+  notes: string | null;
+  service_name: string;
+  service_display_name: string;
+  dogs: { id: string; name: string }[];
+  created_at: string;
+}
+
 export interface CustomerDetail {
   id: string;
   first_name: string;
@@ -279,9 +309,14 @@ export interface CustomerDetail {
   email: string;
   points_balance: number;
   referral_code: string;
+  account_status: string;
+  source: string;
   join_date: string;
   referred_by: CustomerReferralInfo | null;
   referrals: CustomerReferral[];
+  dogs: CustomerDog[];
+  upcoming_bookings: CustomerBooking[];
+  recent_bookings: CustomerBooking[];
 }
 
 // Customer transaction types for admin
@@ -649,4 +684,59 @@ export const adminCheckoutApi = {
     cashReceived?: number;
   }) =>
     api.post<CheckoutResponse>('/v2/admin/checkout/process', data),
+};
+
+// Dashboard APIs
+export const adminDashboardApi = {
+  getSummary: (date?: string) => api.get<any>(`/v2/admin/dashboard${date ? `?date=${date}` : ''}`),
+  getFacility: (date?: string) => api.get<any>(`/v2/admin/dashboard/facility${date ? `?date=${date}` : ''}`),
+  getArrivals: (date?: string) => api.get<any>(`/v2/admin/dashboard/arrivals-departures${date ? `?date=${date}` : ''}`),
+  getStaff: (date?: string) => api.get<any>(`/v2/admin/dashboard/staff${date ? `?date=${date}` : ''}`),
+  getCompliance: () => api.get<any>('/v2/admin/dashboard/compliance'),
+  getWeekly: (startDate: string) => api.get<any>(`/v2/admin/dashboard/weekly?startDate=${startDate}`),
+};
+
+// Staff Schedule APIs
+export const adminScheduleApi = {
+  getByDate: (date: string) => api.get<any>(`/v2/admin/schedules?date=${date}`),
+  getWeekView: (startDate: string) => api.get<any>(`/v2/admin/schedules/week?startDate=${startDate}`),
+  getStaffSchedule: (staffUserId: string, startDate: string, endDate: string) =>
+    api.get<any>(`/v2/admin/schedules/staff/${staffUserId}?startDate=${startDate}&endDate=${endDate}`),
+  getCoverage: (date: string) => api.get<any>(`/v2/admin/schedules/coverage?date=${date}`),
+  getAvailable: (date: string) => api.get<any>(`/v2/admin/schedules/available?date=${date}`),
+  create: (data: any) => api.post<any>('/v2/admin/schedules', data),
+  bulkCreate: (schedules: any[]) => api.post<any>('/v2/admin/schedules/bulk', { schedules }),
+  update: (id: string, data: any) => api.put<any>(`/v2/admin/schedules/${id}`, data),
+  delete: (id: string) => api.delete<any>(`/v2/admin/schedules/${id}`),
+};
+
+// Dog Profile Admin APIs
+export const adminDogApi = {
+  getDog: (dogId: string) => api.get<any>(`/v2/admin/dogs/${dogId}`),
+  addBehaviorNote: (dogId: string, data: any) => api.post<any>(`/v2/admin/dogs/${dogId}/behavior-notes`, data),
+  verifyVaccination: (dogId: string, vaccinationId: string) =>
+    api.put<any>(`/v2/admin/dogs/${dogId}/vaccinations/${vaccinationId}/verify`, {}),
+  getComplianceReport: () => api.get<any>('/v2/admin/dogs/compliance/report'),
+};
+
+// Report Card Admin APIs
+export const adminReportCardApi = {
+  create: (data: any) => api.post<any>('/v2/admin/report-cards', data),
+  update: (id: string, data: any) => api.put<any>(`/v2/admin/report-cards/${id}`, data),
+  delete: (id: string) => api.delete<any>(`/v2/admin/report-cards/${id}`),
+  send: (id: string, channel: string) => api.post<any>(`/v2/admin/report-cards/${id}/send`, { channel }),
+  getUnsent: () => api.get<any>('/v2/admin/report-cards/unsent'),
+  getByBooking: (bookingId: string) => api.get<any>(`/v2/admin/report-cards/booking/${bookingId}`),
+};
+
+// Messaging Admin APIs
+export const adminMessagingApi = {
+  getConversations: (status?: string) =>
+    api.get<any>(`/v2/admin/messaging/conversations${status ? `?status=${status}` : ''}`),
+  getConversation: (id: string) => api.get<any>(`/v2/admin/messaging/conversations/${id}`),
+  assignStaff: (id: string, staffUserId?: string) =>
+    api.post<any>(`/v2/admin/messaging/conversations/${id}/assign`, staffUserId ? { staffUserId } : {}),
+  sendMessage: (id: string, content: string) =>
+    api.post<any>(`/v2/admin/messaging/conversations/${id}/messages`, { content }),
+  escalate: (id: string) => api.post<any>(`/v2/admin/messaging/conversations/${id}/escalate`, {}),
 };

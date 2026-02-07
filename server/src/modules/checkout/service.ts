@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { WalletService } from '../wallet/service';
-import { CheckoutInput, CheckoutResult, ReceiptData } from './types';
+import { CheckoutInput, CheckoutResult, ReceiptData, POINTS_VALUE_CENTS } from './types';
 import { randomUUID } from 'crypto';
 
 const walletService = new WalletService();
@@ -18,7 +18,7 @@ export class CheckoutService {
     staffId: string | null,
     input: CheckoutInput
   ): Promise<CheckoutResult> {
-    const { bookingIds, paymentMethod, walletAmountCents, tipCents, idempotencyKey } = input;
+    const { bookingIds, paymentMethod, walletAmountCents, pointsToRedeem, tipCents, idempotencyKey } = input;
 
     // Idempotency check
     if (idempotencyKey) {
@@ -32,6 +32,8 @@ export class CheckoutService {
           totalCents: existing.totalCents,
           walletAmountCents: existing.walletAmountCents,
           cardAmountCents: existing.cardAmountCents,
+          pointsRedeemed: 0,
+          pointsAmountCents: 0,
           tipCents: existing.tipCents,
           status: existing.status,
           bookings: [],
@@ -63,9 +65,11 @@ export class CheckoutService {
     const subtotalCents = bookings.reduce((sum: number, b: any) => sum + b.totalCents, 0);
     const totalCents = subtotalCents + (tipCents || 0);
 
-    // Determine wallet vs card split
+    // Determine wallet vs card vs points split
     let walletDeductCents = 0;
     let cardChargeCents = 0;
+    let pointsDeductAmount = 0;
+    let pointsDeductCents = 0;
 
     if (paymentMethod === 'wallet') {
       walletDeductCents = totalCents;
@@ -74,8 +78,39 @@ export class CheckoutService {
       walletDeductCents = 0;
       cardChargeCents = totalCents;
     } else if (paymentMethod === 'split') {
+      // Split can combine wallet + card, or points + card
       walletDeductCents = Math.min(walletAmountCents || 0, totalCents);
-      cardChargeCents = totalCents - walletDeductCents;
+      // If points are also included in a split
+      if (pointsToRedeem && pointsToRedeem > 0) {
+        pointsDeductAmount = pointsToRedeem;
+        pointsDeductCents = pointsDeductAmount * POINTS_VALUE_CENTS;
+        // Points cover part of total after wallet
+        const remaining = totalCents - walletDeductCents;
+        pointsDeductCents = Math.min(pointsDeductCents, remaining);
+        // Recalculate actual points needed (round up to cover the cents)
+        pointsDeductAmount = Math.ceil(pointsDeductCents / POINTS_VALUE_CENTS);
+        pointsDeductCents = pointsDeductAmount * POINTS_VALUE_CENTS;
+        // Cap at remaining
+        if (pointsDeductCents > remaining) {
+          pointsDeductCents = remaining;
+          pointsDeductAmount = Math.ceil(pointsDeductCents / POINTS_VALUE_CENTS);
+        }
+      }
+      cardChargeCents = totalCents - walletDeductCents - pointsDeductCents;
+      if (cardChargeCents < 0) cardChargeCents = 0;
+    } else if (paymentMethod === 'points') {
+      // Full points payment
+      pointsDeductAmount = pointsToRedeem || 0;
+      pointsDeductCents = pointsDeductAmount * POINTS_VALUE_CENTS;
+      if (pointsDeductCents < totalCents) {
+        throw new CheckoutError(
+          `Insufficient points. You need ${Math.ceil(totalCents / POINTS_VALUE_CENTS)} points ($${(totalCents / 100).toFixed(2)}), but only selected ${pointsDeductAmount} points ($${(pointsDeductCents / 100).toFixed(2)}).`
+        );
+      }
+      // Cap to exact amount needed (no overpaying with points)
+      pointsDeductCents = totalCents;
+      pointsDeductAmount = Math.ceil(totalCents / POINTS_VALUE_CENTS);
+      cardChargeCents = 0;
     }
 
     // Validate wallet balance if using wallet
@@ -84,6 +119,19 @@ export class CheckoutService {
       if (balanceCents < walletDeductCents) {
         throw new CheckoutError(
           `Insufficient wallet balance. Available: $${(balanceCents / 100).toFixed(2)}, Required: $${(walletDeductCents / 100).toFixed(2)}`
+        );
+      }
+    }
+
+    // Validate points balance if using points
+    if (pointsDeductAmount > 0) {
+      const customer = await (prisma as any).customer.findUnique({
+        where: { id: customerId },
+        select: { pointsBalance: true },
+      });
+      if (!customer || customer.pointsBalance < pointsDeductAmount) {
+        throw new CheckoutError(
+          `Insufficient points. Available: ${customer?.pointsBalance ?? 0}, Required: ${pointsDeductAmount}`
         );
       }
     }
@@ -130,6 +178,27 @@ export class CheckoutService {
         });
       }
 
+      // Deduct points if applicable
+      if (pointsDeductAmount > 0) {
+        const cust = await tx.customer.findUnique({ where: { id: customerId } });
+        if (!cust || cust.pointsBalance < pointsDeductAmount) {
+          throw new CheckoutError('Insufficient points balance');
+        }
+        await tx.customer.update({
+          where: { id: customerId },
+          data: { pointsBalance: cust.pointsBalance - pointsDeductAmount },
+        });
+        await tx.pointsTransaction.create({
+          data: {
+            customerId,
+            type: 'redemption',
+            amount: -pointsDeductAmount,
+            description: `Checkout payment — ${pointsDeductAmount} points redeemed ($${(pointsDeductCents / 100).toFixed(2)})`,
+            dollarAmount: pointsDeductCents / 100,
+          },
+        });
+      }
+
       // Update all bookings to confirmed
       const updatedBookings = [];
       for (const bookingId of bookingIds) {
@@ -154,6 +223,8 @@ export class CheckoutService {
               totalCents,
               walletAmountCents: walletDeductCents,
               cardAmountCents: cardChargeCents,
+              pointsRedeemed: pointsDeductAmount,
+              pointsAmountCents: pointsDeductCents,
             },
           },
         });
@@ -165,6 +236,8 @@ export class CheckoutService {
         totalCents,
         walletAmountCents: walletDeductCents,
         cardAmountCents: cardChargeCents,
+        pointsRedeemed: pointsDeductAmount,
+        pointsAmountCents: pointsDeductCents,
         tipCents: tipCents || 0,
         status: 'completed',
         bookings: updatedBookings,

@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.6] - Sprint 3a: Foundation — Multi-Day Booking, Checkout, Admin Payments - 2026-02-07
+
+### Added — Server
+- **Multi-day booking API** — `startDate`/`endDate` fields on Booking model, availability checking with 40 dogs/day global cap, date range schedule queries, overlap detection
+- **Checkout module** (`modules/checkout/`) — Complete payment processing:
+  - Customer routes: `POST /v2/checkout`, `GET /v2/checkout/:paymentId/receipt`
+  - Admin routes: `GET /v2/admin/checkout/wallet-balance/:customerId`, `POST /v2/admin/checkout/process`, `GET /v2/admin/checkout/receipt/:paymentId`
+  - Simulated payments (wallet/card/split/cash), atomic transactions (payment + wallet deduction + booking status + audit log)
+  - Idempotency key support, receipt generation
+- **Admin checkout auth** — Staff-authenticated routes with RBAC (admin role), audit logging for all staff-initiated payments
+- **Booking types** — `createMultiDayBookingSchema` Zod validation, `adminDateRangeSchema` for schedule queries
+- **Multi-day booking route** — `POST /v2/bookings/multi-day` with date range validation (max 30 days)
+- **Schedule range endpoint** — `GET /v2/admin/bookings/schedule-range` with service type and status filtering
+
+### Added — Customer App
+- **Calendar component** (`components/Calendar.tsx`, 267 lines) — Custom date range picker with availability indicators (green/yellow/red), mobile swipe navigation, 44px touch targets
+- **ServiceSelector component** (`components/ServiceSelector.tsx`, 128 lines) — 6 service options with pricing and icons
+- **DogSelector component** (`components/DogSelector.tsx`, 87 lines) — Multi-select dog picker with breed/size display
+- **BookingSummary component** (`components/BookingSummary.tsx`, 172 lines) — Price calculator with per-dog line items
+- **CheckoutPage** (`pages/CheckoutPage.tsx`, 279 lines) — Payment method tabs (Wallet/Card/Split), simulated card form, wallet balance display
+- **CheckoutConfirmationPage** (`pages/CheckoutConfirmationPage.tsx`, 257 lines) — Animated success receipt with copy-to-clipboard transaction ID
+- **Checkout routes** — `/checkout/:bookingId` and `/checkout/confirmation/:paymentId` as protected routes
+- **Pay Now flow** — BookingPage success screen links to checkout with booking data via router state
+- **API client types** — `CheckoutResult`, `ReceiptData`, `WalletResponse`, `multiDayBookingApi`, `checkoutApi`
+
+### Added — Admin App
+- **PaymentModal** (`components/PaymentModal.tsx`, 449 lines) — Multi-step payment flow: method selection → confirmation → processing → success/receipt. Supports card, wallet, cash (with change calculation), and split payments. Receipt printing via CSS `@media print`. RBAC: owner/manager only.
+- **SchedulePage payment integration** — "Payment" buttons on pending/confirmed booking cards, modal wired with schedule refresh on success
+- **Admin checkout API** — `adminCheckoutApi` with `getWalletBalance()` and `processPayment()` methods
+- **Admin types** — `CheckoutResponse`, `WalletBalanceResponse`, `endDate` on `AdminBooking` for multi-day support
+
+### Changed
+- **Booking model** — Added optional `startDate`/`endDate` DateTime fields (backward compatible, `date` field preserved)
+- **BookingService.calculatePrice** — Changed from private to public (needed by checkout)
+- **Prisma OR clauses** — Fixed duplicate property names in multi-day booking queries (wrapped in `AND`)
+
+### Files Changed (24 total)
+- **New (11):** CheckoutPage, CheckoutConfirmationPage, Calendar, ServiceSelector, DogSelector, BookingSummary, PaymentModal, checkout/service, checkout/router, checkout/admin-router, checkout/types, checkout/index
+- **Modified (13):** schema.prisma, server index.ts, booking/types, booking/service, booking/router, booking/admin-router, customer App.tsx, customer api.ts, BookingPage, pages/index, admin api.ts, admin SchedulePage
+
+### TypeScript Status
+- Customer app: 0 errors
+- Admin app: 0 errors
+- Server: 10 pre-existing errors (query param types, not from this sprint)
+
+### Known Issues
+- No Prisma migration file — schema synced via `db push`, needs `prisma migrate dev` before production deploy
+- Server payment simulation always succeeds — Stripe integration planned for Sprint 3b
+
+---
+
 ## [2.0.0-alpha.5] - Sprint 2: Polish & Close-Out - 2026-02-06
 
 ### Bug Fixes (10 total across 9 files this session)

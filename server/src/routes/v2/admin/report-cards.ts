@@ -1,10 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
+import adminReportCardRouter from '../../../modules/report-card/admin-router';
 
 const router = Router();
 
-// Placeholder — Sprint 5
-router.all('/{*path}', (req: Request, res: Response) => {
-  res.status(501).json({ message: 'Report cards API not yet implemented', version: 'v2' });
-});
+// Mount the report-card module's admin routes
+router.use('/', adminReportCardRouter);
 
 export default router;

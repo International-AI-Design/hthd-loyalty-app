@@ -57,6 +57,8 @@ export function LoginPage() {
     }
 
     if (data) {
+      // Returning user — mark as visited so dashboard shows 'Welcome back'
+      localStorage.setItem('hthd_has_visited', 'true');
       login(data.token, data.customer);
       navigate('/dashboard');
     }

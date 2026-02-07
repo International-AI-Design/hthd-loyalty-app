@@ -160,10 +160,13 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
 });
 
 // GET /api/admin/customers/:id
-// Get a single customer by ID with referral information
+// Get a single customer by ID with referral information, pets, and bookings
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     const customer = await prisma.customer.findUnique({
       where: { id },
@@ -175,6 +178,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         email: true,
         pointsBalance: true,
         referralCode: true,
+        accountStatus: true,
+        source: true,
         createdAt: true,
         referredBy: {
           select: {
@@ -192,6 +197,54 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
           },
           orderBy: { createdAt: 'desc' },
         },
+        dogs: {
+          select: {
+            id: true,
+            name: true,
+            breed: true,
+            sizeCategory: true,
+            weight: true,
+            birthDate: true,
+            notes: true,
+            temperament: true,
+            careInstructions: true,
+            isNeutered: true,
+            photoUrl: true,
+          },
+          orderBy: { name: 'asc' },
+        },
+        bookings: {
+          select: {
+            id: true,
+            date: true,
+            startDate: true,
+            endDate: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            totalCents: true,
+            notes: true,
+            createdAt: true,
+            serviceType: {
+              select: {
+                name: true,
+                displayName: true,
+              },
+            },
+            dogs: {
+              select: {
+                dog: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { date: 'desc' },
+          take: 20,
+        },
       },
     });
 
@@ -199,6 +252,40 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ error: 'Customer not found' });
       return;
     }
+
+    // Separate upcoming vs past bookings
+    const upcomingBookings = customer.bookings
+      .filter((b) => {
+        const bookingDate = new Date(b.date);
+        return bookingDate >= today && b.status !== 'cancelled' && b.status !== 'checked_out';
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const recentBookings = customer.bookings
+      .filter((b) => {
+        const bookingDate = new Date(b.date);
+        return bookingDate < today || b.status === 'checked_out' || b.status === 'cancelled';
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const formatBooking = (b: typeof customer.bookings[number]) => ({
+      id: b.id,
+      date: b.date.toISOString().split('T')[0],
+      start_date: b.startDate ? b.startDate.toISOString().split('T')[0] : null,
+      end_date: b.endDate ? b.endDate.toISOString().split('T')[0] : null,
+      start_time: b.startTime,
+      end_time: b.endTime,
+      status: b.status,
+      total_cents: b.totalCents,
+      notes: b.notes,
+      service_name: b.serviceType.name,
+      service_display_name: b.serviceType.displayName,
+      dogs: b.dogs.map((bd) => ({
+        id: bd.dog.id,
+        name: bd.dog.name,
+      })),
+      created_at: b.createdAt.toISOString(),
+    });
 
     res.status(200).json({
       id: customer.id,
@@ -209,6 +296,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       email: customer.email,
       points_balance: customer.pointsBalance,
       referral_code: customer.referralCode,
+      account_status: customer.accountStatus,
+      source: customer.source,
       join_date: customer.createdAt.toISOString(),
       referred_by: customer.referredBy
         ? {
@@ -221,6 +310,21 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         name: `${r.firstName} ${r.lastName}`,
         join_date: r.createdAt.toISOString(),
       })),
+      dogs: customer.dogs.map((d) => ({
+        id: d.id,
+        name: d.name,
+        breed: d.breed,
+        size_category: d.sizeCategory,
+        weight: d.weight ? Number(d.weight) : null,
+        birth_date: d.birthDate ? d.birthDate.toISOString().split('T')[0] : null,
+        notes: d.notes,
+        temperament: d.temperament,
+        care_instructions: d.careInstructions,
+        is_neutered: d.isNeutered,
+        photo_url: d.photoUrl,
+      })),
+      upcoming_bookings: upcomingBookings.map(formatBooking),
+      recent_bookings: recentBookings.map(formatBooking),
     });
   } catch (error) {
     console.error('Customer detail error:', error);

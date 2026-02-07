@@ -7,6 +7,8 @@ import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
 import { useNavigate } from 'react-router-dom';
 
+const POINTS_CAP = 500;
+
 const REWARD_TIERS = [
   { points: 100, discount: 10 },
   { points: 250, discount: 25 },
@@ -182,12 +184,19 @@ export function DashboardPage() {
 
   // Walkthrough state
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   const WALKTHROUGH_KEY = 'hthd_walkthrough_seen';
+  const HAS_VISITED_KEY = 'hthd_has_visited';
 
-  // Scroll to top on mount
+  // Scroll to top on mount + detect first visit
   useEffect(() => {
     window.scrollTo(0, 0);
+    const hasVisited = localStorage.getItem(HAS_VISITED_KEY);
+    if (!hasVisited) {
+      setIsFirstVisit(true);
+      localStorage.setItem(HAS_VISITED_KEY, String(true));
+    }
   }, []);
 
   // Track if data has loaded (for walkthrough trigger)
@@ -331,7 +340,9 @@ export function DashboardPage() {
         <div id="points-balance" className="bg-white rounded-2xl shadow-lg p-6 text-center">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-700">
-              Welcome back, {customer.first_name}!
+              {isFirstVisit
+                ? 'Welcome to Happy Tail Happy Dog!'
+                : `Welcome back, ${customer.first_name}!`}
             </h2>
             <Button
               variant="outline"
@@ -363,6 +374,38 @@ export function DashboardPage() {
             </p>
             <p className="text-gray-500 mt-1">points</p>
           </div>
+
+          {/* Points Cap Messaging */}
+          {customer.points_balance >= POINTS_CAP && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="font-semibold text-amber-800">You&apos;ve maxed out your points!</p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Redeem your {POINTS_CAP.toLocaleString()} points for a $50 grooming discount below. After redemption, you can start earning points again!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {customer.points_balance >= 450 && customer.points_balance < POINTS_CAP && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-brand-teal flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-semibold text-brand-navy">Almost at max points!</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    You&apos;re only {POINTS_CAP - customer.points_balance} points from the {POINTS_CAP.toLocaleString()}-point cap. Consider redeeming for a discount so you don&apos;t miss out on earning more!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Refer Friends Tile */}
@@ -423,6 +466,39 @@ export function DashboardPage() {
             </div>
           </div>
         </button>
+
+        {/* Messages & Report Cards Quick Links */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/messages')}
+            className="bg-white rounded-2xl shadow-lg p-4 text-left hover:shadow-xl transition-shadow min-h-[88px] flex flex-col justify-between"
+          >
+            <div className="w-10 h-10 bg-brand-coral/10 rounded-full flex items-center justify-center mb-2">
+              <svg className="w-5 h-5 text-brand-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-brand-navy text-sm">Messages</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Chat with us anytime</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/report-cards')}
+            className="bg-white rounded-2xl shadow-lg p-4 text-left hover:shadow-xl transition-shadow min-h-[88px] flex flex-col justify-between"
+          >
+            <div className="w-10 h-10 bg-brand-golden-yellow/10 rounded-full flex items-center justify-center mb-2">
+              <svg className="w-5 h-5 text-brand-golden-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-brand-navy text-sm">Report Cards</h3>
+              <p className="text-xs text-gray-500 mt-0.5">See how your pup did</p>
+            </div>
+          </button>
+        </div>
 
         {/* Upcoming Bookings */}
         {!isLoadingBookings && (
@@ -488,7 +564,7 @@ export function DashboardPage() {
         )}
 
         {/* My Pups Section */}
-        {!isLoadingDogs && dogs.length > 0 && (
+        {!isLoadingDogs && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg
@@ -506,22 +582,38 @@ export function DashboardPage() {
               </svg>
               My Pups
             </h3>
-            <div className="flex flex-wrap gap-3">
-              {dogs.map((dog) => (
-                <div
-                  key={dog.id}
-                  className="bg-brand-warm-white rounded-xl px-4 py-3 flex items-center gap-3"
+            {dogs.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">No pups added yet</p>
+                <button
+                  onClick={() => navigate("/book")}
+                  className="text-brand-teal font-medium text-sm mt-2 hover:underline min-h-[44px]"
                 >
-                  <div className="w-10 h-10 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold">
-                    {dog.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-brand-navy">{dog.name}</p>
-                    {dog.breed && <p className="text-sm text-gray-500">{dog.breed}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
+                  Add your dog when you book
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {dogs.map((dog) => (
+                  <button
+                    key={dog.id}
+                    onClick={() => navigate(`/dogs/${dog.id}`)}
+                    className="bg-brand-warm-white rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-brand-cream transition-colors min-h-[44px]"
+                  >
+                    <div className="w-10 h-10 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold">
+                      {dog.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-brand-navy">{dog.name}</p>
+                      {dog.breed && <p className="text-sm text-gray-500">{dog.breed}</p>}
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

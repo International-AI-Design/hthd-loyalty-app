@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { POINTS_CAP } from '../lib/points';
 import { authenticateCustomer, AuthenticatedCustomerRequest } from '../middleware/auth';
 
 const router = Router();
@@ -37,6 +38,7 @@ router.get('/me', authenticateCustomer, async (req, res: Response): Promise<void
       phone: customer.phone,
       points_balance: customer.pointsBalance,
       referral_code: customer.referralCode,
+      points_cap: POINTS_CAP,
     });
   } catch (error) {
     console.error('Get profile error:', error);

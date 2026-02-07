@@ -16,8 +16,9 @@ router.use(authenticateCustomer as any);
  * Request body:
  * {
  *   bookingIds: string[],           // Array of booking UUIDs
- *   paymentMethod: 'wallet' | 'card' | 'split' | 'cash',
+ *   paymentMethod: 'wallet' | 'card' | 'split' | 'cash' | 'points',
  *   walletAmountCents?: number,     // Required for 'split', ignored for others
+ *   pointsToRedeem?: number,        // Required for 'points', optional for 'split'
  *   tipCents?: number,              // Tip amount (default 0)
  *   idempotencyKey?: string         // Optional UUID for idempotency
  * }

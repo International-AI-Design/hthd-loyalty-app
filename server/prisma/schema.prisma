@@ -7,22 +7,22 @@ datasource db {
 }
 
 model Customer {
-  id              String              @id @default(uuid())
-  email           String              @unique
-  phone           String              @unique
-  passwordHash    String?             @map("password_hash")
-  firstName       String              @map("first_name")
-  lastName        String              @map("last_name")
-  pointsBalance   Int                 @default(0) @map("points_balance")
-  referralCode    String              @unique @map("referral_code")
-  referredById    String?             @map("referred_by_id")
-  accountStatus   String              @default("active") @map("account_status") // 'unclaimed' | 'active'
-  source          String              @default("organic") // 'organic' | 'gingr_import'
-  gingrOwnerId    String?             @unique @map("gingr_owner_id") // For syncing with Gingr
-  smsDealsOptedOut Boolean            @default(false) @map("sms_deals_opted_out")
-  claimedAt       DateTime?           @map("claimed_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  id                String              @id @default(uuid())
+  email             String              @unique
+  phone             String              @unique
+  passwordHash      String?             @map("password_hash")
+  firstName         String              @map("first_name")
+  lastName          String              @map("last_name")
+  pointsBalance     Int                 @default(0) @map("points_balance")
+  referralCode      String              @unique @map("referral_code")
+  referredById      String?             @map("referred_by_id")
+  accountStatus     String              @default("active") @map("account_status") // 'unclaimed' | 'active'
+  source            String              @default("organic") // 'organic' | 'gingr_import'
+  gingrOwnerId      String?             @unique @map("gingr_owner_id") // For syncing with Gingr
+  smsDealsOptedOut  Boolean             @default(false) @map("sms_deals_opted_out")
+  claimedAt         DateTime?           @map("claimed_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
   dogs              Dog[]
   transactions      PointsTransaction[]
   redemptions       Redemption[]
@@ -33,32 +33,41 @@ model Customer {
   gingrVisits       GingrVisit[]
 
   // v2 relations
-  wallet            Wallet?
-  bookings          Booking[]
-  payments          Payment[]
-  subscription      Subscription?
-  conversations     Conversation[]
-  intakeForms       IntakeForm[]
+  wallet        Wallet?
+  bookings      Booking[]
+  payments      Payment[]
+  subscription  Subscription?
+  conversations Conversation[]
+  intakeForms   IntakeForm[]
 
   @@map("customers")
 }
 
 model Dog {
-  id            String    @id @default(uuid())
-  customerId    String    @map("customer_id")
-  name          String
-  breed         String?
-  birthDate     DateTime? @map("birth_date")
-  notes         String?
-  sizeCategory  String?   @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
-  gingrAnimalId String?   @unique @map("gingr_animal_id") // For syncing with Gingr
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id               String    @id @default(uuid())
+  customerId       String    @map("customer_id")
+  name             String
+  breed            String?
+  birthDate        DateTime? @map("birth_date")
+  notes            String?
+  sizeCategory     String?   @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
+  gingrAnimalId    String?   @unique @map("gingr_animal_id") // For syncing with Gingr
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  weight           Decimal?  @db.Decimal(5, 1) // pounds
+  temperament      String? // 'calm', 'energetic', 'anxious', 'friendly', 'reactive'
+  careInstructions String?   @map("care_instructions")
+  isNeutered       Boolean   @default(false) @map("is_neutered")
+  photoUrl         String?   @map("photo_url")
+  socialNotes      String?   @map("social_notes") // plays well with others, prefers small dogs, etc.
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // v2 relations
   bookingDogs   BookingDog[]
   reportCards   ReportCard[]
+  vaccinations  Vaccination[]
+  medications   Medication[]
+  behaviorNotes BehaviorNote[]
 
   @@map("dogs")
 }
@@ -104,15 +113,18 @@ model StaffUser {
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
-  auditLogs      AuditLog[]
-  redemptions    Redemption[]
-  gingrImports   GingrImport[]
+  auditLogs    AuditLog[]
+  redemptions  Redemption[]
+  gingrImports GingrImport[]
 
   // v2 relations
-  staffSchedules StaffSchedule[]
-  reportCards    ReportCard[]
-  checkIns       Booking[]        @relation("CheckInStaff")
-  checkOuts      Booking[]        @relation("CheckOutStaff")
+  staffSchedules        StaffSchedule[]
+  reportCards           ReportCard[]
+  checkIns              Booking[]       @relation("CheckInStaff")
+  checkOuts             Booking[]       @relation("CheckOutStaff")
+  verifiedVaccinations  Vaccination[]   @relation("VaccinationVerifier")
+  behaviorNotes         BehaviorNote[]  @relation("BehaviorNoteReporter")
+  assignedConversations Conversation[]  @relation("AssignedStaff")
 
   @@map("staff_users")
 }
@@ -145,30 +157,30 @@ model GingrImport {
 }
 
 model GingrImportRow {
-  id             String       @id @default(uuid())
-  importId       String       @map("import_id")
-  gingrInvoiceId String       @unique @map("gingr_invoice_id")
-  ownerName      String       @map("owner_name")
-  invoiceTotal   Decimal      @map("invoice_total") @db.Decimal(10, 2)
-  customerId     String?      @map("customer_id")
+  id             String      @id @default(uuid())
+  importId       String      @map("import_id")
+  gingrInvoiceId String      @unique @map("gingr_invoice_id")
+  ownerName      String      @map("owner_name")
+  invoiceTotal   Decimal     @map("invoice_total") @db.Decimal(10, 2)
+  customerId     String?     @map("customer_id")
   status         String // 'matched', 'unmatched', 'skipped'
-  pointsApplied  Int          @default(0) @map("points_applied")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  import         GingrImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
-  customer       Customer?    @relation(fields: [customerId], references: [id])
+  pointsApplied  Int         @default(0) @map("points_applied")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  import         GingrImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  customer       Customer?   @relation(fields: [customerId], references: [id])
 
   @@map("gingr_import_rows")
 }
 
 model VerificationCode {
-  id          String    @id @default(uuid())
-  customerId  String    @map("customer_id")
-  code        String    // 6-digit code
-  type        String    // 'claim'
-  expiresAt   DateTime  @map("expires_at")
-  usedAt      DateTime? @map("used_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid())
+  customerId String    @map("customer_id")
+  code       String // 6-digit code
+  type       String // 'claim'
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId, type])
   @@map("verification_codes")
@@ -176,16 +188,16 @@ model VerificationCode {
 
 // Stores visit history imported from Gingr for customer dashboard display
 model GingrVisit {
-  id                String   @id @default(uuid())
-  customerId        String   @map("customer_id")
-  gingrReservationId String  @unique @map("gingr_reservation_id")
-  visitDate         DateTime @map("visit_date")
-  serviceType       String   @map("service_type") // 'daycare', 'boarding', 'grooming'
-  description       String?
-  amount            Decimal  @db.Decimal(10, 2)
-  pointsEarned      Int      @default(0) @map("points_earned")
-  createdAt         DateTime @default(now()) @map("created_at")
-  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(uuid())
+  customerId         String   @map("customer_id")
+  gingrReservationId String   @unique @map("gingr_reservation_id")
+  visitDate          DateTime @map("visit_date")
+  serviceType        String   @map("service_type") // 'daycare', 'boarding', 'grooming'
+  description        String?
+  amount             Decimal  @db.Decimal(10, 2)
+  pointsEarned       Int      @default(0) @map("points_earned")
+  createdAt          DateTime @default(now()) @map("created_at")
+  customer           Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId, visitDate])
   @@map("gingr_visits")
@@ -198,16 +210,16 @@ model GingrVisit {
 // --- Booking & Availability ---
 
 model ServiceType {
-  id            String         @id @default(uuid())
-  name          String         @unique // 'daycare', 'boarding', 'grooming'
-  displayName   String         @map("display_name")
-  description   String?
-  basePriceCents Int           @map("base_price_cents") // Price in cents
-  durationMinutes Int?         @map("duration_minutes") // null = full day (daycare/boarding)
-  isActive      Boolean        @default(true) @map("is_active")
-  sortOrder     Int            @default(0) @map("sort_order")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  name            String   @unique // 'daycare', 'boarding', 'grooming'
+  displayName     String   @map("display_name")
+  description     String?
+  basePriceCents  Int      @map("base_price_cents") // Price in cents
+  durationMinutes Int?     @map("duration_minutes") // null = full day (daycare/boarding)
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   capacityRules      CapacityRule[]
   bookings           Booking[]
@@ -218,63 +230,63 @@ model ServiceType {
 }
 
 model CapacityRule {
-  id            String      @id @default(uuid())
-  serviceTypeId String      @map("service_type_id")
-  dayOfWeek     Int?        @map("day_of_week") // 0=Sun, 6=Sat, null=all days
-  maxCapacity   Int         @map("max_capacity")
-  startTime     String?     @map("start_time") // HH:MM for grooming slots, null for daycare/boarding
-  endTime       String?     @map("end_time")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  serviceTypeId String   @map("service_type_id")
+  dayOfWeek     Int?     @map("day_of_week") // 0=Sun, 6=Sat, null=all days
+  maxCapacity   Int      @map("max_capacity")
+  startTime     String?  @map("start_time") // HH:MM for grooming slots, null for daycare/boarding
+  endTime       String?  @map("end_time")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
 
   @@unique([serviceTypeId, dayOfWeek, startTime])
   @@map("capacity_rules")
 }
 
 model CapacityOverride {
-  id            String    @id @default(uuid())
-  date          DateTime  @db.Date
-  reason        String    // 'holiday', 'special_event', 'closure', 'expanded'
+  id            String   @id @default(uuid())
+  date          DateTime @db.Date
+  reason        String // 'holiday', 'special_event', 'closure', 'expanded'
   description   String?
-  maxCapacity   Int?      @map("max_capacity") // null = closed
-  serviceTypeId String?   @map("service_type_id") // null = all services
-  createdAt     DateTime  @default(now()) @map("created_at")
+  maxCapacity   Int?     @map("max_capacity") // null = closed
+  serviceTypeId String?  @map("service_type_id") // null = all services
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@unique([date, serviceTypeId])
   @@map("capacity_overrides")
 }
 
 model Booking {
-  id              String      @id @default(uuid())
-  customerId      String      @map("customer_id")
-  serviceTypeId   String      @map("service_type_id")
-  date            DateTime    @db.Date
-  startDate       DateTime?   @map("start_date") @db.Date // Multi-day booking start (null = single-day, use date)
-  endDate         DateTime?   @map("end_date") @db.Date   // Multi-day booking end
-  startTime       String?     @map("start_time") // HH:MM for grooming
-  endTime         String?     @map("end_time")
-  status          String      @default("pending") // pending, confirmed, checked_in, checked_out, cancelled, no_show
-  totalCents      Int         @map("total_cents")
-  notes           String?
-  cancelReason    String?     @map("cancel_reason")
-  checkedInAt     DateTime?   @map("checked_in_at")
-  checkedInBy     String?     @map("checked_in_by")
-  checkedOutAt    DateTime?   @map("checked_out_at")
-  checkedOutBy    String?     @map("checked_out_by")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  customerId    String    @map("customer_id")
+  serviceTypeId String    @map("service_type_id")
+  date          DateTime  @db.Date
+  startDate     DateTime? @map("start_date") @db.Date // Multi-day booking start (null = single-day, use date)
+  endDate       DateTime? @map("end_date") @db.Date // Multi-day booking end
+  startTime     String?   @map("start_time") // HH:MM for grooming
+  endTime       String?   @map("end_time")
+  status        String    @default("pending") // pending, confirmed, checked_in, checked_out, cancelled, no_show
+  totalCents    Int       @map("total_cents")
+  notes         String?
+  cancelReason  String?   @map("cancel_reason")
+  checkedInAt   DateTime? @map("checked_in_at")
+  checkedInBy   String?   @map("checked_in_by")
+  checkedOutAt  DateTime? @map("checked_out_at")
+  checkedOutBy  String?   @map("checked_out_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  serviceType     ServiceType @relation(fields: [serviceTypeId], references: [id])
-  checkInStaff    StaffUser?  @relation("CheckInStaff", fields: [checkedInBy], references: [id])
-  checkOutStaff   StaffUser?  @relation("CheckOutStaff", fields: [checkedOutBy], references: [id])
+  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
+  checkInStaff  StaffUser?  @relation("CheckInStaff", fields: [checkedInBy], references: [id])
+  checkOutStaff StaffUser?  @relation("CheckOutStaff", fields: [checkedOutBy], references: [id])
 
-  dogs            BookingDog[]
-  payments        Payment[]
-  reportCards     ReportCard[]
-  notifications   ScheduledNotification[]
+  dogs          BookingDog[]
+  payments      Payment[]
+  reportCards   ReportCard[]
+  notifications ScheduledNotification[]
 
   @@index([customerId, date])
   @@index([serviceTypeId, date, status])
@@ -282,38 +294,38 @@ model Booking {
 }
 
 model BookingDog {
-  id               String   @id @default(uuid())
-  bookingId        String   @map("booking_id")
-  dogId            String   @map("dog_id")
+  id               String  @id @default(uuid())
+  bookingId        String  @map("booking_id")
+  dogId            String  @map("dog_id")
   notes            String?
-  conditionRating  Int?     @map("condition_rating") // groomer's 1-5 rating (null until rated)
-  conditionPhoto   String?  @map("condition_photo") // base64 data URL of dog photo
-  quotedPriceCents Int?     @map("quoted_price_cents") // price after groomer rates condition
+  conditionRating  Int?    @map("condition_rating") // groomer's 1-5 rating (null until rated)
+  conditionPhoto   String? @map("condition_photo") // base64 data URL of dog photo
+  quotedPriceCents Int?    @map("quoted_price_cents") // price after groomer rates condition
 
-  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  dog        Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dog     Dog     @relation(fields: [dogId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, dogId])
   @@map("booking_dogs")
 }
 
 model PricingRule {
-  id              String      @id @default(uuid())
-  serviceTypeId   String      @map("service_type_id")
-  name            String      // 'multi_dog_discount', 'membership_10pct', 'weekend_surcharge'
-  type            String      // 'percentage_discount', 'fixed_discount', 'surcharge'
-  valueCents      Int?        @map("value_cents") // for fixed amounts
-  percentage      Decimal?    @db.Decimal(5, 2) // for percentage adjustments
-  minDogs         Int?        @map("min_dogs") // multi-dog threshold
-  membershipPlanId String?    @map("membership_plan_id")
-  dayOfWeek       Int?        @map("day_of_week") // for day-specific pricing
-  isActive        Boolean     @default(true) @map("is_active")
-  priority        Int         @default(0) // higher = applied first
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
+  serviceTypeId    String   @map("service_type_id")
+  name             String // 'multi_dog_discount', 'membership_10pct', 'weekend_surcharge'
+  type             String // 'percentage_discount', 'fixed_discount', 'surcharge'
+  valueCents       Int?     @map("value_cents") // for fixed amounts
+  percentage       Decimal? @db.Decimal(5, 2) // for percentage adjustments
+  minDogs          Int?     @map("min_dogs") // multi-dog threshold
+  membershipPlanId String?  @map("membership_plan_id")
+  dayOfWeek        Int?     @map("day_of_week") // for day-specific pricing
+  isActive         Boolean  @default(true) @map("is_active")
+  priority         Int      @default(0) // higher = applied first
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  serviceType     ServiceType    @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
-  membershipPlan  MembershipPlan? @relation(fields: [membershipPlanId], references: [id])
+  serviceType    ServiceType     @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  membershipPlan MembershipPlan? @relation(fields: [membershipPlanId], references: [id])
 
   @@map("pricing_rules")
 }
@@ -321,95 +333,95 @@ model PricingRule {
 // --- Wallet & Payments ---
 
 model Wallet {
-  id                  String    @id @default(uuid())
-  customerId          String    @unique @map("customer_id")
-  balanceCents        Int       @default(0) @map("balance_cents")
-  tier                String    @default("basic") // basic, gold, vip
-  stripeCustomerId    String?   @unique @map("stripe_customer_id")
-  autoReloadEnabled   Boolean   @default(false) @map("auto_reload_enabled")
-  autoReloadThresholdCents Int? @map("auto_reload_threshold_cents")
-  autoReloadAmountCents    Int? @map("auto_reload_amount_cents")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  id                       String   @id @default(uuid())
+  customerId               String   @unique @map("customer_id")
+  balanceCents             Int      @default(0) @map("balance_cents")
+  tier                     String   @default("basic") // basic, gold, vip
+  stripeCustomerId         String?  @unique @map("stripe_customer_id")
+  autoReloadEnabled        Boolean  @default(false) @map("auto_reload_enabled")
+  autoReloadThresholdCents Int?     @map("auto_reload_threshold_cents")
+  autoReloadAmountCents    Int?     @map("auto_reload_amount_cents")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  customer            Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  transactions        WalletTransaction[]
+  customer     Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
 
   @@map("wallets")
 }
 
 model WalletTransaction {
-  id              String    @id @default(uuid())
-  walletId        String    @map("wallet_id")
-  type            String    // 'load', 'payment', 'refund', 'adjustment'
-  amountCents     Int       @map("amount_cents") // positive for loads/refunds, negative for payments
-  balanceAfterCents Int     @map("balance_after_cents")
-  description     String?
-  bookingId       String?   @map("booking_id")
-  stripePaymentIntentId String? @map("stripe_payment_intent_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id                    String   @id @default(uuid())
+  walletId              String   @map("wallet_id")
+  type                  String // 'load', 'payment', 'refund', 'adjustment'
+  amountCents           Int      @map("amount_cents") // positive for loads/refunds, negative for payments
+  balanceAfterCents     Int      @map("balance_after_cents")
+  description           String?
+  bookingId             String?  @map("booking_id")
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  createdAt             DateTime @default(now()) @map("created_at")
 
-  wallet          Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletId, createdAt])
   @@map("wallet_transactions")
 }
 
 model Payment {
-  id                    String    @id @default(uuid())
-  customerId            String    @map("customer_id")
-  bookingId             String?   @map("booking_id")
-  totalCents            Int       @map("total_cents")
-  walletAmountCents     Int       @default(0) @map("wallet_amount_cents")
-  cardAmountCents       Int       @default(0) @map("card_amount_cents")
-  tipCents              Int       @default(0) @map("tip_cents")
-  status                String    @default("pending") // pending, completed, refunded, failed
-  stripePaymentIntentId String?   @unique @map("stripe_payment_intent_id")
-  pointsAwarded         Int       @default(0) @map("points_awarded")
-  idempotencyKey        String?   @unique @map("idempotency_key")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  customerId            String   @map("customer_id")
+  bookingId             String?  @map("booking_id")
+  totalCents            Int      @map("total_cents")
+  walletAmountCents     Int      @default(0) @map("wallet_amount_cents")
+  cardAmountCents       Int      @default(0) @map("card_amount_cents")
+  tipCents              Int      @default(0) @map("tip_cents")
+  status                String   @default("pending") // pending, completed, refunded, failed
+  stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id")
+  pointsAwarded         Int      @default(0) @map("points_awarded")
+  idempotencyKey        String?  @unique @map("idempotency_key")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  booking               Booking?  @relation(fields: [bookingId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  booking  Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([customerId, createdAt])
   @@map("payments")
 }
 
 model MembershipPlan {
-  id                String         @id @default(uuid())
-  name              String         @unique // 'gold', 'vip'
-  displayName       String         @map("display_name")
-  description       String?
-  monthlyPriceCents Int            @map("monthly_price_cents")
-  includedDaysPerMonth Int         @default(0) @map("included_days_per_month")
-  discountPercentage   Decimal     @default(0) @map("discount_percentage") @db.Decimal(5, 2)
-  pointsMultiplier     Decimal     @default(1) @map("points_multiplier") @db.Decimal(3, 2)
-  isActive          Boolean        @default(true) @map("is_active")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  name                 String   @unique // 'gold', 'vip'
+  displayName          String   @map("display_name")
+  description          String?
+  monthlyPriceCents    Int      @map("monthly_price_cents")
+  includedDaysPerMonth Int      @default(0) @map("included_days_per_month")
+  discountPercentage   Decimal  @default(0) @map("discount_percentage") @db.Decimal(5, 2)
+  pointsMultiplier     Decimal  @default(1) @map("points_multiplier") @db.Decimal(3, 2)
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  subscriptions     Subscription[]
-  pricingRules      PricingRule[]
+  subscriptions Subscription[]
+  pricingRules  PricingRule[]
 
   @@map("membership_plans")
 }
 
 model Subscription {
-  id                    String         @id @default(uuid())
-  customerId            String         @unique @map("customer_id")
-  membershipPlanId      String         @map("membership_plan_id")
-  status                String         @default("active") // active, cancelled, past_due, paused
-  stripeSubscriptionId  String?        @unique @map("stripe_subscription_id")
-  currentPeriodStart    DateTime       @map("current_period_start")
-  currentPeriodEnd      DateTime       @map("current_period_end")
-  cancelledAt           DateTime?      @map("cancelled_at")
-  createdAt             DateTime       @default(now()) @map("created_at")
-  updatedAt             DateTime       @updatedAt @map("updated_at")
+  id                   String    @id @default(uuid())
+  customerId           String    @unique @map("customer_id")
+  membershipPlanId     String    @map("membership_plan_id")
+  status               String    @default("active") // active, cancelled, past_due, paused
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  currentPeriodStart   DateTime  @map("current_period_start")
+  currentPeriodEnd     DateTime  @map("current_period_end")
+  cancelledAt          DateTime? @map("cancelled_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  customer              Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  membershipPlan        MembershipPlan @relation(fields: [membershipPlanId], references: [id])
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
 
   @@map("subscriptions")
 }
@@ -417,18 +429,20 @@ model Subscription {
 // --- AI & Communication ---
 
 model Conversation {
-  id              String    @id @default(uuid())
-  customerId      String?   @map("customer_id")
-  channel         String    // 'sms', 'web_chat'
-  phoneNumber     String?   @map("phone_number")
-  status          String    @default("active") // active, closed, escalated
-  contextSummary  String?   @map("context_summary") // AI-maintained conversation context
-  lastMessageAt   DateTime  @default(now()) @map("last_message_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  customerId      String?  @map("customer_id")
+  channel         String // 'sms', 'web_chat'
+  phoneNumber     String?  @map("phone_number")
+  status          String   @default("active") // active, closed, escalated
+  assignedStaffId String?  @map("assigned_staff_id")
+  contextSummary  String?  @map("context_summary") // AI-maintained conversation context
+  lastMessageAt   DateTime @default(now()) @map("last_message_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  messages        Message[]
+  customer      Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedStaff StaffUser? @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+  messages      Message[]
 
   @@index([customerId, channel])
   @@index([phoneNumber])
@@ -436,37 +450,37 @@ model Conversation {
 }
 
 model Message {
-  id              String    @id @default(uuid())
-  conversationId  String    @map("conversation_id")
-  role            String    // 'customer', 'assistant', 'system'
-  content         String
-  channel         String    // 'sms', 'web_chat'
-  intent          String?   // AI-classified intent
-  confidence      Decimal?  @db.Decimal(3, 2) // 0.00-1.00
-  modelUsed       String?   @map("model_used") // haiku, sonnet, opus
-  toolCalls       Json?     @map("tool_calls") // logged tool_use calls
-  twilioSid       String?   @unique @map("twilio_sid")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  role           String // 'customer', 'assistant', 'system'
+  content        String
+  channel        String // 'sms', 'web_chat'
+  intent         String? // AI-classified intent
+  confidence     Decimal? @db.Decimal(3, 2) // 0.00-1.00
+  modelUsed      String?  @map("model_used") // haiku, sonnet, opus
+  toolCalls      Json?    @map("tool_calls") // logged tool_use calls
+  twilioSid      String?  @unique @map("twilio_sid")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@map("messages")
 }
 
 model ScheduledNotification {
-  id            String    @id @default(uuid())
-  bookingId     String?   @map("booking_id")
-  customerId    String    @map("customer_id")
-  type          String    // 'booking_confirmation', 'reminder_24h', 'reminder_1h', 'report_card', 'marketing'
-  channel       String    // 'sms', 'email'
-  scheduledFor  DateTime  @map("scheduled_for")
-  sentAt        DateTime? @map("sent_at")
-  content       String?
-  status        String    @default("pending") // pending, sent, failed, cancelled
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id           String    @id @default(uuid())
+  bookingId    String?   @map("booking_id")
+  customerId   String    @map("customer_id")
+  type         String // 'booking_confirmation', 'reminder_24h', 'reminder_1h', 'report_card', 'marketing'
+  channel      String // 'sms', 'email'
+  scheduledFor DateTime  @map("scheduled_for")
+  sentAt       DateTime? @map("sent_at")
+  content      String?
+  status       String    @default("pending") // pending, sent, failed, cancelled
+  createdAt    DateTime  @default(now()) @map("created_at")
 
-  booking       Booking?  @relation(fields: [bookingId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([scheduledFor, status])
   @@map("scheduled_notifications")
@@ -475,55 +489,60 @@ model ScheduledNotification {
 // --- Staff & Operations ---
 
 model StaffSchedule {
-  id          String    @id @default(uuid())
-  staffUserId String    @map("staff_user_id")
-  date        DateTime  @db.Date
-  startTime   String    @map("start_time") // HH:MM
-  endTime     String    @map("end_time")
+  id          String   @id @default(uuid())
+  staffUserId String   @map("staff_user_id")
+  role        String   @default("general") // 'general', 'groomer', 'manager', 'kennel_tech'
+  date        DateTime @db.Date
+  startTime   String   @map("start_time") // HH:MM
+  endTime     String   @map("end_time")
   notes       String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+  staffUser StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
 
   @@unique([staffUserId, date])
   @@map("staff_schedules")
 }
 
 model ReportCard {
-  id          String    @id @default(uuid())
-  bookingId   String    @map("booking_id")
-  dogId       String    @map("dog_id")
-  staffUserId String    @map("staff_user_id")
-  notes       String
-  photoUrls   String[]  @map("photo_urls") // S3/R2 URLs
-  rating      Int?      // 1-5 behavior rating
-  sentAt      DateTime? @map("sent_at")
-  sentVia     String?   @map("sent_via") // 'sms', 'email', 'app'
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  bookingId      String    @map("booking_id")
+  dogId          String    @map("dog_id")
+  staffUserId    String    @map("staff_user_id")
+  notes          String
+  activities     String? // What the dog did today
+  meals          String? // Eating behavior
+  socialBehavior String?   @map("social_behavior") // How they interacted with other dogs
+  mood           String? // 'happy', 'calm', 'anxious', 'playful', 'tired'
+  photoUrls      String[]  @map("photo_urls") // S3/R2 URLs
+  rating         Int? // 1-5 behavior rating
+  sentAt         DateTime? @map("sent_at")
+  sentVia        String?   @map("sent_via") // 'sms', 'email', 'app'
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  dog         Dog       @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  staffUser   StaffUser @relation(fields: [staffUserId], references: [id])
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dog       Dog       @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  staffUser StaffUser @relation(fields: [staffUserId], references: [id])
 
   @@map("report_cards")
 }
 
 model IntakeForm {
-  id              String    @id @default(uuid())
-  customerId      String?   @map("customer_id") // null if started via SMS before account creation
-  phoneNumber     String?   @map("phone_number")
-  currentStep     Int       @default(1) @map("current_step")
-  totalSteps      Int       @default(8) @map("total_steps")
-  data            Json      @default("{}") // Progressive form data
-  aiFlags         Json?     @map("ai_flags") // AI-detected concerns (aggression, health issues)
-  status          String    @default("in_progress") // in_progress, completed, abandoned
-  completedAt     DateTime? @map("completed_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id          String    @id @default(uuid())
+  customerId  String?   @map("customer_id") // null if started via SMS before account creation
+  phoneNumber String?   @map("phone_number")
+  currentStep Int       @default(1) @map("current_step")
+  totalSteps  Int       @default(8) @map("total_steps")
+  data        Json      @default("{}") // Progressive form data
+  aiFlags     Json?     @map("ai_flags") // AI-detected concerns (aggression, health issues)
+  status      String    @default("in_progress") // in_progress, completed, abandoned
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  customer        Customer? @relation(fields: [customerId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
 
   @@index([phoneNumber])
   @@map("intake_forms")
@@ -532,13 +551,13 @@ model IntakeForm {
 // --- Grooming Pricing ---
 
 model GroomingPriceTier {
-  id               String   @id @default(uuid())
-  sizeCategory     String   @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
-  conditionRating  Int      @map("condition_rating") // 1-5 (1=normal, 5=severely matted)
-  label            String   // e.g. "Normal", "Slightly Matted", "Moderately Matted", "Heavy", "Severe"
-  estimatedMinutes Int      @map("estimated_minutes")
-  priceCents       Int      @map("price_cents")
-  isActive         Boolean  @default(true) @map("is_active")
+  id               String  @id @default(uuid())
+  sizeCategory     String  @map("size_category") // 'small' | 'medium' | 'large' | 'xl'
+  conditionRating  Int     @map("condition_rating") // 1-5 (1=normal, 5=severely matted)
+  label            String // e.g. "Normal", "Slightly Matted", "Moderately Matted", "Heavy", "Severe"
+  estimatedMinutes Int     @map("estimated_minutes")
+  priceCents       Int     @map("price_cents")
+  isActive         Boolean @default(true) @map("is_active")
 
   @@unique([sizeCategory, conditionRating])
   @@map("grooming_price_tiers")
@@ -547,29 +566,102 @@ model GroomingPriceTier {
 // --- Service Bundles ---
 
 model ServiceBundle {
-  id            String              @id @default(uuid())
-  name          String              // e.g. "Daycare + Grooming Combo"
+  id            String   @id @default(uuid())
+  name          String // e.g. "Daycare + Grooming Combo"
   description   String?
-  discountType  String              @map("discount_type") // 'percentage' | 'fixed'
-  discountValue Int                 @map("discount_value") // percentage (e.g. 10) or cents (e.g. 1000 = $10 off)
-  isActive      Boolean             @default(true) @map("is_active")
-  sortOrder     Int                 @default(0) @map("sort_order")
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
+  discountType  String   @map("discount_type") // 'percentage' | 'fixed'
+  discountValue Int      @map("discount_value") // percentage (e.g. 10) or cents (e.g. 1000 = $10 off)
+  isActive      Boolean  @default(true) @map("is_active")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  items         ServiceBundleItem[]
+  items ServiceBundleItem[]
 
   @@map("service_bundles")
 }
 
 model ServiceBundleItem {
-  id            String        @id @default(uuid())
-  bundleId      String        @map("bundle_id")
-  serviceTypeId String        @map("service_type_id")
+  id            String @id @default(uuid())
+  bundleId      String @map("bundle_id")
+  serviceTypeId String @map("service_type_id")
 
-  bundle        ServiceBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  serviceType   ServiceType   @relation(fields: [serviceTypeId], references: [id])
+  bundle      ServiceBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  serviceType ServiceType   @relation(fields: [serviceTypeId], references: [id])
 
   @@unique([bundleId, serviceTypeId])
   @@map("service_bundle_items")
+}
+
+// --- Dog Health & Compliance ---
+
+model Vaccination {
+  id          String    @id @default(uuid())
+  dogId       String    @map("dog_id")
+  name        String // 'rabies', 'bordetella', 'dhpp', 'canine_influenza', 'leptospirosis'
+  dateGiven   DateTime  @map("date_given") @db.Date
+  expiresAt   DateTime? @map("expires_at") @db.Date
+  vetName     String?   @map("vet_name")
+  documentUrl String?   @map("document_url") // photo/scan of vaccination record
+  verified    Boolean   @default(false)
+  verifiedBy  String?   @map("verified_by")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  dog      Dog        @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  verifier StaffUser? @relation("VaccinationVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([dogId, name])
+  @@index([expiresAt])
+  @@map("vaccinations")
+}
+
+model Medication {
+  id           String    @id @default(uuid())
+  dogId        String    @map("dog_id")
+  name         String
+  dosage       String?
+  frequency    String? // 'daily', 'twice_daily', 'weekly', 'as_needed'
+  instructions String? // Special admin instructions
+  startDate    DateTime? @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  dog Dog @relation(fields: [dogId], references: [id], onDelete: Cascade)
+
+  @@index([dogId, isActive])
+  @@map("medications")
+}
+
+model BehaviorNote {
+  id         String   @id @default(uuid())
+  dogId      String   @map("dog_id")
+  category   String // 'social', 'anxiety', 'aggression', 'feeding', 'play', 'general'
+  note       String
+  severity   Int      @default(1) // 1=info, 2=mild, 3=moderate, 4=significant, 5=critical
+  reportedBy String?  @map("reported_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  dog      Dog        @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  reporter StaffUser? @relation("BehaviorNoteReporter", fields: [reportedBy], references: [id])
+
+  @@index([dogId, category])
+  @@map("behavior_notes")
+}
+
+model VaccinationRequirement {
+  id              String   @id @default(uuid())
+  vaccinationName String   @map("vaccination_name") // must match Vaccination.name
+  serviceTypeId   String?  @map("service_type_id") // null = required for all services
+  isRequired      Boolean  @default(true) @map("is_required")
+  gracePeriodDays Int      @default(0) @map("grace_period_days")
+  description     String? // "Required for all boarding stays"
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([vaccinationName, serviceTypeId])
+  @@map("vaccination_requirements")
 }

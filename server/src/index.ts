@@ -27,6 +27,8 @@ import v2AdminIntakesRoutes from './routes/v2/admin/intakes';
 import v2GroomingRoutes from './routes/v2/grooming';
 import v2BundlesRoutes from './routes/v2/bundles';
 import v2AdminStaffRoutes from './routes/v2/admin/staff';
+import v2ReportCardsRoutes from './routes/v2/report-cards';
+import v2AdminDashboardRoutes from './routes/v2/admin/dashboard';
 import { checkoutRouter, adminCheckoutRouter } from './modules/checkout';
 import {
   helmetMiddleware,
@@ -89,6 +91,8 @@ app.use('/api/v2/admin/intakes', v2AdminIntakesRoutes);
 app.use('/api/v2/grooming', v2GroomingRoutes);
 app.use('/api/v2/bundles', v2BundlesRoutes);
 app.use('/api/v2/admin/staff', v2AdminStaffRoutes);
+app.use('/api/v2/report-cards', v2ReportCardsRoutes);
+app.use('/api/v2/admin/dashboard', v2AdminDashboardRoutes);
 app.use('/api/v2/checkout', checkoutRouter);
 app.use('/api/v2/admin/checkout', adminCheckoutRouter);
 

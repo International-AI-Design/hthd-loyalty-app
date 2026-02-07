@@ -112,6 +112,7 @@ export interface CustomerProfile {
   phone: string;
   points_balance: number;
   referral_code: string;
+  points_cap: number;
 }
 
 export interface PointsTransaction {
@@ -304,6 +305,40 @@ export const passwordResetApi = {
     api.post<VerifyResetCodeResponse>('/auth/verify-reset-code', { identifier, code }),
   resetPassword: (resetToken: string, password: string) =>
     api.post<ResetPasswordResponse>('/auth/reset-password', { resetToken, password }),
+};
+
+// Dog Profile APIs (V2 - expanded)
+export const dogProfileApi = {
+  getDogs: () => api.get<any[]>('/v2/dogs'),
+  getDog: (dogId: string) => api.get<any>(`/v2/dogs/${dogId}`),
+  updateDog: (dogId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}`, data),
+  addVaccination: (dogId: string, data: any) => api.post<any>(`/v2/dogs/${dogId}/vaccinations`, data),
+  updateVaccination: (dogId: string, vaccinationId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`, data),
+  deleteVaccination: (dogId: string, vaccinationId: string) => api.delete<any>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`),
+  addMedication: (dogId: string, data: any) => api.post<any>(`/v2/dogs/${dogId}/medications`, data),
+  updateMedication: (dogId: string, medicationId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}/medications/${medicationId}`, data),
+  deleteMedication: (dogId: string, medicationId: string) => api.delete<any>(`/v2/dogs/${dogId}/medications/${medicationId}`),
+  getCompliance: (dogId: string) => api.get<any>(`/v2/dogs/${dogId}/compliance`),
+};
+
+// Messaging APIs
+export const messagingApi = {
+  getConversations: () => api.get<any[]>('/v2/messaging/conversations'),
+  startConversation: () => api.post<any>('/v2/messaging/conversations', {}),
+  getMessages: (conversationId: string, limit?: number, offset?: number) =>
+    api.get<any>(`/v2/messaging/conversations/${conversationId}/messages?limit=${limit || 50}&offset=${offset || 0}`),
+  sendMessage: (conversationId: string, content: string) =>
+    api.post<any>(`/v2/messaging/conversations/${conversationId}/messages`, { content }),
+  closeConversation: (conversationId: string) =>
+    api.post<any>(`/v2/messaging/conversations/${conversationId}/close`, {}),
+};
+
+// Report Card APIs
+export const reportCardApi = {
+  getReportCards: (limit?: number, offset?: number) =>
+    api.get<any>(`/v2/report-cards?limit=${limit || 20}&offset=${offset || 0}`),
+  getReportCard: (id: string) => api.get<any>(`/v2/report-cards/${id}`),
+  getReportCardsByDog: (dogId: string) => api.get<any>(`/v2/report-cards/dog/${dogId}`),
 };
 
 // Referral Validation API
@@ -508,6 +543,8 @@ export interface CheckoutResult {
   totalCents: number;
   walletAmountCents: number;
   cardAmountCents: number;
+  pointsRedeemed: number;
+  pointsAmountCents: number;
   tipCents: number;
   status: string;
   bookings: Array<{ id: string; status: string }>;
@@ -552,10 +589,12 @@ export const multiDayBookingApi = {
 
 export const checkoutApi = {
   getWallet: () => api.get<WalletResponse>('/v2/wallet'),
+  getPointsBalance: () => api.get<CustomerProfile>('/customers/me'),
   checkout: (data: {
     bookingIds: string[];
-    paymentMethod: 'wallet' | 'card' | 'split';
+    paymentMethod: 'wallet' | 'card' | 'split' | 'points';
     walletAmountCents?: number;
+    pointsToRedeem?: number;
     tipCents?: number;
   }) => api.post<CheckoutResult>('/v2/checkout', data),
   getReceipt: (paymentId: string) => api.get<ReceiptData>(`/v2/checkout/${paymentId}/receipt`),
