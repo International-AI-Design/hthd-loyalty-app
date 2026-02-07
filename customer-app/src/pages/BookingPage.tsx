@@ -24,7 +24,7 @@ const SIZE_OPTIONS = [
 ];
 
 export function BookingPage() {
-  const { customer } = useAuth();
+  const { customer: _customer } = useAuth();
   const navigate = useNavigate();
 
   // Wizard state
