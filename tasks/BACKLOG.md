@@ -7,9 +7,10 @@ Tracked UX issues, feature requests, and improvements. Items here are queued for
 ## UX Issues
 
 ### 1. Pet Setup Flow — Too Rigid on First Booking
-**Priority:** High  
-**Area:** Customer App — Booking Flow / Pet Profile  
+**Priority:** High
+**Area:** Customer App — Booking Flow / Pet Profile
 **Status:** Open
+**Status: RESOLVED** — Fixed in overnight autonomous session (2026-02-08)
 
 The "add a pet" flow during first-time booking forces full profile setup before proceeding. This is too much friction.
 
@@ -21,16 +22,18 @@ The "add a pet" flow during first-time booking forces full profile setup before 
 - Only truly required fields should block booking confirmation, not the entire profile
 
 ### 2. Welcome Message Shows "Welcome Back" for New Users
-**Priority:** Medium  
-**Area:** Customer App — Onboarding / Dashboard  
+**Priority:** Medium
+**Area:** Customer App — Onboarding / Dashboard
 **Status:** Open
+**Status: RESOLVED** — Fixed in overnight autonomous session (2026-02-08)
 
 After signing up as a brand new user, the app displayed "Welcome back" messaging. Should detect first-time users and show appropriate welcome copy (e.g., "Welcome to Happy Tail!" or similar).
 
 ### 3. Admin Customer Detail View — Missing Key Info
-**Priority:** High  
-**Area:** Admin App — Customer Management  
+**Priority:** High
+**Area:** Admin App — Customer Management
 **Status:** Open
+**Status: RESOLVED** — Fixed in overnight autonomous session (2026-02-08)
 
 When navigating to Customers → [specific customer], the detail view only shows loyalty points. Missing critical information that staff needs:
 

@@ -26,25 +26,12 @@ const REWARD_TIERS = [
   { points: 500, discount: 50 },
 ];
 
-const BOOKING_STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  confirmed: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Confirmed' },
-  checked_in: { bg: 'bg-green-100', text: 'text-green-800', label: 'Checked In' },
-  checked_out: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Checked Out' },
-  cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' },
-  no_show: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'No Show' },
-};
-
 const SIZE_LABELS: Record<string, string> = {
   small: 'Small',
   medium: 'Medium',
   large: 'Large',
   xl: 'X-Large',
 };
-
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -456,51 +443,6 @@ export function CustomerDetailPage() {
             </Button>
           </div>
         </div>
-
-        {/* Pets Section */}
-        {customer.dogs && customer.dogs.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Pets ({customer.dogs.length})
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {customer.dogs.map((dog) => (
-                <div
-                  key={dog.id}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 text-base">{dog.name}</h4>
-                      {dog.breed && (
-                        <p className="text-sm text-gray-500">{dog.breed}</p>
-                      )}
-                    </div>
-                    {dog.size_category && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {SIZE_LABELS[dog.size_category] || dog.size_category}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1 text-sm">
-                    {dog.weight && (
-                      <p className="text-gray-600">Weight: {dog.weight} lbs</p>
-                    )}
-                    {dog.temperament && (
-                      <p className="text-gray-600">Temperament: <span className="capitalize">{dog.temperament}</span></p>
-                    )}
-                    {dog.is_neutered && (
-                      <p className="text-gray-600">Neutered/Spayed</p>
-                    )}
-                    {dog.notes && (
-                      <p className="text-gray-500 mt-2 text-xs italic">{dog.notes}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Referral Information */}
         {(customer.referred_by || customer.referrals.length > 0) && (
