@@ -486,7 +486,9 @@ export function BookingPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Dogs</span>
                 <span className="font-semibold text-brand-navy">
-                  {confirmedBooking.dogs.map((bd) => bd.dog.name).join(', ')}
+                  {confirmedBooking.dogs.length > 0
+                    ? confirmedBooking.dogs.map((bd) => bd.dog.name).join(', ')
+                    : 'Not provided'}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -619,8 +621,11 @@ export function BookingPage() {
                   onClick={goNext}
                   className="w-full mt-3 py-3 text-sm text-gray-500 hover:text-brand-blue font-medium transition-colors min-h-[44px]"
                 >
-                  Continue without adding a pet
+                  Skip for now
                 </button>
+                <p className="text-xs text-gray-400 mt-1">
+                  You can add your pet's details later from your profile
+                </p>
               </div>
             ) : showAddDog && dogs.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
@@ -776,6 +781,15 @@ export function BookingPage() {
                 </Button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Gentle reminder on steps 3-6 when no dog is selected */}
+        {step >= 3 && step <= 6 && selectedDogIds.length === 0 && (
+          <div className="rounded-xl p-3 border border-[#62A2C3]/30 bg-[#62A2C3]/5 mb-4">
+            <p className="text-sm text-[#62A2C3]">
+              You can add your pet's details later from your profile, or at the review step before confirming.
+            </p>
           </div>
         )}
 
@@ -1135,14 +1149,14 @@ export function BookingPage() {
                 <span className="text-gray-600">Service</span>
                 <span className="font-semibold text-brand-navy">{selectedService?.displayName}</span>
               </div>
-              {selectedDogIds.length > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
-                  <span className="font-semibold text-brand-navy">
-                    {selectedDogIds.map((id) => dogs.find((d) => d.id === id)?.name).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
+                <span className="font-semibold text-brand-navy">
+                  {selectedDogIds.length > 0
+                    ? selectedDogIds.map((id) => dogs.find((d) => d.id === id)?.name).filter(Boolean).join(', ')
+                    : 'Not added yet'}
+                </span>
+              </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Date</span>
                 <span className="font-semibold text-brand-navy">

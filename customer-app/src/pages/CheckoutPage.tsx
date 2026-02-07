@@ -246,7 +246,7 @@ export function CheckoutPage() {
             </div>
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-600">Dog{booking.dogs.length > 1 ? 's' : ''}</span>
-              <span className="font-semibold text-brand-navy">{booking.dogs.map((bd) => bd.dog.name).join(', ')}</span>
+              <span className="font-semibold text-brand-navy">{booking.dogs.length > 0 ? booking.dogs.map((bd) => bd.dog.name).join(', ') : 'Not provided'}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-600">Date</span>
