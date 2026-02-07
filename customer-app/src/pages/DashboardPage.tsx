@@ -22,16 +22,6 @@ function SkeletonPulse({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse bg-brand-sand/60 rounded-2xl ${className}`} />;
 }
 
-function _HeroSkeleton() {
-  return (
-    <div className="rounded-3xl p-6 space-y-4" style={{ background: 'linear-gradient(135deg, #C2704E 0%, #A85D3E 60%, #D4A843 100%)' }}>
-      <SkeletonPulse className="h-6 w-40 !bg-white/20" />
-      <SkeletonPulse className="h-16 w-32 mx-auto !bg-white/20" />
-      <SkeletonPulse className="h-4 w-48 mx-auto !bg-white/20" />
-    </div>
-  );
-}
-
 function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
     <div className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5 space-y-3">
