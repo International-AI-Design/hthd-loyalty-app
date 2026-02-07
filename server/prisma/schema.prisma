@@ -418,7 +418,7 @@ model Subscription {
 
 model Conversation {
   id              String    @id @default(uuid())
-  customerId      String    @map("customer_id")
+  customerId      String?   @map("customer_id")
   channel         String    // 'sms', 'web_chat'
   phoneNumber     String?   @map("phone_number")
   status          String    @default("active") // active, closed, escalated
@@ -427,7 +427,7 @@ model Conversation {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   messages        Message[]
 
   @@index([customerId, channel])

@@ -56,7 +56,7 @@ Happy Tail Happy Dog was born from Ted Gualtier's experience with his English La
 
 **Primary Colors:**
 ```
-Teal/Aqua Blue    #5BBFBA (RGB: 91, 191, 186)   - Primary brand color, headers, CTAs
+Brand Blue        #62A2C3 (RGB: 98, 162, 195)   - Primary brand color, headers, CTAs
 Navy Blue         #1B365D (RGB: 27, 54, 93)    - Text, accents, trust/professionalism
 ```
 
@@ -75,7 +75,7 @@ Soft Green        #7FB685 (RGB: 127, 182, 133) - Success states, positive feedba
 ```
 
 **Usage Guidelines:**
-- Use Teal (#5BBFBA) for primary buttons, headers, and key CTAs
+- Use Blue (#62A2C3) for primary buttons, headers, and key CTAs
 - Use Navy (#1B365D) for body text and professional elements
 - Use Warm White (#F8F6F3) for backgrounds to feel clean but not sterile
 - Use Coral (#E8837B) sparingly for notifications and warmth accents
@@ -179,19 +179,19 @@ Caption: 12px / 0.75rem (medium sans)
 ```css
 /* Primary CTA */
 .btn-primary {
-  background: #5BBFBA;
+  background: #62A2C3;
   color: white;
   border-radius: 8px;
   padding: 12px 24px;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(91, 191, 186, 0.3);
+  box-shadow: 0 2px 4px rgba(98, 162, 195, 0.3);
 }
 
 /* Secondary */
 .btn-secondary {
   background: white;
   color: #1B365D;
-  border: 2px solid #5BBFBA;
+  border: 2px solid #62A2C3;
   border-radius: 8px;
 }
 
@@ -218,8 +218,8 @@ Caption: 12px / 0.75rem (medium sans)
   font-size: 16px; /* Prevents zoom on iOS */
 }
 .input:focus {
-  border-color: #5BBFBA;
-  box-shadow: 0 0 0 3px rgba(91, 191, 186, 0.2);
+  border-color: #62A2C3;
+  box-shadow: 0 0 0 3px rgba(98, 162, 195, 0.2);
 }
 ```
 

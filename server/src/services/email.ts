@@ -32,7 +32,7 @@ export async function sendVerificationEmail({
         <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
           Happy Tail Happy Dog
         </h1>
-        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+        <p style="color: #62A2C3; margin: 5px 0 0;">Rewards Program</p>
       </div>
 
       <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>
@@ -116,7 +116,7 @@ export async function sendWelcomeEmail({
         <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
           Happy Tail Happy Dog
         </h1>
-        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+        <p style="color: #62A2C3; margin: 5px 0 0;">Rewards Program</p>
       </div>
 
       <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>
@@ -125,7 +125,7 @@ export async function sendWelcomeEmail({
         Your account is now active! 🎉
       </p>
 
-      <div style="background: linear-gradient(135deg, #5BBFBA 0%, #4a9e99 100%); border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0; color: white;">
+      <div style="background: linear-gradient(135deg, #62A2C3 0%, #4F8BA8 100%); border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0; color: white;">
         <p style="margin: 0 0 5px; font-size: 14px; opacity: 0.9;">Your current balance</p>
         <span style="font-size: 48px; font-weight: bold;">
           ${pointsBalance}
@@ -215,7 +215,7 @@ export async function sendNewSignupWelcomeEmail({
         <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
           Happy Tail Happy Dog
         </h1>
-        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+        <p style="color: #62A2C3; margin: 5px 0 0;">Rewards Program</p>
       </div>
 
       <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>
@@ -224,7 +224,7 @@ export async function sendNewSignupWelcomeEmail({
         Welcome to our rewards family! We're thrilled to have you.
       </p>
 
-      <div style="background: linear-gradient(135deg, #5BBFBA 0%, #4a9e99 100%); border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0; color: white;">
+      <div style="background: linear-gradient(135deg, #62A2C3 0%, #4F8BA8 100%); border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0; color: white;">
         <p style="margin: 0 0 5px; font-size: 14px; opacity: 0.9;">Your welcome bonus</p>
         <span style="font-size: 48px; font-weight: bold;">
           25
@@ -255,7 +255,7 @@ export async function sendNewSignupWelcomeEmail({
         <span style="background: #fff; color: #1B365D; padding: 10px 20px; border-radius: 4px; font-size: 20px; font-weight: bold; letter-spacing: 2px;">
           ${referralCode}
         </span>
-        <p style="color: #5BBFBA; margin: 10px 0 0; font-size: 12px;">They'll get started, and you'll get 100 bonus points!</p>
+        <p style="color: #62A2C3; margin: 10px 0 0; font-size: 12px;">They'll get started, and you'll get 100 bonus points!</p>
       </div>
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -327,7 +327,7 @@ async function sendPasswordResetEmail({
         <h1 style="color: #1B365D; font-family: 'Playfair Display', Georgia, serif; margin: 0;">
           Happy Tail Happy Dog
         </h1>
-        <p style="color: #5BBFBA; margin: 5px 0 0;">Rewards Program</p>
+        <p style="color: #62A2C3; margin: 5px 0 0;">Rewards Program</p>
       </div>
 
       <p style="color: #1B365D; font-size: 16px;">Hi ${customerName}!</p>

@@ -47,6 +47,7 @@ app.use(rateLimiter);
 app.use(requestLogger);
 app.use(cors(getCorsOptions()));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Happy Tail Happy Dog API is running' });

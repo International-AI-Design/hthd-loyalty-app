@@ -40,7 +40,7 @@ See `DEPLOYMENT.md` for initial setup, environment variables, and DNS configurat
 
 ## Brand Guidelines
 **IMPORTANT:** See `SKILL.md` for complete brand guidelines including:
-- Color palette (Teal #5BBFBA primary, Navy #1B365D text)
+- Color palette (Blue #62A2C3 primary, Navy #1B365D text)
 - Typography (Playfair Display headings, Open Sans body)
 - Voice & tone (warm, welcoming, kennel-free philosophy)
 - UI component styles (buttons, cards, inputs)
