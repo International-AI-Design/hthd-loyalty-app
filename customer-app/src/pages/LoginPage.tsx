@@ -131,6 +131,12 @@ export function LoginPage() {
         <p className="mt-4 text-center text-sm text-gray-500">
           Earn points on every visit and redeem for grooming discounts!
         </p>
+
+        <p className="mt-6 text-center text-xs text-gray-400">
+          <Link to="/privacy" className="hover:text-brand-teal">Privacy Policy</Link>
+          {' · '}
+          <Link to="/terms" className="hover:text-brand-teal">Terms & Conditions</Link>
+        </p>
       </div>
     </div>
   );

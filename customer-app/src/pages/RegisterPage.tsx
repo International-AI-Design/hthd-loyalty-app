@@ -173,6 +173,13 @@ export function RegisterPage() {
               disabled={!!referralCode && !!referrerName}
             />
 
+            <p className="text-xs text-gray-500 text-center">
+              By creating an account, you agree to our{' '}
+              <Link to="/terms" className="text-brand-teal hover:text-brand-teal-dark">Terms & Conditions</Link>
+              {' and '}
+              <Link to="/privacy" className="text-brand-teal hover:text-brand-teal-dark">Privacy Policy</Link>.
+            </p>
+
             <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>
               Create Account
             </Button>
@@ -188,6 +195,12 @@ export function RegisterPage() {
 
         <p className="mt-4 text-center text-sm text-gray-500">
           Earn points on every visit and redeem for grooming discounts!
+        </p>
+
+        <p className="mt-6 text-center text-xs text-gray-400">
+          <Link to="/privacy" className="hover:text-brand-teal">Privacy Policy</Link>
+          {' · '}
+          <Link to="/terms" className="hover:text-brand-teal">Terms & Conditions</Link>
         </p>
       </div>
     </div>
