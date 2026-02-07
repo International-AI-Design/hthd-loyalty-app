@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -11,7 +11,7 @@ interface ToastProps {
   type?: ToastType;
 }
 
-const icons: Record<ToastType, JSX.Element> = {
+const icons: Record<ToastType, ReactNode> = {
   success: (
     <svg className="w-5 h-5 text-brand-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

@@ -22,7 +22,7 @@ function SkeletonPulse({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse bg-brand-sand/60 rounded-2xl ${className}`} />;
 }
 
-function HeroSkeleton() {
+function _HeroSkeleton() {
   return (
     <div className="rounded-3xl p-6 space-y-4" style={{ background: 'linear-gradient(135deg, #C2704E 0%, #A85D3E 60%, #D4A843 100%)' }}>
       <SkeletonPulse className="h-6 w-40 !bg-white/20" />
@@ -57,8 +57,8 @@ export function DashboardPage() {
   const [isLoadingRedemptions, setIsLoadingRedemptions] = useState(true);
   const [referralCount, setReferralCount] = useState(0);
   const [referralBonusPoints, setReferralBonusPoints] = useState(0);
-  const [referredCustomers, setReferredCustomers] = useState<ReferredCustomer[]>([]);
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
+  const [_referredCustomers, setReferredCustomers] = useState<ReferredCustomer[]>([]);
+  const [_isLoadingReferrals, setIsLoadingReferrals] = useState(true);
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [isLoadingDogs, setIsLoadingDogs] = useState(true);
   const [visits, setVisits] = useState<Visit[]>([]);
