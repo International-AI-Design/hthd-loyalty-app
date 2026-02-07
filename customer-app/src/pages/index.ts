@@ -7,5 +7,5 @@ export { BookingPage } from './BookingPage';
 export { BookingsPage } from './BookingsPage';
 export { CheckoutPage } from './CheckoutPage';
 export { CheckoutConfirmationPage } from './CheckoutConfirmationPage';
-export { default as PrivacyPolicyPage } from './PrivacyPolicyPage';
-export { default as TermsPage } from './TermsPage';
+export { PrivacyPolicyPage } from './PrivacyPolicyPage';
+export { TermsPage } from './TermsPage';
