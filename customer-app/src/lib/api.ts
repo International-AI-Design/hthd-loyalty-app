@@ -683,6 +683,8 @@ export const multiDayBookingApi = {
 export const checkoutApi = {
   getWallet: () => api.get<WalletResponse>('/v2/wallet'),
   getPointsBalance: () => api.get<CustomerProfile>('/customers/me'),
+  loadWalletFunds: (amountCents: number) =>
+    api.post<WalletResponse>('/v2/wallet/load', { amount_cents: amountCents }),
   checkout: (data: {
     bookingIds: string[];
     paymentMethod: 'wallet' | 'card' | 'split' | 'points';

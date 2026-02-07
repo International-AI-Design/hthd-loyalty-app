@@ -1,5 +1,9 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../../lib/prisma';
 import { ConversationFilter, MessageListParams } from './types';
+import { TOOL_DEFINITIONS, executeTool } from '../ai/tools';
+import { buildContextForCustomerId } from '../ai/context';
+import { buildWebChatSystemPrompt } from '../ai/prompts';
 
 export class MessagingService {
   /**
@@ -76,15 +80,8 @@ export class MessagingService {
       return { customerMessage, aiMessage: null };
     }
 
-    // Get conversation history for AI context
-    const history = await (prisma as any).message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: 'asc' },
-      select: { role: true, content: true },
-    });
-
-    // Generate AI response
-    const aiContent = await this.getAIResponse(history);
+    // Generate AI response with tool access
+    const aiContent = await this.getAIResponse(conversationId, customerId);
 
     const aiMessage = await (prisma as any).message.create({
       data: {
@@ -351,33 +348,111 @@ export class MessagingService {
   }
 
   /**
-   * Generate an AI response using Claude Haiku.
+   * Generate an AI response using Claude Haiku with tool access.
+   * Builds full customer context, uses the web chat system prompt,
+   * and loops on tool_use responses (max 3 rounds).
    * Falls back to a polite message if API key is missing or call fails.
    */
   private async getAIResponse(
-    messages: Array<{ role: string; content: string }>
+    conversationId: string,
+    customerId: string
   ): Promise<string> {
+    const MAX_TOOL_ROUNDS = 3;
+
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
         return "Thanks for your message! A team member will be with you shortly.";
       }
 
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const client = new Anthropic({ apiKey });
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        system: `You are a friendly assistant for Happy Tail Happy Dog, a premium dog daycare, boarding, and grooming facility in Denver, CO. Services: Daycare $37-47/day, Boarding $69/night, Grooming $95-167. Hours: 7am-7pm weekdays. Address: 4352 Cherokee St. Phone: (720) 654-8384. Be warm, helpful, concise. If unsure, say you'll connect them with a team member.`,
-        messages: messages.slice(-10).map((m) => ({
-          role: m.role === 'customer' ? ('user' as const) : ('assistant' as const),
-          content: m.content,
-        })),
+      // Build full customer context and system prompt
+      const context = await buildContextForCustomerId(customerId);
+      const systemPrompt = buildWebChatSystemPrompt(context);
+
+      // Load conversation history from DB
+      const history = await (prisma as any).message.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: 'asc' },
+        select: { role: true, content: true },
       });
 
-      return response.content[0].type === 'text'
-        ? response.content[0].text
-        : "I'll connect you with a team member.";
+      // Build messages array with user/assistant alternation
+      const messages: Anthropic.MessageParam[] = [];
+      for (const msg of history) {
+        const role = msg.role === 'customer' ? 'user' as const : 'assistant' as const;
+        const last = messages[messages.length - 1];
+        if (last && last.role === role && typeof last.content === 'string' && typeof msg.content === 'string') {
+          last.content = last.content + '\n' + msg.content;
+        } else {
+          messages.push({ role, content: msg.content });
+        }
+      }
+
+      // Ensure first message is from user
+      while (messages.length > 0 && messages[0].role !== 'user') {
+        messages.shift();
+      }
+
+      if (messages.length === 0) {
+        return "Hi there! How can I help you today?";
+      }
+
+      const client = new Anthropic({ apiKey });
+      let rounds = 0;
+
+      while (rounds < MAX_TOOL_ROUNDS) {
+        rounds++;
+
+        const response = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 800,
+          system: systemPrompt,
+          tools: TOOL_DEFINITIONS,
+          messages,
+        });
+
+        // Final text response
+        if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
+          const textBlocks = response.content.filter((b): b is Anthropic.TextBlock => b.type === 'text');
+          return textBlocks.map(b => b.text).join('\n') || "I'll connect you with a team member.";
+        }
+
+        // Tool use — execute and loop
+        if (response.stop_reason === 'tool_use') {
+          messages.push({ role: 'assistant', content: response.content });
+
+          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+          for (const block of response.content) {
+            if (block.type !== 'tool_use') continue;
+
+            try {
+              const result = await executeTool(
+                block.name,
+                block.input as Record<string, unknown>,
+                customerId
+              );
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: JSON.stringify(result),
+              });
+            } catch (error: unknown) {
+              const errMsg = error instanceof Error ? error.message : 'Tool execution failed';
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: JSON.stringify({ error: errMsg }),
+                is_error: true,
+              });
+            }
+          }
+
+          messages.push({ role: 'user', content: toolResults });
+        }
+      }
+
+      // Exceeded max rounds
+      return "I'm working on that but it's taking a bit longer than expected. Let me connect you with our team for help.";
     } catch {
       return "Thanks for your message! A team member will be with you shortly.";
     }

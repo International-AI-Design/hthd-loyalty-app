@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { bookingApi } from '../lib/api';
 import type { Booking } from '../lib/api';
 import { Button, Modal } from '../components/ui';
+import { AppShell } from '../components/AppShell';
 
 type Tab = 'upcoming' | 'past';
 
@@ -119,10 +120,10 @@ export function BookingsPage() {
     <div key={booking.id} className="bg-white rounded-2xl shadow-md p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-brand-navy">{booking.serviceType.displayName}</h3>
-          <p className="text-sm text-gray-600">{formatDate(booking.date)}</p>
+          <h3 className="font-semibold text-brand-forest">{booking.serviceType.displayName}</h3>
+          <p className="text-sm text-brand-forest-muted">{formatDate(booking.date)}</p>
           {booking.startTime && (
-            <p className="text-sm text-gray-500">{formatTime(booking.startTime)}</p>
+            <p className="text-sm text-brand-forest-muted">{formatTime(booking.startTime)}</p>
           )}
         </div>
         {getStatusBadge(booking.status)}
@@ -132,9 +133,9 @@ export function BookingsPage() {
         {booking.dogs.map((bd) => (
           <span
             key={bd.id}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cream text-sm text-brand-navy"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cream text-sm text-brand-forest"
           >
-            <span className="w-5 h-5 bg-brand-blue rounded-full flex items-center justify-center text-white text-xs font-bold">
+            <span className="w-5 h-5 bg-brand-primary rounded-full flex items-center justify-center text-white text-xs font-bold">
               {bd.dog.name.charAt(0).toUpperCase()}
             </span>
             {bd.dog.name}
@@ -159,7 +160,7 @@ export function BookingsPage() {
   const renderEmptyState = (tab: Tab) => (
     <div className="text-center py-16">
       <svg
-        className="mx-auto h-16 w-16 text-gray-300"
+        className="mx-auto h-16 w-16 text-brand-sand"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -171,7 +172,7 @@ export function BookingsPage() {
           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
       </svg>
-      <p className="mt-4 text-gray-500 font-medium">
+      <p className="mt-4 text-brand-forest-muted font-medium">
         {tab === 'upcoming' ? 'No upcoming bookings' : 'No past bookings'}
       </p>
       {tab === 'upcoming' && (
@@ -183,30 +184,8 @@ export function BookingsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-brand-cream">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Back to dashboard"
-            >
-              <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="flex-1 flex items-center justify-center gap-3">
-              <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
-              <h1 className="font-heading text-lg font-bold text-brand-navy">My Bookings</h1>
-            </div>
-            <div className="w-11" />
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-6">
+    <AppShell title="My Bookings" showBack>
+      <div className="px-4 py-6">
         {/* Tabs */}
         <div className="flex bg-white rounded-xl shadow-sm p-1 mb-6">
           {(['upcoming', 'past'] as const).map((tab) => (
@@ -215,8 +194,8 @@ export function BookingsPage() {
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-colors min-h-[44px] capitalize ${
                 activeTab === tab
-                  ? 'bg-brand-blue text-white shadow-sm'
-                  : 'text-gray-600 hover:text-brand-navy'
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-brand-forest-muted hover:text-brand-forest'
               }`}
             >
               {tab}
@@ -229,7 +208,7 @@ export function BookingsPage() {
           <div className="space-y-4">
             {isLoadingUpcoming ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : upcomingBookings.length === 0 ? (
               renderEmptyState('upcoming')
@@ -243,7 +222,7 @@ export function BookingsPage() {
           <div className="space-y-4">
             {isLoadingPast ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : pastBookings.length === 0 ? (
               renderEmptyState('past')
@@ -252,7 +231,7 @@ export function BookingsPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Cancel Confirmation Modal */}
       <Modal
@@ -261,7 +240,7 @@ export function BookingsPage() {
         title="Cancel Booking"
       >
         <div className="space-y-4">
-          <p className="text-gray-700">
+          <p className="text-brand-forest-muted">
             Are you sure you want to cancel this booking? This action cannot be undone.
           </p>
           {cancelError && (
@@ -288,6 +267,6 @@ export function BookingsPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </AppShell>
   );
 }

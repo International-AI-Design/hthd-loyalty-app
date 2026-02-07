@@ -1,14 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
+import { customerApi } from '../lib/api';
+import type { Dog } from '../lib/api';
 
 const APP_VERSION = '1.0.0';
+
+function formatMemberSince(dateStr?: string | null): string {
+  if (!dateStr) return 'Member';
+  const d = new Date(dateStr);
+  return `Member since ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+}
+
+function getLoyaltyTier(points: number): string {
+  if (points >= 500) return 'Gold';
+  if (points >= 250) return 'Silver';
+  if (points >= 100) return 'Bronze';
+  return 'New';
+}
+
+function getTierColor(tier: string): string {
+  switch (tier) {
+    case 'Gold': return 'bg-brand-amber/15 text-brand-amber-dark';
+    case 'Silver': return 'bg-brand-sand text-brand-forest-light';
+    case 'Bronze': return 'bg-brand-primary/10 text-brand-primary-dark';
+    default: return 'bg-brand-sage/10 text-brand-sage-dark';
+  }
+}
 
 export function SettingsPage() {
   const { customer, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [petCount, setPetCount] = useState<number | null>(null);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
     return localStorage.getItem('hthd_notifications') !== 'false';
@@ -31,37 +57,114 @@ export function SettingsPage() {
     localStorage.setItem('hthd_dark_mode', String(darkMode));
   }, [darkMode]);
 
+  useEffect(() => {
+    customerApi.getDogs().then(({ data }) => {
+      if (data) setPetCount(data.dogs.length);
+    });
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  return (
-    <AppShell title="Settings" showBack>
-      <div className="px-4 py-6 space-y-6">
+  const tier = getLoyaltyTier(customer?.points_balance ?? 0);
+  const tierColor = getTierColor(tier);
 
-        {/* Profile Section */}
+  return (
+    <AppShell title="Profile & Settings" showBack>
+      <div className="px-4 py-6 space-y-5">
+
+        {/* Profile Hero */}
         <section className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 overflow-hidden">
           <div className="p-5">
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-amber flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-heading font-bold text-xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-primary-dark flex items-center justify-center flex-shrink-0 shadow-warm">
+                <span className="text-white font-heading font-bold text-2xl">
                   {customer?.first_name?.charAt(0)?.toUpperCase() ?? '?'}
                 </span>
               </div>
-              <div className="min-w-0">
-                <h2 className="font-heading font-semibold text-brand-forest text-lg truncate">
+              <div className="min-w-0 flex-1">
+                <h2 className="font-heading font-semibold text-brand-forest text-xl truncate">
                   {customer?.first_name} {customer?.last_name}
                 </h2>
-                <p className="text-sm text-brand-forest-muted">Member</p>
+                <p className="text-sm text-brand-forest-muted">
+                  {formatMemberSince((customer as any)?.created_at)}
+                </p>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1.5 ${tierColor}`}>
+                  {tier} Member
+                </span>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <ProfileField label="Name" value={`${customer?.first_name ?? ''} ${customer?.last_name ?? ''}`} />
+            <div className="space-y-3 pt-3 border-t border-brand-sand/40">
               <ProfileField label="Email" value={customer?.email ?? '--'} />
               <ProfileField label="Phone" value={customer?.phone ?? '--'} />
             </div>
+          </div>
+        </section>
+
+        {/* Quick Stats */}
+        <section className="grid grid-cols-3 gap-3">
+          <button
+            onClick={() => navigate('/my-pets')}
+            className="bg-white rounded-2xl shadow-warm-sm border border-brand-sand/50 p-4 text-center active:scale-95 transition-transform"
+          >
+            <p className="text-2xl font-heading font-bold text-brand-forest">
+              {petCount !== null ? petCount : '--'}
+            </p>
+            <p className="text-xs text-brand-forest-muted mt-0.5">
+              {petCount === 1 ? 'Pet' : 'Pets'}
+            </p>
+          </button>
+          <button
+            onClick={() => navigate('/rewards')}
+            className="bg-white rounded-2xl shadow-warm-sm border border-brand-sand/50 p-4 text-center active:scale-95 transition-transform"
+          >
+            <p className="text-2xl font-heading font-bold text-brand-primary">
+              {customer?.points_balance?.toLocaleString() ?? '0'}
+            </p>
+            <p className="text-xs text-brand-forest-muted mt-0.5">Points</p>
+          </button>
+          <button
+            onClick={() => navigate('/bookings')}
+            className="bg-white rounded-2xl shadow-warm-sm border border-brand-sand/50 p-4 text-center active:scale-95 transition-transform"
+          >
+            <p className="text-2xl font-heading font-bold text-brand-sage-dark">
+              {tier}
+            </p>
+            <p className="text-xs text-brand-forest-muted mt-0.5">Tier</p>
+          </button>
+        </section>
+
+        {/* Quick Links */}
+        <section className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 overflow-hidden">
+          <div className="p-5 space-y-1">
+            <h3 className="font-heading font-semibold text-brand-forest text-base mb-3">Quick Links</h3>
+
+            <LinkRow
+              label="My Pets"
+              icon={<span className="text-base">🐾</span>}
+              onClick={() => navigate('/my-pets')}
+            />
+            <div className="border-t border-brand-sand/40" />
+            <LinkRow
+              label="Rewards & Points"
+              icon={<span className="text-base">🏆</span>}
+              onClick={() => navigate('/rewards')}
+            />
+            <div className="border-t border-brand-sand/40" />
+            <LinkRow
+              label="Booking History"
+              icon={<span className="text-base">📅</span>}
+              onClick={() => navigate('/bookings')}
+            />
+            <div className="border-t border-brand-sand/40" />
+            <LinkRow
+              label="Report Cards"
+              icon={<span className="text-base">📋</span>}
+              onClick={() => navigate('/report-cards')}
+            />
           </div>
         </section>
 
@@ -175,14 +278,17 @@ function ToggleRow({
   );
 }
 
-function LinkRow({ label, onClick }: { label: string; onClick: () => void }) {
+function LinkRow({ label, icon, onClick }: { label: string; icon?: React.ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"
       className="w-full flex items-center justify-between py-3 min-h-[44px] text-left"
       onClick={onClick}
     >
-      <span className="text-sm font-medium text-brand-forest">{label}</span>
+      <div className="flex items-center gap-3">
+        {icon}
+        <span className="text-sm font-medium text-brand-forest">{label}</span>
+      </div>
       <svg className="w-5 h-5 text-brand-forest-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
       </svg>

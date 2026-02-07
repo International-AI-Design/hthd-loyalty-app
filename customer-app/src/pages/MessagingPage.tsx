@@ -348,7 +348,7 @@ export function MessagingPage() {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="font-heading text-lg font-semibold text-brand-forest">Happy Tail</h1>
+            <h1 className="font-heading text-lg font-semibold text-brand-forest">Happy Tail Happy Dog</h1>
             <p className="text-xs text-brand-forest-muted">AI Assistant + Staff Support</p>
           </div>
           <div className="w-3 h-3 bg-brand-success rounded-full" title="Online" />
@@ -496,6 +496,7 @@ export function MessagingPage() {
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             rows={1}
+            autoComplete="off"
             className="flex-1 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />

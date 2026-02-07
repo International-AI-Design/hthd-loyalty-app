@@ -70,7 +70,14 @@ export function MyPetsPage() {
     fetchDogs();
   }, [fetchDogs]);
 
-  if (!customer) return null;
+  if (!customer) return (
+    <AppShell title="My Pets">
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="w-12 h-12 rounded-full border-3 border-brand-sand border-t-brand-primary animate-spin" />
+        <p className="text-sm text-brand-forest-muted mt-4">Loading...</p>
+      </div>
+    </AppShell>
+  );
 
   return (
     <AppShell title="My Pets">

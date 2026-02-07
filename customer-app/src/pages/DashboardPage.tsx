@@ -389,7 +389,7 @@ export function DashboardPage() {
           id="points-balance"
           className="animate-fade-in rounded-3xl shadow-warm-lg overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, #C2704E 0%, #A85D3E 55%, #D4A843 100%)',
+            background: 'linear-gradient(135deg, #62A2C3 0%, #3B7FA3 55%, #1B365D 100%)',
           }}
         >
           <div className="px-6 pt-6 pb-5">
@@ -399,18 +399,27 @@ export function DashboardPage() {
                 <p className="text-white/70 font-body text-sm tracking-wide">
                   {greeting}
                 </p>
-                <h1 className="font-heading text-2xl font-semibold text-white mt-0.5">
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="font-heading text-2xl font-semibold text-white mt-0.5 text-left hover:text-white/90 transition-colors"
+                >
                   {isFirstVisit ? 'Welcome!' : customer.first_name}
-                </h1>
+                </button>
               </div>
               {/* Decorative paw */}
-              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-lg">
+              <button
+                onClick={() => navigate('/my-pets')}
+                className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-lg hover:bg-white/25 transition-colors"
+              >
                 {'\u{1F43E}'}
-              </div>
+              </button>
             </div>
 
             {/* Points display */}
-            <div className="text-center py-3">
+            <button
+              onClick={() => navigate('/rewards')}
+              className="w-full text-center py-3 hover:bg-white/5 rounded-2xl transition-colors"
+            >
               <p className="text-white/60 text-xs font-body uppercase tracking-widest mb-1">
                 Points Balance
               </p>
@@ -427,7 +436,7 @@ export function DashboardPage() {
                   Max points reached -- redeem below!
                 </p>
               )}
-            </div>
+            </button>
           </div>
 
           {/* Points cap warnings */}
@@ -493,30 +502,8 @@ export function DashboardPage() {
         {/* ============================================================
             SECTION 3: Quick Actions Grid
             ============================================================ */}
-        <section className="animate-slide-up grid grid-cols-4 gap-3">
+        <section className="animate-slide-up grid grid-cols-2 gap-3">
           {[
-            {
-              label: 'Book',
-              path: '/book',
-              color: 'bg-brand-primary/10',
-              iconColor: 'text-brand-primary',
-              icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                </svg>
-              ),
-            },
-            {
-              label: 'Messages',
-              path: '/messages',
-              color: 'bg-brand-sage/10',
-              iconColor: 'text-brand-sage-dark',
-              icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              ),
-            },
             {
               label: 'Reports',
               path: '/report-cards',
@@ -719,7 +706,7 @@ export function DashboardPage() {
                   className="h-full rounded-full transition-all duration-700 ease-out"
                   style={{
                     width: `${Math.max(pointsProgress, 4)}%`,
-                    background: 'linear-gradient(90deg, #C2704E, #D4A843)',
+                    background: 'linear-gradient(90deg, #62A2C3, #1B365D)',
                   }}
                 />
               </div>

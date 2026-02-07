@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.8] - Frontend Redesign: Earth-Tone Design System, New Pages, Real-Time Features - 2026-02-07
+
+### Design System Overhaul
+- **New color palette**: Terracotta (#C2704E), Sage (#8BA888), Cream (#FAF6F1), Amber (#D4A843), Forest (#2C3E2D) — replaces blue theme
+- **New typography**: Fraunces (headings), Plus Jakarta Sans (body), Quicksand (pet names)
+- **Updated UI components**: Button (ghost/danger variants), Input, Modal (mobile bottom-sheet), Toast (typed icons)
+- **Dark mode support**: `darkMode: 'class'` with dark color tokens
+- **44px minimum touch targets**, `active:scale-[0.98]` tactile feedback
+
+### New Features
+- **Bottom tab navigation** (AppShell): Home, Book, Messages, My Pets, Rewards with active indicators
+- **In-app notification system**: Bell icon with unread count, slide-in panel, priority tiers, toast alerts
+- **Real-time pet status tracker**: SSE-powered 5-step progress (Booked→Checked In→In Service→Ready→Picked Up)
+- **Pet Day activity feed**: Timeline UI with 9 activity types, photo support, 30s polling
+- **Enhanced messaging**: Quick reply chips, photo support, read receipts, pet-specific thread starters
+
+### New Pages
+- **MyPetsPage**: Pet card grid with gradient avatars, breed/age/size, navigation to dog profiles
+- **RewardsPage**: Animated points counter, tier progress, full redemption flow, referral sharing
+- **SettingsPage**: Profile display, notification/dark mode toggles, logout
+- **ActivityFeedPage**: Live pet day view with status tracker + activity timeline
+
+### Redesigned Pages
+- **DashboardPage**: Hero card with gradient, Pet Day banner, quick actions grid, skeleton loaders
+- **LoginPage**: Earth-tone styling with warm cards
+- **MessagingPage**: Quick replies, photo messages, read receipts UI
+
+### Server
+- `GET /api/v2/notifications` — builds notifications from bookings + conversations
+- `PUT /api/v2/notifications/:id/read` and `/read-all`
+- `GET /api/v2/activities/today` — returns today's booking activities
+
+### Infrastructure
+- **Ferro Ops Dashboard** (ferro-ops.vercel.app): Real-time deployment monitoring, health checks, build logs, commit history for all 3 services
+- **MCP servers**: Vercel + Railway MCP integrations registered for Claude Code direct access
+- Vercel serverless API functions proxy Vercel/Railway/GitHub APIs with encrypted env vars
+
 ## [2.0.0-alpha.7] - Sprint 3b/3c: Dog Profiles, Messaging, Report Cards, Operations Dashboard, Staff Scheduling - 2026-02-07
 
 ### Added — Server: New Modules

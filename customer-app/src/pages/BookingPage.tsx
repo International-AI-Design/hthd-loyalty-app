@@ -398,8 +398,7 @@ export function BookingPage() {
     setIsSubmitting(false);
   };
 
-  // Progress dots
-  const totalSteps = isGrooming ? 7 : 5; // non-grooming skips steps 4,5
+  // Progress step tracking
   const currentStepIndex = isGrooming
     ? step
     : step <= 3
@@ -408,25 +407,57 @@ export function BookingPage() {
     ? 4
     : 5;
 
-  const renderProgressDots = () => (
-    <div className="flex items-center justify-center gap-2 py-4">
-      {Array.from({ length: totalSteps }, (_, i) => {
-        const dotStep = i + 1;
-        return (
-          <div
-            key={i}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              dotStep === currentStepIndex
-                ? 'bg-brand-blue w-6 rounded-full'
-                : dotStep < currentStepIndex
-                ? 'bg-brand-blue/40'
-                : 'bg-gray-300'
-            }`}
-          />
-        );
-      })}
-    </div>
-  );
+  const stepLabels = isGrooming
+    ? ['Service', 'Pet', 'Date', 'Time', 'Photo', 'Bundle', 'Review']
+    : ['Service', 'Pet', 'Date', 'Bundle', 'Review'];
+
+  const renderProgressSteps = () => {
+    const total = stepLabels.length;
+    const idx = currentStepIndex - 1; // 0-based
+
+    // Build visible indices: previous, current, next (with ellipsis for hidden)
+    const visibleIndices: (number | 'ellipsis-left' | 'ellipsis-right')[] = [];
+    if (idx > 1) visibleIndices.push('ellipsis-left');
+    if (idx > 0) visibleIndices.push(idx - 1);
+    visibleIndices.push(idx);
+    if (idx < total - 1) visibleIndices.push(idx + 1);
+    if (idx < total - 2) visibleIndices.push('ellipsis-right');
+
+    return (
+      <div className="flex items-center justify-center gap-3 py-3">
+        {visibleIndices.map((item, i) => {
+          if (item === 'ellipsis-left' || item === 'ellipsis-right') {
+            return (
+              <span key={item} className="text-xs text-gray-400 select-none">
+                ...
+              </span>
+            );
+          }
+          const stepIdx = item as number;
+          const isCurrent = stepIdx === idx;
+          const isPast = stepIdx < idx;
+          return (
+            <div key={i} className="flex flex-col items-center min-w-0">
+              <span
+                className={`text-xs whitespace-nowrap ${
+                  isCurrent
+                    ? 'text-brand-primary font-bold'
+                    : isPast
+                    ? 'text-brand-primary'
+                    : 'text-gray-400'
+                }`}
+              >
+                {stepLabels[stepIdx]}
+              </span>
+              {isCurrent && (
+                <div className="mt-1 h-0.5 w-full rounded-full bg-brand-primary" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderHeader = () => (
     <header className="bg-white shadow-sm">
@@ -438,18 +469,18 @@ export function BookingPage() {
               className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
               aria-label="Go back"
             >
-              <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-brand-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
           )}
           <div className="flex-1 flex items-center justify-center gap-3">
             <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
-            <h1 className="font-heading text-lg font-bold text-brand-navy">Book Appointment</h1>
+            <h1 className="font-heading text-lg font-bold text-brand-forest">Book Appointment</h1>
           </div>
           {step > 1 && !confirmedBooking && <div className="w-11" />}
         </div>
-        {!confirmedBooking && renderProgressDots()}
+        {!confirmedBooking && renderProgressSteps()}
       </div>
     </header>
   );
@@ -466,34 +497,34 @@ export function BookingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="font-heading text-2xl font-bold text-brand-navy mb-2">Booking Confirmed!</h2>
-            <p className="text-gray-600 mb-6">Your appointment has been submitted.</p>
+            <h2 className="font-heading text-2xl font-bold text-brand-forest mb-2">Booking Confirmed!</h2>
+            <p className="text-brand-forest-muted mb-6">Your appointment has been submitted.</p>
 
             <div className="bg-brand-cream rounded-xl p-4 mb-6 text-left space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Service</span>
-                <span className="font-semibold text-brand-navy">{confirmedBooking.serviceType.displayName}</span>
+                <span className="text-brand-forest-muted">Service</span>
+                <span className="font-semibold text-brand-forest">{confirmedBooking.serviceType.displayName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Date</span>
-                <span className="font-semibold text-brand-navy">{formatDate(confirmedBooking.date)}</span>
+                <span className="text-brand-forest-muted">Date</span>
+                <span className="font-semibold text-brand-forest">{formatDate(confirmedBooking.date)}</span>
               </div>
               {confirmedBooking.startTime && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Time</span>
-                  <span className="font-semibold text-brand-navy">{formatTime(confirmedBooking.startTime)}</span>
+                  <span className="text-brand-forest-muted">Time</span>
+                  <span className="font-semibold text-brand-forest">{formatTime(confirmedBooking.startTime)}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-gray-600">Dogs</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="text-brand-forest-muted">Dogs</span>
+                <span className="font-semibold text-brand-forest">
                   {confirmedBooking.dogs.length > 0
                     ? confirmedBooking.dogs.map((bd) => bd.dog.name).join(', ')
                     : 'Not provided'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Status</span>
+                <span className="text-brand-forest-muted">Status</span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 capitalize">
                   {confirmedBooking.status}
                 </span>
@@ -509,7 +540,7 @@ export function BookingPage() {
               </Button>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="w-full text-center text-sm text-brand-blue font-medium hover:underline py-2 min-h-[44px]"
+                className="w-full text-center text-sm text-brand-primary font-medium hover:underline py-2 min-h-[44px]"
               >
                 Back to Dashboard
               </button>
@@ -552,10 +583,10 @@ export function BookingPage() {
         {/* Step 1: Select Service */}
         {step === 1 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Choose a Service</h2>
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Choose a Service</h2>
             {isLoadingServices ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : (
               <div className="space-y-3">
@@ -563,23 +594,23 @@ export function BookingPage() {
                   <button
                     key={service.id}
                     onClick={() => handleServiceSelect(service)}
-                    className="w-full bg-white rounded-2xl shadow-md p-5 text-left hover:shadow-lg hover:ring-2 hover:ring-brand-blue transition-all min-h-[88px]"
+                    className="w-full bg-white rounded-2xl shadow-md p-5 text-left hover:shadow-lg hover:ring-2 hover:ring-brand-primary transition-all min-h-[88px]"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="font-heading text-lg font-bold text-brand-navy">
+                        <h3 className="font-heading text-lg font-bold text-brand-forest">
                           {service.displayName}
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                        <p className="text-sm text-brand-forest-muted mt-1">{service.description}</p>
                       </div>
                       <div className="ml-4 text-right flex-shrink-0">
-                        <p className="text-xl font-bold text-brand-blue">
+                        <p className="text-xl font-bold text-brand-primary">
                           {service.name === 'grooming'
                             ? `From ${formatPrice(service.basePriceCents)}+`
                             : formatPrice(service.basePriceCents)}
                         </p>
                         {service.durationMinutes && (
-                          <p className="text-xs text-gray-500">{service.durationMinutes} min</p>
+                          <p className="text-xs text-brand-forest-muted">{service.durationMinutes} min</p>
                         )}
                       </div>
                     </div>
@@ -593,27 +624,27 @@ export function BookingPage() {
         {/* Step 2: Select Dogs */}
         {step === 2 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">
+            <h2 className="font-heading text-xl font-bold text-brand-forest">
               {isGrooming ? 'Select Your Dog' : 'Select Your Dogs'}
             </h2>
             {isGrooming && (
-              <p className="text-sm text-gray-600">Grooming appointments are for one dog at a time.</p>
+              <p className="text-sm text-brand-forest-muted">Grooming appointments are for one dog at a time.</p>
             )}
             {isLoadingDogs ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : dogs.length === 0 && !showAddDog ? (
               <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-                <div className="mx-auto w-16 h-16 bg-brand-blue/10 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="mx-auto w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
-                <h3 className="font-heading text-lg font-bold text-brand-navy mb-2">
+                <h3 className="font-heading text-lg font-bold text-brand-forest mb-2">
                   Quick — what's your dog's name?
                 </h3>
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="text-sm text-brand-forest-muted mb-6">
                   Just a name is all we need to book. You can add more details later.
                 </p>
                 <Button className="w-full" size="lg" onClick={() => setShowAddDog(true)}>
@@ -621,7 +652,7 @@ export function BookingPage() {
                 </Button>
                 <button
                   onClick={goNext}
-                  className="w-full mt-3 py-3 text-sm text-gray-500 hover:text-brand-blue font-medium transition-colors min-h-[44px]"
+                  className="w-full mt-3 py-3 text-sm text-brand-forest-muted hover:text-brand-primary font-medium transition-colors min-h-[44px]"
                 >
                   Skip for now
                 </button>
@@ -631,8 +662,8 @@ export function BookingPage() {
               </div>
             ) : showAddDog && dogs.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
-                <h3 className="font-semibold text-brand-navy">Add Your Dog</h3>
-                <p className="text-sm text-gray-500">Just a name is enough to get started!</p>
+                <h3 className="font-semibold text-brand-forest">Add Your Dog</h3>
+                <p className="text-sm text-brand-forest-muted">Just a name is enough to get started!</p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                   <Input
@@ -678,25 +709,25 @@ export function BookingPage() {
                         onClick={() => handleDogToggle(dog.id)}
                         className={`w-full rounded-2xl p-4 text-left transition-all min-h-[68px] ${
                           isSelected
-                            ? 'bg-brand-blue/10 ring-2 ring-brand-blue shadow-md'
+                            ? 'bg-brand-primary/10 ring-2 ring-brand-primary shadow-md'
                             : 'bg-white shadow-md hover:shadow-lg'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
-                              isSelected ? 'bg-brand-blue' : 'bg-gray-300'
+                              isSelected ? 'bg-brand-primary' : 'bg-gray-300'
                             }`}
                           >
                             {dog.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1">
-                            <p className="font-semibold text-brand-navy">{dog.name}</p>
-                            {dog.breed && <p className="text-sm text-gray-500">{dog.breed}</p>}
+                            <p className="font-semibold text-brand-forest">{dog.name}</p>
+                            {dog.breed && <p className="text-sm text-brand-forest-muted">{dog.breed}</p>}
                           </div>
                           <div
                             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              isSelected ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'
+                              isSelected ? 'border-brand-primary bg-brand-primary' : 'border-gray-300'
                             }`}
                           >
                             {isSelected && (
@@ -711,7 +742,7 @@ export function BookingPage() {
                       {/* Inline size selector for grooming */}
                       {needsSize && sizePendingDogId === dog.id && (
                         <div className="mt-2 bg-white rounded-xl p-4 shadow-md">
-                          <p className="text-sm font-medium text-brand-navy mb-3">
+                          <p className="text-sm font-medium text-brand-forest mb-3">
                             What size is {dog.name}?
                           </p>
                           <div className="grid grid-cols-2 gap-2">
@@ -720,10 +751,10 @@ export function BookingPage() {
                                 key={opt.value}
                                 onClick={() => handleSizeUpdate(dog.id, opt.value)}
                                 disabled={updatingSize}
-                                className="py-3 px-3 rounded-xl border-2 border-gray-200 hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-center min-h-[44px]"
+                                className="py-3 px-3 rounded-xl border-2 border-gray-200 hover:border-brand-primary hover:bg-brand-primary/5 transition-all text-center min-h-[44px]"
                               >
-                                <p className="font-semibold text-brand-navy text-sm">{opt.label}</p>
-                                <p className="text-xs text-gray-500">{opt.desc}</p>
+                                <p className="font-semibold text-brand-forest text-sm">{opt.label}</p>
+                                <p className="text-xs text-brand-forest-muted">{opt.desc}</p>
                               </button>
                             ))}
                           </div>
@@ -737,13 +768,13 @@ export function BookingPage() {
                 {!showAddDog ? (
                   <button
                     onClick={() => setShowAddDog(true)}
-                    className="w-full text-sm text-brand-blue hover:text-brand-blue-dark font-medium py-2"
+                    className="w-full text-sm text-brand-primary hover:text-brand-primary-dark font-medium py-2"
                   >
                     + Add another dog
                   </button>
                 ) : (
                   <div className="bg-white rounded-2xl shadow-md p-4 space-y-3">
-                    <h3 className="font-semibold text-brand-navy text-sm">Add a Dog</h3>
+                    <h3 className="font-semibold text-brand-forest text-sm">Add a Dog</h3>
                     <Input
                       value={newDogName}
                       onChange={(e) => setNewDogName(e.target.value)}
@@ -798,10 +829,10 @@ export function BookingPage() {
         {/* Step 3: Select Date */}
         {step === 3 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Pick a Date</h2>
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Pick a Date</h2>
             {isLoadingAvailability ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : (
               <>
@@ -818,26 +849,23 @@ export function BookingPage() {
                         key={day.date}
                         onClick={() => handleDateSelect(day)}
                         disabled={!day.available}
-                        className={`rounded-xl p-3 text-center transition-all min-h-[72px] ${
+                        className={`rounded-xl p-2 text-center transition-all min-h-[52px] ${
                           isSelected
-                            ? 'bg-brand-blue text-white shadow-md'
+                            ? 'bg-brand-primary text-white shadow-md'
                             : day.available
-                            ? 'bg-white hover:ring-2 hover:ring-brand-blue shadow-sm'
+                            ? 'bg-white hover:ring-2 hover:ring-brand-primary shadow-sm'
                             : 'bg-gray-100 opacity-50 cursor-not-allowed'
                         }`}
                       >
-                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-brand-forest-muted'}`}>
                           {dayName}
                         </p>
-                        <p className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-brand-navy'}`}>
+                        <p className={`text-base font-bold ${isSelected ? 'text-white' : 'text-brand-forest'}`}>
                           {dayNum}
                         </p>
-                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-brand-forest-muted'}`}>
                           {monthName}
                         </p>
-                        {day.available && (
-                          <div className={`w-2 h-2 rounded-full mx-auto mt-1 ${isSelected ? 'bg-white' : 'bg-brand-soft-green'}`} />
-                        )}
                       </button>
                     );
                   })}
@@ -859,16 +887,16 @@ export function BookingPage() {
         {/* Step 4: Select Time (grooming only) */}
         {step === 4 && isGrooming && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Pick a Time</h2>
-            <p className="text-sm text-gray-600">
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Pick a Time</h2>
+            <p className="text-sm text-brand-forest-muted">
               {selectedDate && formatDate(selectedDate)}
             </p>
             {isLoadingSlots ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : groomingSlots.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-brand-forest-muted">
                 <p>No available slots for this date.</p>
                 <Button variant="outline" className="mt-4" onClick={goBack}>
                   Pick a different date
@@ -886,16 +914,16 @@ export function BookingPage() {
                         disabled={!slot.available}
                         className={`rounded-xl p-4 text-center transition-all min-h-[56px] ${
                           isSelected
-                            ? 'bg-brand-blue text-white shadow-md'
+                            ? 'bg-brand-primary text-white shadow-md'
                             : slot.available
-                            ? 'bg-white hover:ring-2 hover:ring-brand-blue shadow-sm'
+                            ? 'bg-white hover:ring-2 hover:ring-brand-primary shadow-sm'
                             : 'bg-gray-100 opacity-50 cursor-not-allowed'
                         }`}
                       >
-                        <p className={`font-semibold ${isSelected ? 'text-white' : 'text-brand-navy'}`}>
+                        <p className={`font-semibold ${isSelected ? 'text-white' : 'text-brand-forest'}`}>
                           {formatTime(slot.startTime)}
                         </p>
-                        <p className={`text-xs ${isSelected ? 'text-white/70' : 'text-gray-500'}`}>
+                        <p className={`text-xs ${isSelected ? 'text-white/70' : 'text-brand-forest-muted'}`}>
                           {slot.spotsRemaining} spot{slot.spotsRemaining !== 1 ? 's' : ''} left
                         </p>
                       </button>
@@ -919,20 +947,20 @@ export function BookingPage() {
         {/* Step 5: Photo Upload (grooming only, skippable) */}
         {step === 5 && isGrooming && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Coat Condition Photo</h2>
-            <p className="text-sm text-gray-600">
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Coat Condition Photo</h2>
+            <p className="text-sm text-brand-forest-muted">
               Upload a photo of your dog's coat to help us prepare for the appointment. This is optional.
             </p>
 
             {groomingPriceRange && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-brand-forest-muted">
                   Grooming price range for your dog's size:
                 </p>
-                <p className="text-lg font-bold text-brand-navy">
+                <p className="text-lg font-bold text-brand-forest">
                   {formatPrice(groomingPriceRange.min)} - {formatPrice(groomingPriceRange.max)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-brand-forest-muted mt-1">
                   Final price depends on coat condition and services needed.
                 </p>
               </div>
@@ -954,12 +982,12 @@ export function BookingPage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center py-8 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue transition-colors min-h-[120px]">
+                <label className="flex flex-col items-center justify-center py-8 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-primary transition-colors min-h-[120px]">
                   <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <p className="text-sm text-gray-600">Tap to take or upload a photo</p>
+                  <p className="text-sm text-brand-forest-muted">Tap to take or upload a photo</p>
                   <input
                     type="file"
                     accept="image/*"
@@ -995,13 +1023,13 @@ export function BookingPage() {
         {/* Step 6: Bundle Upsell */}
         {step === 6 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Save with a Bundle</h2>
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Save with a Bundle</h2>
             {isLoadingBundles ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
             ) : bundles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-brand-forest-muted">
                 <p>No bundle deals available right now.</p>
               </div>
             ) : (
@@ -1020,15 +1048,15 @@ export function BookingPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-brand-navy">{bundle.name}</h3>
+                          <h3 className="font-semibold text-brand-forest">{bundle.name}</h3>
                           {bundle.description && (
-                            <p className="text-sm text-gray-600 mt-1">{bundle.description}</p>
+                            <p className="text-sm text-brand-forest-muted mt-1">{bundle.description}</p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-1">
                             {bundle.items.map((item) => (
                               <span
                                 key={item.id}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-brand-cream text-brand-navy"
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-brand-cream text-brand-forest"
                               >
                                 {item.serviceType.displayName}
                               </span>
@@ -1036,7 +1064,7 @@ export function BookingPage() {
                           </div>
                         </div>
                         <div className="ml-3 flex-shrink-0">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-bold bg-brand-golden-yellow/20 text-brand-navy">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-bold bg-brand-golden-yellow/20 text-brand-forest">
                             {bundle.discountType === 'percentage'
                               ? `${bundle.discountValue}% off`
                               : `${formatPrice(bundle.discountValue)} off`}
@@ -1050,14 +1078,14 @@ export function BookingPage() {
                 {bundleCalc && selectedBundle && (
                   <div className="bg-white rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Base total</span>
-                      <span className="text-gray-600">{formatPrice(bundleCalc.baseTotalCents)}</span>
+                      <span className="text-brand-forest-muted">Base total</span>
+                      <span className="text-brand-forest-muted">{formatPrice(bundleCalc.baseTotalCents)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-brand-soft-green mt-1">
                       <span>Bundle savings</span>
                       <span>-{formatPrice(bundleCalc.discountCents)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-brand-navy mt-2 pt-2 border-t">
+                    <div className="flex justify-between font-bold text-brand-forest mt-2 pt-2 border-t">
                       <span>Total</span>
                       <span>{formatPrice(bundleCalc.finalTotalCents)}</span>
                     </div>
@@ -1094,7 +1122,7 @@ export function BookingPage() {
         {/* Step 7: Review & Confirm */}
         {step === 7 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-navy">Review & Confirm</h2>
+            <h2 className="font-heading text-xl font-bold text-brand-forest">Review & Confirm</h2>
 
             {/* Quick Add Pet — shown when user reached checkout without selecting a dog */}
             {selectedDogIds.length === 0 && (
@@ -1106,8 +1134,8 @@ export function BookingPage() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-brand-navy text-base">Quick Add Your Pet</h3>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <h3 className="font-semibold text-brand-forest text-base">Quick Add Your Pet</h3>
+                    <p className="text-sm text-brand-forest-muted mt-0.5">
                       Just a name is all we need to complete your booking.
                     </p>
                   </div>
@@ -1148,38 +1176,38 @@ export function BookingPage() {
 
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">Service</span>
-                <span className="font-semibold text-brand-navy">{selectedService?.displayName}</span>
+                <span className="text-brand-forest-muted">Service</span>
+                <span className="font-semibold text-brand-forest">{selectedService?.displayName}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="text-brand-forest-muted">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
+                <span className="font-semibold text-brand-forest">
                   {selectedDogIds.length > 0
                     ? selectedDogIds.map((id) => dogs.find((d) => d.id === id)?.name).filter(Boolean).join(', ')
                     : 'Not added yet'}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">Date</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="text-brand-forest-muted">Date</span>
+                <span className="font-semibold text-brand-forest">
                   {selectedDate && formatDate(selectedDate)}
                 </span>
               </div>
               {selectedTime && (
                 <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Time</span>
-                  <span className="font-semibold text-brand-navy">{formatTime(selectedTime)}</span>
+                  <span className="text-brand-forest-muted">Time</span>
+                  <span className="font-semibold text-brand-forest">{formatTime(selectedTime)}</span>
                 </div>
               )}
               {selectedBundle && bundleCalc && (
                 <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Bundle</span>
+                  <span className="text-brand-forest-muted">Bundle</span>
                   <span className="font-semibold text-brand-soft-green">{selectedBundle.name}</span>
                 </div>
               )}
               <div className="flex justify-between py-2">
-                <span className="text-gray-600">Estimated Total</span>
-                <span className="text-xl font-bold text-brand-navy">
+                <span className="text-brand-forest-muted">Estimated Total</span>
+                <span className="text-xl font-bold text-brand-forest">
                   {bundleCalc
                     ? formatPrice(bundleCalc.finalTotalCents)
                     : selectedService
@@ -1197,7 +1225,7 @@ export function BookingPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent resize-none"
+                className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
                 placeholder="Any special requests or things we should know..."
               />
             </div>

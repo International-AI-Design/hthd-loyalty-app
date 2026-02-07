@@ -36,7 +36,7 @@ export function AppShell({ children, title, showBack, hideNav, headerRight }: Ap
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xl">🐾</span>
-                <span className="font-heading font-semibold text-brand-forest text-lg">Happy Tail</span>
+                <span className="font-heading font-semibold text-brand-forest text-lg">Happy Tail Happy Dog</span>
               </div>
             )}
           </div>
