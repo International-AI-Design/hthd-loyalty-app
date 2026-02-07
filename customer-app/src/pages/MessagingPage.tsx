@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { messagingApi } from '../lib/api';
+import { messagingApi, customerApi } from '../lib/api';
+import type { Dog } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui';
 
@@ -11,6 +12,8 @@ interface Message {
   senderName: string | null;
   content: string;
   createdAt: string;
+  readAt?: string | null;
+  photoUrl?: string | null;
 }
 
 interface Conversation {
@@ -19,7 +22,17 @@ interface Conversation {
   createdAt: string;
   lastMessageAt: string | null;
   unreadCount: number;
+  dogId?: string | null;
+  dogName?: string | null;
 }
+
+const QUICK_REPLIES = [
+  { id: 'hours', text: 'What are your hours?', icon: '🕐' },
+  { id: 'booking', text: 'I need to reschedule', icon: '📅' },
+  { id: 'pickup', text: 'When can I pick up?', icon: '🏠' },
+  { id: 'update', text: "How's my dog doing?", icon: '🐾' },
+  { id: 'pricing', text: 'Grooming pricing?', icon: '✂️' },
+];
 
 export function MessagingPage() {
   const navigate = useNavigate();
@@ -30,6 +43,7 @@ export function MessagingPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [dogs, setDogs] = useState<Dog[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -37,8 +51,8 @@ export function MessagingPage() {
   const [messageInput, setMessageInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(true);
 
-  // Poll interval ref
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -52,7 +66,6 @@ export function MessagingPage() {
     } else if (data) {
       const convos = Array.isArray(data) ? data : (data as any).conversations || [];
       setConversations(convos);
-      // Auto-open the most recent active conversation
       const active = convos.find((c: Conversation) => c.status === 'active');
       if (active && !activeConversationId) {
         setActiveConversationId(active.id);
@@ -69,28 +82,28 @@ export function MessagingPage() {
     } else if (data) {
       const msgs = Array.isArray(data) ? data : (data as any).messages || [];
       setMessages(msgs);
+      if (msgs.length > 0) setShowQuickReplies(false);
     }
     setIsLoadingMessages(false);
   }, []);
 
-  // Load conversations on mount
   useEffect(() => {
     fetchConversations();
+    customerApi.getDogs().then(({ data }) => {
+      if (data) setDogs(data.dogs);
+    });
   }, [fetchConversations]);
 
-  // Load messages when active conversation changes
   useEffect(() => {
     if (activeConversationId) {
       fetchMessages(activeConversationId);
     }
   }, [activeConversationId, fetchMessages]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Poll for new messages every 5 seconds
   useEffect(() => {
     if (activeConversationId) {
       pollRef.current = setInterval(async () => {
@@ -112,48 +125,47 @@ export function MessagingPage() {
     };
   }, [activeConversationId]);
 
-  const handleStartConversation = async () => {
+  const handleStartConversation = async (dogId?: string) => {
     setIsCreating(true);
     setError(null);
-    const { data, error: createErr } = await messagingApi.startConversation();
+    const { data, error: createErr } = await messagingApi.startConversation(dogId);
     if (createErr) {
       setError(createErr);
     } else if (data) {
       const convo = (data as any).conversation || data;
       setActiveConversationId(convo.id);
       setMessages([]);
+      setShowQuickReplies(true);
       fetchConversations();
     }
     setIsCreating(false);
   };
 
-  const handleSendMessage = async () => {
-    if (!activeConversationId || !messageInput.trim() || isSending) return;
-    const content = messageInput.trim();
+  const handleSendMessage = async (content?: string) => {
+    const text = content || messageInput.trim();
+    if (!activeConversationId || !text || isSending) return;
     setMessageInput('');
     setIsSending(true);
     setIsAiTyping(true);
+    setShowQuickReplies(false);
 
-    // Optimistic update
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       conversationId: activeConversationId,
       senderType: 'customer',
       senderName: customer?.first_name || null,
-      content,
+      content: text,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticMsg]);
     scrollToBottom();
 
-    const { error: sendErr } = await messagingApi.sendMessage(activeConversationId, content);
+    const { error: sendErr } = await messagingApi.sendMessage(activeConversationId, text);
     if (sendErr) {
       setError(sendErr);
       setIsAiTyping(false);
-      // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
     } else {
-      // Fetch fresh messages to get server response
       const { data } = await messagingApi.getMessages(activeConversationId);
       if (data) {
         const msgs = Array.isArray(data) ? data : (data as any).messages || [];
@@ -173,8 +185,7 @@ export function MessagingPage() {
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
   const formatDate = (dateString: string) => {
@@ -182,13 +193,11 @@ export function MessagingPage() {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-
     if (date.toDateString() === today.toDateString()) return 'Today';
     if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Group messages by date
   const groupedMessages = messages.reduce<Record<string, Message[]>>((groups, msg) => {
     const dateKey = new Date(msg.createdAt).toDateString();
     if (!groups[dateKey]) groups[dateKey] = [];
@@ -199,7 +208,7 @@ export function MessagingPage() {
   const getSenderIcon = (senderType: string) => {
     if (senderType === 'ai') {
       return (
-        <div className="w-8 h-8 rounded-full bg-brand-blue flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-brand-sage flex items-center justify-center flex-shrink-0">
           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
@@ -208,7 +217,7 @@ export function MessagingPage() {
     }
     if (senderType === 'staff') {
       return (
-        <div className="w-8 h-8 rounded-full bg-brand-navy flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center flex-shrink-0">
           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
@@ -218,25 +227,46 @@ export function MessagingPage() {
     return null;
   };
 
-  // No conversation selected / conversation list view
+  // Conversation list view
   if (!activeConversationId && !isLoadingConversations) {
     return (
-      <div className="min-h-screen bg-brand-warm-white flex flex-col">
-        {/* Header */}
-        <header className="bg-white shadow-sm flex-shrink-0">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
-              <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      <div className="min-h-[100dvh] bg-brand-cream flex flex-col">
+        <header className="bg-white/80 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0">
+          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+            <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-brand-sand transition-colors">
+              <svg className="w-5 h-5 text-brand-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </button>
-            <h1 className="font-heading text-xl font-bold text-brand-navy">Messages</h1>
+            <h1 className="font-heading text-lg font-semibold text-brand-forest">Messages</h1>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 py-6 flex-1 w-full">
+        <main className="max-w-lg mx-auto px-4 py-6 flex-1 w-full">
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
+            <div className="mb-4 p-3 bg-brand-error/10 border border-brand-error/20 rounded-2xl text-brand-error text-sm">{error}</div>
+          )}
+
+          {/* Pet-specific thread starters */}
+          {dogs.length > 0 && (
+            <div className="mb-6">
+              <p className="text-sm font-medium text-brand-forest-muted mb-3">Start a conversation about...</p>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {dogs.map((dog) => (
+                  <button
+                    key={dog.id}
+                    onClick={() => handleStartConversation(dog.id)}
+                    disabled={isCreating}
+                    className="flex flex-col items-center gap-1.5 min-w-[72px] p-3 bg-white rounded-2xl shadow-warm-sm border border-brand-sand/50 hover:shadow-warm transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-brand-sage/10 flex items-center justify-center">
+                      <span className="font-pet font-bold text-brand-sage text-lg">{dog.name.charAt(0)}</span>
+                    </div>
+                    <span className="font-pet text-xs font-semibold text-brand-forest truncate max-w-[64px]">{dog.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {conversations.length > 0 ? (
@@ -245,25 +275,29 @@ export function MessagingPage() {
                 <button
                   key={convo.id}
                   onClick={() => setActiveConversationId(convo.id)}
-                  className="w-full bg-white rounded-xl shadow-sm p-4 text-left hover:shadow-md transition-shadow min-h-[64px] flex items-center justify-between"
+                  className="w-full bg-white rounded-2xl shadow-warm-sm p-4 text-left hover:shadow-warm transition-all min-h-[64px] flex items-center justify-between border border-brand-sand/30"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${convo.status === 'active' ? 'bg-brand-blue' : 'bg-gray-300'}`}>
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${convo.status === 'active' ? 'bg-brand-sage/10' : 'bg-brand-sand'}`}>
+                      {convo.dogName ? (
+                        <span className="font-pet font-bold text-brand-sage">{convo.dogName.charAt(0)}</span>
+                      ) : (
+                        <svg className={`w-5 h-5 ${convo.status === 'active' ? 'text-brand-sage' : 'text-brand-forest-muted'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      )}
                     </div>
                     <div>
-                      <p className="font-semibold text-brand-navy">
-                        {convo.status === 'active' ? 'Active Conversation' : 'Closed Conversation'}
+                      <p className="font-semibold text-brand-forest text-sm">
+                        {convo.dogName ? `About ${convo.dogName}` : convo.status === 'active' ? 'Active Conversation' : 'Closed Conversation'}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs text-brand-forest-muted">
                         {convo.lastMessageAt ? formatDate(convo.lastMessageAt) : 'No messages yet'}
                       </p>
                     </div>
                   </div>
                   {convo.unreadCount > 0 && (
-                    <span className="bg-brand-coral text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                    <span className="bg-brand-primary text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
                       {convo.unreadCount}
                     </span>
                   )}
@@ -272,19 +306,17 @@ export function MessagingPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto bg-brand-cream rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+              <div className="w-16 h-16 mx-auto bg-brand-sage/10 rounded-full flex items-center justify-center mb-4">
+                <span className="text-2xl">💬</span>
               </div>
-              <h3 className="font-heading text-lg font-semibold text-brand-navy mb-2">No conversations yet</h3>
-              <p className="text-gray-500 text-sm mb-6">Start a conversation with us! Our AI assistant is here to help 24/7.</p>
+              <h3 className="font-heading text-lg font-semibold text-brand-forest mb-2">No conversations yet</h3>
+              <p className="text-brand-forest-muted text-sm mb-6">Our AI assistant is here to help 24/7</p>
             </div>
           )}
 
           <div className="mt-6">
             <Button
-              onClick={handleStartConversation}
+              onClick={() => handleStartConversation()}
               isLoading={isCreating}
               className="w-full"
             >
@@ -297,10 +329,10 @@ export function MessagingPage() {
   }
 
   return (
-    <div className="h-[100dvh] bg-brand-warm-white flex flex-col">
+    <div className="h-[100dvh] bg-brand-cream flex flex-col">
       {/* Chat Header */}
-      <header className="bg-white shadow-sm flex-shrink-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="bg-white/90 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0 z-10">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => {
               if (conversations.length > 1) {
@@ -309,50 +341,47 @@ export function MessagingPage() {
                 navigate('/dashboard');
               }
             }}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-brand-sand transition-colors"
           >
-            <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg className="w-5 h-5 text-brand-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="font-heading text-lg font-bold text-brand-navy">Happy Tail Happy Dog</h1>
-            <p className="text-xs text-gray-500">We typically respond within a few minutes</p>
+            <h1 className="font-heading text-lg font-semibold text-brand-forest">Happy Tail</h1>
+            <p className="text-xs text-brand-forest-muted">AI Assistant + Staff Support</p>
           </div>
-          <div className="w-3 h-3 bg-brand-soft-green rounded-full" title="Online" />
+          <div className="w-3 h-3 bg-brand-success rounded-full" title="Online" />
         </div>
       </header>
 
       {/* AI disclaimer */}
-      <div className="bg-brand-cream border-b border-brand-light-gray px-4 py-2 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-gray-600">
-          <svg className="w-4 h-4 text-brand-blue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
+      <div className="bg-brand-sage/5 border-b border-brand-sand/30 px-4 py-2 flex-shrink-0">
+        <div className="max-w-lg mx-auto flex items-center gap-2 text-xs text-brand-forest-muted">
+          <span className="text-sm">🤖</span>
           <span>Powered by AI assistant. A team member can join anytime.</span>
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-lg mx-auto space-y-4">
           {isLoadingMessages ? (
             <div className="flex justify-center py-12">
-              <svg className="animate-spin h-8 w-8 text-brand-blue" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-8 w-8 text-brand-primary" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-8 text-brand-forest-muted">
               <p className="text-sm">Send a message to get started!</p>
             </div>
           ) : (
             Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
               <div key={dateKey}>
-                {/* Date separator */}
                 <div className="flex items-center justify-center mb-4">
-                  <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                  <span className="bg-brand-sand text-brand-forest-muted text-xs px-3 py-1 rounded-full font-medium">
                     {formatDate(dateMessages[0].createdAt)}
                   </span>
                 </div>
@@ -363,27 +392,35 @@ export function MessagingPage() {
                     return (
                       <div key={msg.id} className={`flex ${isCustomer ? 'justify-end' : 'justify-start'} gap-2`}>
                         {!isCustomer && getSenderIcon(msg.senderType)}
-                        <div className={`max-w-[80%] sm:max-w-[70%]`}>
+                        <div className="max-w-[80%]">
                           {!isCustomer && msg.senderName && (
-                            <p className="text-xs text-gray-500 mb-0.5 ml-1">
+                            <p className="text-xs text-brand-forest-muted mb-0.5 ml-1">
                               {msg.senderName}
                               {msg.senderType === 'ai' && (
-                                <span className="ml-1 text-brand-blue">(AI)</span>
+                                <span className="ml-1 text-brand-sage">(AI)</span>
                               )}
                             </p>
                           )}
                           <div
                             className={`rounded-2xl px-4 py-2.5 ${
                               isCustomer
-                                ? 'bg-brand-blue text-white rounded-br-md'
-                                : 'bg-white text-gray-800 shadow-sm rounded-bl-md border border-gray-100'
+                                ? 'bg-brand-primary text-white rounded-br-md'
+                                : 'bg-white text-brand-forest shadow-warm-sm rounded-bl-md border border-brand-sand/30'
                             }`}
                           >
+                            {msg.photoUrl && (
+                              <img src={msg.photoUrl} alt="" className="rounded-xl mb-2 max-w-full" />
+                            )}
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           </div>
-                          <p className={`text-xs mt-1 ${isCustomer ? 'text-right' : 'text-left'} text-gray-400`}>
-                            {formatTime(msg.createdAt)}
-                          </p>
+                          <div className={`flex items-center gap-1.5 mt-1 ${isCustomer ? 'justify-end' : 'justify-start'}`}>
+                            <p className="text-[11px] text-brand-forest-muted">{formatTime(msg.createdAt)}</p>
+                            {isCustomer && msg.readAt && (
+                              <svg className="w-3.5 h-3.5 text-brand-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -396,16 +433,14 @@ export function MessagingPage() {
           {/* AI typing indicator */}
           {isAiTyping && (
             <div className="flex justify-start gap-2">
-              <div className="w-8 h-8 rounded-full bg-brand-blue flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+              <div className="w-8 h-8 rounded-full bg-brand-sage flex items-center justify-center flex-shrink-0">
+                <span className="text-sm">🤖</span>
               </div>
-              <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-warm-sm border border-brand-sand/30">
                 <div className="flex gap-1.5">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -415,12 +450,34 @@ export function MessagingPage() {
         </div>
       </div>
 
+      {/* Quick Replies */}
+      {showQuickReplies && messages.length <= 1 && (
+        <div className="bg-white/80 backdrop-blur-sm border-t border-brand-sand/30 px-4 py-3 flex-shrink-0">
+          <div className="max-w-lg mx-auto">
+            <p className="text-xs text-brand-forest-muted mb-2 font-medium">Quick replies</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {QUICK_REPLIES.map((qr) => (
+                <button
+                  key={qr.id}
+                  onClick={() => handleSendMessage(qr.text)}
+                  disabled={isSending}
+                  className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-full border border-brand-sand bg-white text-xs font-medium text-brand-forest hover:border-brand-primary hover:text-brand-primary transition-colors min-h-[36px]"
+                >
+                  <span>{qr.icon}</span>
+                  {qr.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error bar */}
       {error && (
-        <div className="bg-red-50 border-t border-red-200 px-4 py-2 flex-shrink-0">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-red-700">{error}</p>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px] flex items-center justify-center">
+        <div className="bg-brand-error/10 border-t border-brand-error/20 px-4 py-2 flex-shrink-0">
+          <div className="max-w-lg mx-auto flex items-center justify-between">
+            <p className="text-sm text-brand-error">{error}</p>
+            <button onClick={() => setError(null)} className="text-brand-error hover:text-brand-error min-h-[44px] min-w-[44px] flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -430,8 +487,8 @@ export function MessagingPage() {
       )}
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0 safe-area-bottom">
-        <div className="max-w-4xl mx-auto flex items-end gap-3">
+      <div className="bg-white border-t border-brand-sand/50 px-4 py-3 flex-shrink-0 safe-area-bottom">
+        <div className="max-w-lg mx-auto flex items-end gap-3">
           <textarea
             ref={inputRef}
             value={messageInput}
@@ -439,16 +496,16 @@ export function MessagingPage() {
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             rows={1}
-            className="flex-1 resize-none rounded-2xl border border-brand-light-gray px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px] max-h-[120px]"
+            className="flex-1 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />
           <button
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             disabled={!messageInput.trim() || isSending}
-            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-colors ${
+            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${
               messageInput.trim() && !isSending
-                ? 'bg-brand-blue text-white hover:bg-brand-blue-dark'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-warm'
+                : 'bg-brand-sand text-brand-forest-muted cursor-not-allowed'
             }`}
           >
             {isSending ? (
@@ -457,8 +514,8 @@ export function MessagingPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
               </svg>
             )}
           </button>
@@ -467,4 +524,3 @@ export function MessagingPage() {
     </div>
   );
 }
-

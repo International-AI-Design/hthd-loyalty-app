@@ -34,10 +34,7 @@ export function LoginPage() {
   const onSubmit = async (formData: LoginFormData) => {
     setServerError(null);
 
-    // Trim whitespace from identifier (handles copy/paste issues)
     const identifier = formData.identifier.trim();
-
-    // Determine if identifier is email or phone
     const isEmail = identifier.includes('@');
     const loginData = isEmail
       ? { email: identifier, password: formData.password }
@@ -46,7 +43,6 @@ export function LoginPage() {
     const { data, error, details } = await authApi.login(loginData);
 
     if (error) {
-      // Check if this is an unclaimed account error
       const errorDetails = details as { unclaimed?: boolean; redirect?: string } | undefined;
       if (errorDetails?.unclaimed) {
         navigate('/claim');
@@ -57,7 +53,6 @@ export function LoginPage() {
     }
 
     if (data) {
-      // Returning user — mark as visited so dashboard shows 'Welcome back'
       localStorage.setItem('hthd_has_visited', 'true');
       login(data.token, data.customer);
       navigate('/dashboard');
@@ -65,21 +60,25 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-warm-white flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-brand-navy font-heading">Happy Tail Happy Dog</h1>
-            <p className="text-gray-600 mt-2">Sign in to your loyalty account</p>
+    <div className="min-h-[100dvh] bg-brand-cream flex items-center justify-center px-5 py-8">
+      <div className="w-full max-w-md animate-fade-in">
+        {/* Logo area */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-primary/10 rounded-full mb-4">
+            <span className="text-3xl">🐾</span>
           </div>
+          <h1 className="text-3xl font-heading font-bold text-brand-forest">Happy Tail</h1>
+          <p className="text-brand-forest-muted mt-1">Welcome back to the pack</p>
+        </div>
 
+        <div className="bg-white rounded-3xl shadow-warm-lg p-7 border border-brand-sand/30">
           {serverError && (
-            <Alert variant="error" className="mb-6">
+            <Alert variant="error" className="mb-5">
               {serverError}
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <Input
               label="Email or Phone"
               type="text"
@@ -102,7 +101,7 @@ export function LoginPage() {
               <Checkbox label="Remember me" {...register('remember_me')} />
               <Link
                 to="/forgot-password"
-                className="text-sm text-brand-blue hover:text-brand-blue-dark"
+                className="text-sm text-brand-primary hover:text-brand-primary-dark font-medium"
               >
                 Forgot password?
               </Link>
@@ -113,31 +112,31 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-gray-600">
+          <p className="mt-6 text-center text-brand-forest-muted">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-brand-blue hover:text-brand-blue-dark font-medium">
+            <Link to="/register" className="text-brand-primary hover:text-brand-primary-dark font-semibold">
               Create one
             </Link>
           </p>
 
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-center text-gray-600">
+          <div className="mt-5 pt-5 border-t border-brand-sand">
+            <p className="text-center text-brand-forest-muted">
               Received an invite?{' '}
-              <Link to="/claim" className="text-brand-blue hover:text-brand-blue-dark font-medium">
+              <Link to="/claim" className="text-brand-primary hover:text-brand-primary-dark font-semibold">
                 Claim your account
               </Link>
             </p>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-brand-forest-muted">
           Earn points on every visit and redeem for grooming discounts!
         </p>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          <Link to="/privacy" className="hover:text-brand-blue">Privacy Policy</Link>
+        <p className="mt-6 text-center text-xs text-brand-forest-muted/60">
+          <Link to="/privacy" className="hover:text-brand-primary">Privacy Policy</Link>
           {' · '}
-          <Link to="/terms" className="hover:text-brand-blue">Terms & Conditions</Link>
+          <Link to="/terms" className="hover:text-brand-primary">Terms & Conditions</Link>
         </p>
       </div>
     </div>

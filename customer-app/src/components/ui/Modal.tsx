@@ -5,11 +5,11 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -37,27 +37,32 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   if (!isOpen) return null;
 
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+  };
+
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-brand-forest/40 backdrop-blur-sm p-0 sm:p-4 animate-fade-in"
       onClick={handleOverlayClick}
     >
       <div
-        ref={modalRef}
-        className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className={`bg-white rounded-t-3xl sm:rounded-3xl shadow-warm-xl ${sizeClasses[size]} w-full max-h-[85vh] overflow-y-auto animate-slide-up`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
       >
         {title && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
+          <div className="flex items-center justify-between p-5 border-b border-brand-sand">
+            <h2 id="modal-title" className="text-lg font-heading font-semibold text-brand-forest">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-brand-forest-muted hover:text-brand-forest transition-colors p-1 rounded-full hover:bg-brand-sand"
               aria-label="Close modal"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +71,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             </button>
           </div>
         )}
-        <div className="p-4">{children}</div>
+        <div className="p-5">{children}</div>
       </div>
     </div>
   );

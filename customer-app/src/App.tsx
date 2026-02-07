@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { RegisterPage, LoginPage, ClaimPage, DashboardPage, ForgotPasswordPage, BookingPage, BookingsPage, CheckoutPage, CheckoutConfirmationPage, PrivacyPolicyPage, TermsPage, DogProfilePage, MessagingPage, ReportCardsPage } from './pages';
+import { RegisterPage, LoginPage, ClaimPage, DashboardPage, ForgotPasswordPage, BookingPage, BookingsPage, CheckoutPage, CheckoutConfirmationPage, PrivacyPolicyPage, TermsPage, DogProfilePage, MessagingPage, ReportCardsPage, MyPetsPage, RewardsPage, SettingsPage, ActivityFeedPage } from './pages';
 
 function App() {
   return (
@@ -73,6 +73,38 @@ function App() {
             element={
               <ProtectedRoute>
                 <ReportCardsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-pets"
+            element={
+              <ProtectedRoute>
+                <MyPetsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activity"
+            element={
+              <ProtectedRoute>
+                <ActivityFeedPage />
               </ProtectedRoute>
             }
           />

@@ -35,6 +35,8 @@ import v2AdminDogProfileRoutes from './modules/dog-profile/admin-router';
 import v2MessagingRoutes from './modules/messaging/router';
 import v2AdminMessagingRoutes from './modules/messaging/admin-router';
 import v2AdminSchedulesRoutes from './modules/staff-schedule/admin-router';
+import v2NotificationsRoutes from './modules/notifications/router';
+import v2ActivitiesRoutes from './modules/activities/router';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -105,6 +107,8 @@ app.use('/api/v2/admin/dogs', v2AdminDogProfileRoutes);
 app.use('/api/v2/admin/messaging', v2AdminMessagingRoutes);
 app.use('/api/v2/admin/schedules', v2AdminSchedulesRoutes);
 app.use('/api/v2/admin/checkout', adminCheckoutRouter);
+app.use('/api/v2/notifications', v2NotificationsRoutes);
+app.use('/api/v2/activities', v2ActivitiesRoutes);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

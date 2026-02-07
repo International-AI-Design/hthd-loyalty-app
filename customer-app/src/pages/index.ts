@@ -12,3 +12,7 @@ export { TermsPage } from './TermsPage';
 export { DogProfilePage } from './DogProfilePage';
 export { MessagingPage } from './MessagingPage';
 export { ReportCardsPage } from './ReportCardsPage';
+export { MyPetsPage } from './MyPetsPage';
+export { RewardsPage } from './RewardsPage';
+export { SettingsPage } from './SettingsPage';
+export { ActivityFeedPage } from './ActivityFeedPage';

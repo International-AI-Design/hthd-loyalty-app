@@ -1,15 +1,144 @@
 @import "tailwindcss";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource/quicksand/400.css";
+@import "@fontsource/quicksand/500.css";
+@import "@fontsource/quicksand/600.css";
+@import "@fontsource/quicksand/700.css";
 
 @theme {
-  --color-brand-blue: #62A2C3;
-  --color-brand-blue-dark: #4F8BA8;
-  --color-brand-navy: #1B365D;
-  --color-brand-cream: #FDF8F3;
-  --color-brand-warm-white: #F8F6F3;
-  --color-brand-coral: #E8837B;
-  --color-brand-golden-yellow: #F5C65D;
-  --color-brand-soft-green: #7FB685;
+  /* Primary - Terracotta */
+  --color-brand-primary: #C2704E;
+  --color-brand-primary-light: #D4896B;
+  --color-brand-primary-dark: #A85D3E;
 
-  --font-heading: 'Playfair Display', Georgia, serif;
-  --font-body: 'Open Sans', sans-serif;
+  /* Secondary - Sage Green */
+  --color-brand-sage: #8BA888;
+  --color-brand-sage-light: #A3BDA0;
+  --color-brand-sage-dark: #6F8E6C;
+
+  /* Surfaces */
+  --color-brand-cream: #FAF6F1;
+  --color-brand-warm-white: #FFF8F2;
+  --color-brand-sand: #F0E8DE;
+
+  /* Accents */
+  --color-brand-amber: #D4A843;
+  --color-brand-amber-light: #E4C06A;
+  --color-brand-amber-dark: #B8912E;
+
+  /* Text */
+  --color-brand-forest: #2C3E2D;
+  --color-brand-forest-light: #4A5E4B;
+  --color-brand-forest-muted: #6B7D6C;
+
+  /* Status */
+  --color-brand-success: #7FB685;
+  --color-brand-warning: #D4A843;
+  --color-brand-error: #C2584E;
+  --color-brand-info: #8BA888;
+
+  /* Dark mode */
+  --color-brand-dark-bg: #1A2A1B;
+  --color-brand-dark-surface: #243226;
+  --color-brand-dark-elevated: #2E3F30;
+  --color-brand-dark-border: #3D5240;
+
+  /* Legacy compatibility tokens */
+  --color-brand-blue: #C2704E;
+  --color-brand-blue-dark: #A85D3E;
+  --color-brand-navy: #2C3E2D;
+  --color-brand-coral: #C2584E;
+  --color-brand-golden-yellow: #D4A843;
+  --color-brand-soft-green: #8BA888;
+  --color-brand-light-gray: #E8E0D6;
+  --color-brand-soft-cream: #FAF6F1;
+
+  /* Typography */
+  --font-heading: 'Fraunces Variable', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-pet: 'Quicksand', sans-serif;
+}
+
+/* Base styles */
+html {
+  font-family: var(--font-body);
+  color: #2C3E2D;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #FAF6F1;
+  min-height: 100dvh;
+}
+
+/* Dark mode base */
+html.dark body {
+  background-color: #1A2A1B;
+  color: #E8E0D6;
+}
+
+/* Heading defaults */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: #2C3E2D;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6 {
+  color: #FAF6F1;
+}
+
+/* Pet name styling */
+.font-pet {
+  font-family: var(--font-pet);
+  font-weight: 600;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Touch targets */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C2704E33;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C2704E66;
+}
+
+/* Focus visible ring */
+*:focus-visible {
+  outline: 2px solid #C2704E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Selection */
+::selection {
+  background-color: #C2704E22;
+  color: #2C3E2D;
 }

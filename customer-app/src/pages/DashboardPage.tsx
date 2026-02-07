@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { customerApi, bookingApi } from '../lib/api';
 import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking } from '../lib/api';
 import { Button, Modal, Alert, Toast } from '../components/ui';
 import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
+import { AppShell } from '../components/AppShell';
 import { useNavigate } from 'react-router-dom';
 
 const POINTS_CAP = 500;
@@ -15,35 +16,57 @@ const REWARD_TIERS = [
   { points: 500, discount: 50 },
 ];
 
+// --- Skeleton loaders ---
+
+function SkeletonPulse({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse bg-brand-sand/60 rounded-2xl ${className}`} />;
+}
+
+function HeroSkeleton() {
+  return (
+    <div className="rounded-3xl p-6 space-y-4" style={{ background: 'linear-gradient(135deg, #C2704E 0%, #A85D3E 60%, #D4A843 100%)' }}>
+      <SkeletonPulse className="h-6 w-40 !bg-white/20" />
+      <SkeletonPulse className="h-16 w-32 mx-auto !bg-white/20" />
+      <SkeletonPulse className="h-4 w-48 mx-auto !bg-white/20" />
+    </div>
+  );
+}
+
+function CardSkeleton({ lines = 3 }: { lines?: number }) {
+  return (
+    <div className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5 space-y-3">
+      {Array.from({ length: lines }).map((_, i) => (
+        <SkeletonPulse key={i} className={`h-4 ${i === 0 ? 'w-1/3' : 'w-full'}`} />
+      ))}
+    </div>
+  );
+}
+
+// --- Main component ---
+
 export function DashboardPage() {
   const { customer, logout, refreshProfile } = useAuth();
   const navigate = useNavigate();
+
+  // Data states
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Redemptions state
   const [pendingRedemptions, setPendingRedemptions] = useState<Redemption[]>([]);
   const [completedRedemptions, setCompletedRedemptions] = useState<Redemption[]>([]);
   const [isLoadingRedemptions, setIsLoadingRedemptions] = useState(true);
-
-  // Referral stats state
   const [referralCount, setReferralCount] = useState(0);
   const [referralBonusPoints, setReferralBonusPoints] = useState(0);
   const [referredCustomers, setReferredCustomers] = useState<ReferredCustomer[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
-
-  // Dogs and visits state
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [isLoadingDogs, setIsLoadingDogs] = useState(true);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoadingVisits, setIsLoadingVisits] = useState(true);
-
-  // Upcoming bookings state
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
-  // Redemption state
+  // Redemption flow
   const [selectedTier, setSelectedTier] = useState<{ points: number; discount: number } | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
@@ -51,11 +74,30 @@ export function DashboardPage() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [redemptionError, setRedemptionError] = useState<string | null>(null);
 
+  // Referral modal
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+
+  // Toast
+  const [toastMessage, setToastMessage] = useState('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  }, []);
+
+  // Walkthrough
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const WALKTHROUGH_KEY = 'hthd_walkthrough_seen';
+  const HAS_VISITED_KEY = 'hthd_has_visited';
+
+  // --- Fetch functions ---
+
   const fetchTransactions = useCallback(async () => {
     const { data } = await customerApi.getTransactions(10, 0);
-    if (data) {
-      setTransactions(data.transactions);
-    }
+    if (data) setTransactions(data.transactions);
     setIsLoadingTransactions(false);
   }, []);
 
@@ -80,17 +122,13 @@ export function DashboardPage() {
 
   const fetchDogs = useCallback(async () => {
     const { data } = await customerApi.getDogs();
-    if (data) {
-      setDogs(data.dogs);
-    }
+    if (data) setDogs(data.dogs);
     setIsLoadingDogs(false);
   }, []);
 
   const fetchVisits = useCallback(async () => {
     const { data } = await customerApi.getVisits(5, 0);
-    if (data) {
-      setVisits(data.visits);
-    }
+    if (data) setVisits(data.visits);
     setIsLoadingVisits(false);
   }, []);
 
@@ -103,7 +141,7 @@ export function DashboardPage() {
     const confirmed = confirmedRes.data?.bookings || [];
     const combined = [...pending, ...confirmed]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 2);
+      .slice(0, 3);
     setUpcomingBookings(combined);
     setIsLoadingBookings(false);
   }, []);
@@ -117,10 +155,58 @@ export function DashboardPage() {
     fetchBookings();
   }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits, fetchBookings]);
 
+  // --- Scroll to top + first visit ---
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const hasVisited = localStorage.getItem(HAS_VISITED_KEY);
+    if (!hasVisited) {
+      setIsFirstVisit(true);
+      localStorage.setItem(HAS_VISITED_KEY, String(true));
+    }
+  }, []);
+
+  // --- Walkthrough trigger ---
+
+  const dataLoaded = customer && !isLoadingTransactions && !isLoadingRedemptions;
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    const hasSeenWalkthrough = localStorage.getItem(WALKTHROUGH_KEY);
+    const isFirstLogin = localStorage.getItem('hthd_first_login');
+    if (!hasSeenWalkthrough && isFirstLogin) {
+      setTimeout(() => setShowWalkthrough(true), 500);
+      localStorage.removeItem('hthd_first_login');
+    }
+  }, [dataLoaded]);
+
+  const handleWalkthroughComplete = () => {
+    localStorage.setItem(WALKTHROUGH_KEY, 'true');
+    setShowWalkthrough(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleWalkthroughSkip = () => {
+    localStorage.setItem(WALKTHROUGH_KEY, 'true');
+    setShowWalkthrough(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- Handlers ---
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refreshProfile(), fetchTransactions(), fetchRedemptions(), fetchReferralStats(), fetchDogs(), fetchVisits(), fetchBookings()]);
+    await Promise.all([
+      refreshProfile(),
+      fetchTransactions(),
+      fetchRedemptions(),
+      fetchReferralStats(),
+      fetchDogs(),
+      fetchVisits(),
+      fetchBookings(),
+    ]);
     setIsRefreshing(false);
+    showToast('All caught up!');
   };
 
   const handleLogout = () => {
@@ -138,28 +224,22 @@ export function DashboardPage() {
 
   const handleConfirmRedemption = async () => {
     if (!selectedTier) return;
-
     setIsRedeeming(true);
     setRedemptionError(null);
-
     const { data, error } = await customerApi.requestRedemption(selectedTier.points);
-
     if (error) {
       setRedemptionError(error);
       setIsRedeeming(false);
       return;
     }
-
     if (data) {
       setRedemptionCode(data.redemption.redemption_code);
       setIsConfirmModalOpen(false);
       setIsSuccessModalOpen(true);
-      // Refresh profile to update points balance and redemptions list
       refreshProfile();
       fetchTransactions();
       fetchRedemptions();
     }
-
     setIsRedeeming(false);
   };
 
@@ -169,124 +249,31 @@ export function DashboardPage() {
     setSelectedTier(null);
   };
 
-  // Referral modal state
-  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
-
-  // Toast state
-  const [toastMessage, setToastMessage] = useState('');
-  const [isToastVisible, setIsToastVisible] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-
-  const showToast = useCallback((message: string) => {
-    setToastMessage(message);
-    setIsToastVisible(true);
-  }, []);
-
-  // Walkthrough state
-  const [showWalkthrough, setShowWalkthrough] = useState(false);
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
-
-  const WALKTHROUGH_KEY = 'hthd_walkthrough_seen';
-  const HAS_VISITED_KEY = 'hthd_has_visited';
-
-  // Scroll to top on mount + detect first visit
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    const hasVisited = localStorage.getItem(HAS_VISITED_KEY);
-    if (!hasVisited) {
-      setIsFirstVisit(true);
-      localStorage.setItem(HAS_VISITED_KEY, String(true));
-    }
-  }, []);
-
-  // Track if data has loaded (for walkthrough trigger)
-  const dataLoaded = customer && !isLoadingTransactions && !isLoadingRedemptions;
-
-  useEffect(() => {
-    if (!dataLoaded) return;
-
-    const hasSeenWalkthrough = localStorage.getItem(WALKTHROUGH_KEY);
-    const isFirstLogin = localStorage.getItem('hthd_first_login');
-
-    if (!hasSeenWalkthrough && isFirstLogin) {
-      // Small delay to ensure DOM is fully ready
-      setTimeout(() => {
-        setShowWalkthrough(true);
-      }, 500);
-      localStorage.removeItem('hthd_first_login');
-    }
-  }, [dataLoaded]);
-
-  const handleWalkthroughComplete = () => {
-    localStorage.setItem(WALKTHROUGH_KEY, 'true');
-    setShowWalkthrough(false);
-    // Scroll back to top after walkthrough
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleWalkthroughSkip = () => {
-    localStorage.setItem(WALKTHROUGH_KEY, 'true');
-    setShowWalkthrough(false);
-    // Scroll back to top after skip
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Calculate points to next reward
-  const getNextRewardInfo = () => {
-    const balance = customer?.points_balance || 0;
-    for (const tier of REWARD_TIERS) {
-      if (balance < tier.points) {
-        return {
-          needed: tier.points - balance,
-          discount: tier.discount,
-        };
-      }
-    }
-    return null;
-  };
-
-  const nextReward = getNextRewardInfo();
-
   const handleShareCode = async () => {
     if (!customer || isSharing) return;
-
     setIsSharing(true);
-
     const referralUrl = `${window.location.origin}/register?ref=${customer.referral_code}`;
-
-    // Check if Web Share API is available
     if (navigator.share) {
-      // For Web Share API: use only title and url to avoid duplicate links
-      // iOS share tray includes both text and url if provided, causing duplication
-      const shareData = {
-        title: 'Join Happy Tail Happy Dog Rewards!',
-        url: referralUrl,
-      };
-
+      const shareData = { title: 'Join Happy Tail Happy Dog Rewards!', url: referralUrl };
       try {
         if (navigator.canShare?.(shareData)) {
           await navigator.share(shareData);
         } else {
-          // Browser doesn't support sharing just URL, include text
           await navigator.share({
             ...shareData,
             text: `Join me at Happy Tail Happy Dog! Use code ${customer.referral_code} for rewards.`,
           });
         }
-        // User successfully shared (or at least opened share tray)
       } catch (error) {
-        // User cancelled or share failed - this is normal, no need to show error
         if ((error as Error).name !== 'AbortError') {
           console.error('Share failed:', error);
         }
       }
     } else {
-      // Fallback: copy link to clipboard
       try {
         await navigator.clipboard.writeText(referralUrl);
         showToast('Link copied to clipboard!');
       } catch {
-        // Final fallback - select text for manual copy
         const textArea = document.createElement('textarea');
         textArea.value = referralUrl;
         textArea.style.position = 'fixed';
@@ -298,490 +285,462 @@ export function DashboardPage() {
         showToast('Link copied to clipboard!');
       }
     }
-
-    // Debounce - prevent rapid re-shares
     setTimeout(() => setIsSharing(false), 1000);
   };
 
-  if (!customer) {
+  // --- Computed values ---
+
+  const getNextRewardInfo = () => {
+    const balance = customer?.points_balance || 0;
+    for (const tier of REWARD_TIERS) {
+      if (balance < tier.points) {
+        return { needed: tier.points - balance, nextTier: tier.points, discount: tier.discount };
+      }
+    }
     return null;
-  }
+  };
+
+  const nextReward = getNextRewardInfo();
+
+  const pointsProgress = useMemo(() => {
+    if (!customer) return 0;
+    const balance = customer.points_balance;
+    // Find current tier bracket
+    let prevTier = 0;
+    for (const tier of REWARD_TIERS) {
+      if (balance < tier.points) {
+        return ((balance - prevTier) / (tier.points - prevTier)) * 100;
+      }
+      prevTier = tier.points;
+    }
+    return 100;
+  }, [customer]);
+
+  // Check for "pet day" — any booking today
+  const todayBooking = useMemo(() => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return upcomingBookings.find((b) => b.date === todayStr) || null;
+  }, [upcomingBookings]);
+
+  // Greeting based on time of day
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   const formatDate = (dateString: string) => {
-    // For date-only strings (e.g., "2026-02-10"), append T00:00:00 to avoid UTC interpretation
     const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const getTransactionColor = (amount: number) => {
-    if (amount > 0) return 'text-green-600';
-    return 'text-red-600';
+  const formatDateShort = (dateString: string) => {
+    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
+
+  const formatRelativeDate = (dateString: string) => {
+    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays < 7) return formatDateShort(dateString);
+    return formatDate(dateString);
+  };
+
+  const getServiceEmoji = (type: string) => {
+    const lower = type.toLowerCase();
+    if (lower.includes('groom')) return '\u2728';
+    if (lower.includes('board')) return '\u{1F319}';
+    if (lower.includes('daycare') || lower.includes('day care')) return '\u2600\uFE0F';
+    return '\u{1F43E}';
+  };
+
+  if (!customer) return null;
+
+  // --- Render ---
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <img
-            src="/logo.png"
-            alt="Happy Tail Happy Dog"
-            className="h-12 mx-auto"
-          />
-        </div>
-      </header>
+    <AppShell
+      headerRight={
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="p-2 rounded-xl hover:bg-brand-sand/50 transition-colors"
+          aria-label="Refresh"
+        >
+          <svg
+            className={`w-5 h-5 text-brand-forest ${isRefreshing ? 'animate-spin' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+        </button>
+      }
+    >
+      <div className="px-4 pt-4 pb-8 space-y-5 font-body">
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Points Balance Card */}
-        <div id="points-balance" className="bg-white rounded-2xl shadow-lg p-6 text-center">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-700">
-              {isFirstVisit
-                ? 'Welcome to Happy Tail Happy Dog!'
-                : `Welcome back, ${customer.first_name}!`}
-            </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              <svg
-                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-          </div>
-          <div className="py-6">
-            <p className="text-gray-600 text-sm uppercase tracking-wide">Your Points Balance</p>
-            <p className="text-6xl font-bold text-brand-blue mt-2">
-              {customer.points_balance.toLocaleString()}
-            </p>
-            <p className="text-gray-500 mt-1">points</p>
+        {/* ============================================================
+            SECTION 1: Hero - Greeting + Points Balance
+            ============================================================ */}
+        <section
+          id="points-balance"
+          className="animate-fade-in rounded-3xl shadow-warm-lg overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #C2704E 0%, #A85D3E 55%, #D4A843 100%)',
+          }}
+        >
+          <div className="px-6 pt-6 pb-5">
+            {/* Greeting row */}
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-white/70 font-body text-sm tracking-wide">
+                  {greeting}
+                </p>
+                <h1 className="font-heading text-2xl font-semibold text-white mt-0.5">
+                  {isFirstVisit ? 'Welcome!' : customer.first_name}
+                </h1>
+              </div>
+              {/* Decorative paw */}
+              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-lg">
+                {'\u{1F43E}'}
+              </div>
+            </div>
+
+            {/* Points display */}
+            <div className="text-center py-3">
+              <p className="text-white/60 text-xs font-body uppercase tracking-widest mb-1">
+                Points Balance
+              </p>
+              <p className="text-5xl font-heading font-bold text-white tabular-nums leading-none">
+                {customer.points_balance.toLocaleString()}
+              </p>
+              {nextReward && (
+                <p className="text-white/70 text-sm mt-2 font-body">
+                  {nextReward.needed} more to unlock ${nextReward.discount} off
+                </p>
+              )}
+              {!nextReward && customer.points_balance >= POINTS_CAP && (
+                <p className="text-white/80 text-sm mt-2 font-body font-medium">
+                  Max points reached -- redeem below!
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Points Cap Messaging */}
+          {/* Points cap warnings */}
           {customer.points_balance >= POINTS_CAP && (
-            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <div>
-                  <p className="font-semibold text-amber-800">You&apos;ve maxed out your points!</p>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Redeem your {POINTS_CAP.toLocaleString()} points for a $50 grooming discount below. After redemption, you can start earning points again!
-                  </p>
-                </div>
+            <div className="bg-white/15 backdrop-blur-sm px-6 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg flex-shrink-0">{'\u{1F389}'}</span>
+                <p className="text-white/90 text-sm font-body">
+                  You&apos;ve maxed out! Redeem your {POINTS_CAP} points for a $50 grooming discount to keep earning.
+                </p>
               </div>
             </div>
           )}
           {customer.points_balance >= 450 && customer.points_balance < POINTS_CAP && (
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-brand-blue flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="font-semibold text-brand-navy">Almost at max points!</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    You&apos;re only {POINTS_CAP - customer.points_balance} points from the {POINTS_CAP.toLocaleString()}-point cap. Consider redeeming for a discount so you don&apos;t miss out on earning more!
-                  </p>
-                </div>
+            <div className="bg-white/10 backdrop-blur-sm px-6 py-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg flex-shrink-0">{'\u{1F525}'}</span>
+                <p className="text-white/80 text-sm font-body">
+                  Only {POINTS_CAP - customer.points_balance} points from the cap. Consider redeeming so you don&apos;t miss earning more!
+                </p>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Refer Friends Tile */}
-        <button
-          id="refer-tile"
-          onClick={() => setIsReferralModalOpen(true)}
-          className="w-full bg-gradient-to-r from-brand-blue to-brand-blue-dark rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-white">
-                Refer Friends, Earn Points!
-              </h3>
-              <p className="text-white/80 text-sm mt-1">
-                Get 100 points for each friend who joins
-              </p>
-            </div>
-            <div className="ml-4 flex-shrink-0">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        {/* ============================================================
+            SECTION 2: Pet Day Banner (if booking today)
+            ============================================================ */}
+        {todayBooking && (
+          <section className="animate-slide-up">
+            <button
+              onClick={() => navigate('/bookings')}
+              className="w-full bg-brand-sage/15 border-2 border-brand-sage/40 rounded-3xl p-5 text-left transition-all active:scale-[0.98] min-h-[44px]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-brand-sage/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">{getServiceEmoji(todayBooking.serviceType.displayName)}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-brand-sage animate-pulse-warm" />
+                    <p className="font-body text-xs font-semibold uppercase tracking-wider text-brand-sage-dark">
+                      Today&apos;s Pet Day
+                    </p>
+                  </div>
+                  <p className="font-heading text-lg font-semibold text-brand-forest truncate">
+                    {todayBooking.serviceType.displayName}
+                  </p>
+                  {todayBooking.dogs.length > 0 && (
+                    <p className="font-pet text-sm text-brand-forest-muted mt-0.5">
+                      {todayBooking.dogs.map((bd) => bd.dog.name).join(' & ')}
+                    </p>
+                  )}
+                </div>
+                <svg className="w-5 h-5 text-brand-sage-dark flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          </section>
+        )}
+
+        {/* ============================================================
+            SECTION 3: Quick Actions Grid
+            ============================================================ */}
+        <section className="animate-slide-up grid grid-cols-4 gap-3">
+          {[
+            {
+              label: 'Book',
+              path: '/book',
+              color: 'bg-brand-primary/10',
+              iconColor: 'text-brand-primary',
+              icon: (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+              ),
+            },
+            {
+              label: 'Messages',
+              path: '/messages',
+              color: 'bg-brand-sage/10',
+              iconColor: 'text-brand-sage-dark',
+              icon: (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              ),
+            },
+            {
+              label: 'Reports',
+              path: '/report-cards',
+              color: 'bg-brand-amber/10',
+              iconColor: 'text-brand-amber-dark',
+              icon: (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              ),
+            },
+            {
+              label: 'Refer',
+              action: () => setIsReferralModalOpen(true),
+              color: 'bg-brand-primary/10',
+              iconColor: 'text-brand-primary-dark',
+              icon: (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={item.action || (() => navigate(item.path!))}
+              className="flex flex-col items-center gap-2 py-3 rounded-2xl bg-white shadow-warm-sm border border-brand-sand/30 active:scale-95 transition-transform min-h-[76px]"
+            >
+              <div className={`w-11 h-11 rounded-xl ${item.color} flex items-center justify-center ${item.iconColor}`}>
+                {item.icon}
+              </div>
+              <span className="text-xs font-body font-medium text-brand-forest">{item.label}</span>
+            </button>
+          ))}
+        </section>
+
+        {/* ============================================================
+            SECTION 4: Upcoming Bookings
+            ============================================================ */}
+        {isLoadingBookings ? (
+          <CardSkeleton lines={2} />
+        ) : (
+          <section className="animate-slide-up bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-lg font-semibold text-brand-forest">Upcoming</h2>
+              {upcomingBookings.length > 0 && (
+                <button
+                  onClick={() => navigate('/bookings')}
+                  className="text-sm font-body font-medium text-brand-primary hover:text-brand-primary-dark transition-colors min-h-[44px] flex items-center"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              </div>
+                  View all
+                </button>
+              )}
             </div>
-          </div>
-        </button>
 
-        {/* Book Appointment CTA */}
-        <button
-          onClick={() => navigate('/book')}
-          className="w-full bg-gradient-to-r from-brand-navy to-brand-navy/80 rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-white">
-                Book an Appointment
-              </h3>
-              <p className="text-white/80 text-sm mt-1">
-                Daycare, boarding, or grooming
-              </p>
-            </div>
-            <div className="ml-4 flex-shrink-0">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </button>
-
-        {/* Messages & Report Cards Quick Links */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => navigate('/messages')}
-            className="bg-white rounded-2xl shadow-lg p-4 text-left hover:shadow-xl transition-shadow min-h-[88px] flex flex-col justify-between"
-          >
-            <div className="w-10 h-10 bg-brand-coral/10 rounded-full flex items-center justify-center mb-2">
-              <svg className="w-5 h-5 text-brand-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-brand-navy text-sm">Messages</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Chat with us anytime</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/report-cards')}
-            className="bg-white rounded-2xl shadow-lg p-4 text-left hover:shadow-xl transition-shadow min-h-[88px] flex flex-col justify-between"
-          >
-            <div className="w-10 h-10 bg-brand-golden-yellow/10 rounded-full flex items-center justify-center mb-2">
-              <svg className="w-5 h-5 text-brand-golden-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-brand-navy text-sm">Report Cards</h3>
-              <p className="text-xs text-gray-500 mt-0.5">See how your pup did</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Upcoming Bookings */}
-        {!isLoadingBookings && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-brand-blue"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Upcoming Bookings
-            </h3>
             {upcomingBookings.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <p>No upcoming bookings</p>
+              <div className="text-center py-6">
+                <div className="w-14 h-14 rounded-2xl bg-brand-cream mx-auto flex items-center justify-center mb-3">
+                  <svg className="w-7 h-7 text-brand-forest-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                </div>
+                <p className="text-brand-forest-muted font-body text-sm mb-2">No upcoming bookings</p>
                 <button
                   onClick={() => navigate('/book')}
-                  className="text-brand-blue font-medium mt-1 hover:underline min-h-[44px]"
+                  className="font-body text-sm font-semibold text-brand-primary hover:text-brand-primary-dark transition-colors min-h-[44px]"
                 >
                   Book your first appointment
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingBookings.map((booking) => (
+                {upcomingBookings.map((booking, idx) => (
                   <button
                     key={booking.id}
                     onClick={() => navigate('/bookings')}
-                    className="w-full flex items-center justify-between py-3 px-3 rounded-xl bg-brand-cream hover:bg-brand-cream/80 transition-colors text-left min-h-[64px]"
+                    className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-brand-cream/60 hover:bg-brand-cream transition-colors text-left min-h-[64px]"
                   >
-                    <div className="flex-1">
-                      <p className="font-semibold text-brand-navy">{booking.serviceType.displayName}</p>
-                      <p className="text-sm text-gray-600">
-                        {formatDate(booking.date)} {booking.dogs.length > 0 && `\u2022 ${booking.dogs.map((bd) => bd.dog.name).join(', ')}`}
+                    {/* Timeline dot */}
+                    <div className="flex flex-col items-center gap-1 self-stretch py-1">
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                        booking.status === 'confirmed' ? 'bg-brand-sage' : 'bg-brand-amber'
+                      }`} />
+                      {idx < upcomingBookings.length - 1 && (
+                        <div className="w-px flex-1 bg-brand-sand" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body font-semibold text-brand-forest text-sm">
+                        {booking.serviceType.displayName}
+                      </p>
+                      <p className="font-body text-xs text-brand-forest-muted mt-0.5">
+                        {formatRelativeDate(booking.date)}
+                        {booking.dogs.length > 0 && (
+                          <span className="font-pet"> &middot; {booking.dogs.map((bd) => bd.dog.name).join(', ')}</span>
+                        )}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    } capitalize`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-body font-semibold capitalize ${
+                      booking.status === 'confirmed'
+                        ? 'bg-brand-sage/15 text-brand-sage-dark'
+                        : 'bg-brand-amber/15 text-brand-amber-dark'
+                    }`}>
                       {booking.status}
                     </span>
                   </button>
                 ))}
-                {upcomingBookings.length > 0 && (
-                  <button
-                    onClick={() => navigate('/bookings')}
-                    className="w-full text-center text-sm text-brand-blue font-medium hover:underline py-2 min-h-[44px]"
-                  >
-                    View all bookings
-                  </button>
-                )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* My Pups Section */}
-        {!isLoadingDogs && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-brand-blue"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              My Pups
-            </h3>
-            {dogs.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-gray-500 text-sm">No pups added yet</p>
+        {/* ============================================================
+            SECTION 5: My Pups - Horizontal Scroll
+            ============================================================ */}
+        {isLoadingDogs ? (
+          <CardSkeleton lines={2} />
+        ) : (
+          <section className="animate-slide-up">
+            <div className="flex items-center justify-between mb-3 px-0.5">
+              <h2 className="font-heading text-lg font-semibold text-brand-forest">My Pups</h2>
+              {dogs.length > 0 && (
                 <button
-                  onClick={() => navigate("/book")}
-                  className="text-brand-blue font-medium text-sm mt-2 hover:underline min-h-[44px]"
+                  onClick={() => navigate('/my-pets')}
+                  className="text-sm font-body font-medium text-brand-primary hover:text-brand-primary-dark transition-colors min-h-[44px] flex items-center"
+                >
+                  See all
+                </button>
+              )}
+            </div>
+
+            {dogs.length === 0 ? (
+              <div className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-brand-cream mx-auto flex items-center justify-center mb-3">
+                  <span className="text-2xl">{'\u{1F436}'}</span>
+                </div>
+                <p className="text-brand-forest-muted font-body text-sm mb-2">No pups added yet</p>
+                <button
+                  onClick={() => navigate('/book')}
+                  className="font-body text-sm font-semibold text-brand-primary hover:text-brand-primary-dark transition-colors min-h-[44px]"
                 >
                   Add your dog when you book
                 </button>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-3">
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                 {dogs.map((dog) => (
                   <button
                     key={dog.id}
                     onClick={() => navigate(`/dogs/${dog.id}`)}
-                    className="bg-brand-warm-white rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-brand-cream transition-colors min-h-[44px]"
+                    className="flex-shrink-0 w-28 flex flex-col items-center gap-2 p-4 bg-white rounded-3xl shadow-warm border border-brand-sand/50 active:scale-95 transition-transform min-h-[44px]"
                   >
-                    <div className="w-10 h-10 bg-brand-blue rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-primary/80 to-brand-amber/70 flex items-center justify-center text-white font-heading font-bold text-xl shadow-warm-sm">
                       {dog.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-brand-navy">{dog.name}</p>
-                      {dog.breed && <p className="text-sm text-gray-500">{dog.breed}</p>}
+                    <div className="text-center w-full">
+                      <p className="font-pet font-semibold text-brand-forest text-sm truncate">
+                        {dog.name}
+                      </p>
+                      {dog.breed && (
+                        <p className="font-body text-[11px] text-brand-forest-muted truncate mt-0.5">
+                          {dog.breed}
+                        </p>
+                      )}
                     </div>
-                    <svg className="w-4 h-4 text-gray-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
                   </button>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* Recent Visits Section */}
-        {!isLoadingVisits && visits.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-brand-blue"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              Recent Visits
-            </h3>
-            <div className="space-y-3">
-              {visits.map((visit) => (
-                <div
-                  key={visit.id}
-                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                          visit.service_type === 'grooming'
-                            ? 'bg-purple-100 text-purple-800'
-                            : visit.service_type === 'boarding'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {visit.service_type}
-                      </span>
-                      {visit.description && (
-                        <span className="text-sm text-gray-600 truncate max-w-xs">
-                          {visit.description}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {formatDate(visit.visit_date)} • ${visit.amount.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="text-sm font-medium text-brand-blue">
-                    +{visit.points_earned} pts
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* ============================================================
+            SECTION 6: Rewards Progress
+            ============================================================ */}
+        <section id="reward-tiers" className="animate-slide-up bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-lg font-semibold text-brand-forest">Rewards</h2>
+            {pendingRedemptions.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-amber/15 text-brand-amber-dark text-xs font-body font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-amber" />
+                {pendingRedemptions.length} active
+              </span>
+            )}
           </div>
-        )}
 
-        {/* My Referrals Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <svg
-              className="w-5 h-5 text-brand-blue"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            My Referrals
-          </h3>
-          {isLoadingReferrals ? (
-            <div className="flex justify-center py-8">
-              <svg
-                className="animate-spin h-8 w-8 text-brand-blue"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            </div>
-          ) : referralCount === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
-              <p className="mt-2">No referrals yet</p>
-              <p className="text-sm">Share your code above to earn 100 bonus points for each friend who joins!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Stats Summary */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-brand-warm-white rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-brand-navy">{referralCount}</p>
-                  <p className="text-sm text-gray-600">Friends Referred</p>
-                </div>
-                <div className="bg-brand-warm-white rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-brand-blue">+{referralBonusPoints.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">Bonus Points Earned</p>
-                </div>
+          {/* Progress bar to next tier */}
+          {nextReward && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-body text-brand-forest-muted">
+                  {customer.points_balance} pts
+                </span>
+                <span className="text-xs font-body font-semibold text-brand-primary">
+                  {nextReward.nextTier} pts = ${nextReward.discount} off
+                </span>
               </div>
-
-              {/* Referred Customers List */}
-              {referredCustomers.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Your Referrals</h4>
-                  <div className="space-y-2">
-                    {referredCustomers.map((referral) => (
-                      <div
-                        key={referral.id}
-                        className="flex items-center justify-between py-2 px-3 bg-brand-cream rounded-lg"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-brand-blue rounded-full flex items-center justify-center text-white font-medium text-sm">
-                            {referral.first_name.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium text-brand-navy">{referral.first_name}</span>
-                        </div>
-                        <span className="text-sm text-gray-500">
-                          {formatDate(referral.joined_at)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="h-3 bg-brand-sand/60 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700 ease-out"
+                  style={{
+                    width: `${Math.max(pointsProgress, 4)}%`,
+                    background: 'linear-gradient(90deg, #C2704E, #D4A843)',
+                  }}
+                />
+              </div>
+              <p className="text-xs font-body text-brand-forest-muted mt-1.5 text-center">
+                {nextReward.needed} points to go
+              </p>
             </div>
           )}
-        </div>
 
-        {/* Redeem Points / Reward Tiers */}
-        <div id="reward-tiers" className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Redeem Points</h3>
-          <p className="text-gray-600 text-sm mb-4">
-            Click a reward tier to redeem your points for a grooming discount!
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Tier cards */}
+          <div className="grid grid-cols-3 gap-2.5">
             {REWARD_TIERS.map((tier) => {
               const canAfford = customer.points_balance >= tier.points;
               return (
@@ -789,243 +748,228 @@ export function DashboardPage() {
                   key={tier.points}
                   onClick={() => handleTierClick(tier)}
                   disabled={!canAfford}
-                  className={`rounded-xl p-4 border-2 transition-all text-left w-full shadow-md ${
+                  className={`rounded-2xl p-3.5 border-2 transition-all text-center min-h-[44px] ${
                     canAfford
-                      ? 'border-brand-blue bg-white hover:bg-brand-cream hover:border-brand-blue-dark cursor-pointer'
-                      : 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
+                      ? 'border-brand-primary/30 bg-brand-cream/50 hover:border-brand-primary hover:shadow-warm active:scale-95 cursor-pointer'
+                      : 'border-brand-sand/50 bg-brand-sand/20 opacity-50 cursor-not-allowed'
                   }`}
                 >
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-brand-navy">${tier.discount}</p>
-                    <p className="text-sm text-gray-600 mt-1">grooming discount</p>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p
-                        className={`text-lg font-semibold ${
-                          canAfford ? 'text-brand-blue' : 'text-gray-500'
-                        }`}
-                      >
-                        {tier.points.toLocaleString()} pts
+                  <p className={`text-2xl font-heading font-bold ${canAfford ? 'text-brand-forest' : 'text-brand-forest-muted'}`}>
+                    ${tier.discount}
+                  </p>
+                  <p className="text-[11px] font-body text-brand-forest-muted mt-0.5">off grooming</p>
+                  <div className="mt-2 pt-2 border-t border-brand-sand/50">
+                    <p className={`text-xs font-body font-semibold ${canAfford ? 'text-brand-primary' : 'text-brand-forest-muted'}`}>
+                      {tier.points} pts
+                    </p>
+                    {canAfford ? (
+                      <p className="text-[10px] font-body font-semibold text-brand-sage-dark mt-0.5">
+                        Tap to redeem
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {canAfford ? (
-                          <span className="text-brand-blue font-medium">Tap to redeem</span>
-                        ) : (
-                          `${(tier.points - customer.points_balance).toLocaleString()} more needed`
-                        )}
+                    ) : (
+                      <p className="text-[10px] font-body text-brand-forest-muted mt-0.5">
+                        {(tier.points - customer.points_balance).toLocaleString()} more
                       </p>
-                    </div>
+                    )}
                   </div>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Active Redemptions */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Redemption Codes</h3>
-          {isLoadingRedemptions ? (
-            <div className="flex justify-center py-8">
-              <svg
-                className="animate-spin h-8 w-8 text-brand-blue"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            </div>
-          ) : pendingRedemptions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
-                />
-              </svg>
-              <p className="mt-2">No active redemption codes</p>
-              <p className="text-sm">Request a redemption above to get a discount code!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingRedemptions.map((redemption) => (
+          {/* Active redemption codes inline */}
+          {!isLoadingRedemptions && pendingRedemptions.length > 0 && (
+            <div className="mt-5 space-y-3">
+              <p className="text-xs font-body font-semibold text-brand-forest-muted uppercase tracking-wider">
+                Active Codes
+              </p>
+              {pendingRedemptions.map((r) => (
                 <div
-                  key={redemption.id}
-                  className="border-2 border-yellow-400 bg-yellow-50 rounded-xl p-4"
+                  key={r.id}
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-brand-amber/8 border border-brand-amber/25"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      Pending
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {formatDate(redemption.created_at)}
-                    </span>
-                  </div>
-                  <div className="text-center py-2">
-                    <p className="text-3xl font-mono font-bold text-gray-900 tracking-wider">
-                      {redemption.redemption_code}
+                  <div>
+                    <p className="font-mono font-bold text-brand-forest tracking-wider text-lg">
+                      {r.redemption_code}
                     </p>
-                    <p className="text-lg font-semibold text-green-600 mt-2">
-                      ${redemption.discount_value} grooming discount
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {redemption.reward_tier.toLocaleString()} points
+                    <p className="text-xs font-body text-brand-forest-muted mt-0.5">
+                      ${r.discount_value} off &middot; Show at checkout
                     </p>
                   </div>
-                  <p className="text-sm text-center text-gray-600 mt-2">
-                    Show this code at checkout
-                  </p>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-brand-amber/15 text-brand-amber-dark text-[11px] font-body font-semibold">
+                    Pending
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </div>
 
-        {/* Redemption History */}
-        {completedRedemptions.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Redemption History</h3>
-            <div className="space-y-3">
-              {completedRedemptions.map((redemption) => (
-                <div
-                  key={redemption.id}
-                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                >
-                  <div className="flex-1">
+          {/* Redemption history */}
+          {completedRedemptions.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-brand-sand/50">
+              <p className="text-xs font-body font-semibold text-brand-forest-muted uppercase tracking-wider mb-3">
+                History
+              </p>
+              <div className="space-y-2">
+                {completedRedemptions.slice(0, 3).map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between py-2"
+                  >
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900">
-                        ${redemption.discount_value} discount redeemed
-                      </p>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Completed
+                      <div className="w-7 h-7 rounded-lg bg-brand-sage/15 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-brand-sage-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-body text-brand-forest">${r.discount_value} discount</p>
+                        <p className="text-[11px] font-body text-brand-forest-muted">
+                          {formatDate(r.approved_at || r.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-body text-brand-forest-muted">
+                      -{r.reward_tier.toLocaleString()} pts
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ============================================================
+            SECTION 7: Refer Friends Banner
+            ============================================================ */}
+        <section id="refer-tile" className="animate-slide-up">
+          <button
+            onClick={() => setIsReferralModalOpen(true)}
+            className="w-full rounded-3xl shadow-warm border border-brand-sand/50 overflow-hidden text-left active:scale-[0.98] transition-transform min-h-[88px]"
+            style={{
+              background: 'linear-gradient(135deg, #8BA888 0%, #6F8E6C 100%)',
+            }}
+          >
+            <div className="px-6 py-5 flex items-center gap-4">
+              <div className="flex-1">
+                <h3 className="font-heading text-lg font-semibold text-white">
+                  Share the love
+                </h3>
+                <p className="font-body text-sm text-white/75 mt-1">
+                  Invite friends, earn 100 points each
+                </p>
+                {referralCount > 0 && (
+                  <p className="font-body text-xs text-white/60 mt-1.5">
+                    {referralCount} {referralCount === 1 ? 'friend' : 'friends'} referred &middot; +{referralBonusPoints} pts earned
+                  </p>
+                )}
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+            </div>
+          </button>
+        </section>
+
+        {/* ============================================================
+            SECTION 8: Recent Visits
+            ============================================================ */}
+        {isLoadingVisits ? (
+          <CardSkeleton />
+        ) : visits.length > 0 && (
+          <section className="animate-slide-up bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5">
+            <h2 className="font-heading text-lg font-semibold text-brand-forest mb-4">Recent Visits</h2>
+            <div className="space-y-3">
+              {visits.map((visit) => (
+                <div
+                  key={visit.id}
+                  className="flex items-center justify-between py-3 border-b border-brand-sand/30 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      visit.service_type === 'grooming'
+                        ? 'bg-brand-amber/12'
+                        : visit.service_type === 'boarding'
+                        ? 'bg-brand-sage/12'
+                        : 'bg-brand-primary/10'
+                    }`}>
+                      <span className="text-base">
+                        {getServiceEmoji(visit.service_type)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      Code: {redemption.redemption_code} • {formatDate(redemption.approved_at || redemption.created_at)}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="font-body text-sm font-medium text-brand-forest capitalize truncate">
+                        {visit.service_type}
+                        {visit.description && (
+                          <span className="text-brand-forest-muted font-normal"> &middot; {visit.description}</span>
+                        )}
+                      </p>
+                      <p className="font-body text-xs text-brand-forest-muted mt-0.5">
+                        {formatDate(visit.visit_date)} &middot; ${visit.amount.toFixed(2)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    -{redemption.reward_tier.toLocaleString()} pts
-                  </div>
+                  <span className="font-body text-sm font-semibold text-brand-sage-dark flex-shrink-0 ml-3">
+                    +{visit.points_earned} pts
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Recent Transactions */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          {isLoadingTransactions ? (
-            <div className="flex justify-center py-8">
-              <svg
-                className="animate-spin h-8 w-8 text-brand-blue"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            </div>
-          ) : transactions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <p className="mt-2">No transactions yet</p>
-              <p className="text-sm">Visit us to start earning points!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {transactions.map((transaction) => (
+        {/* ============================================================
+            SECTION 9: Recent Activity (Transactions)
+            ============================================================ */}
+        {isLoadingTransactions ? (
+          <CardSkeleton />
+        ) : transactions.length > 0 && (
+          <section className="animate-slide-up bg-white rounded-3xl shadow-warm border border-brand-sand/50 p-5">
+            <h2 className="font-heading text-lg font-semibold text-brand-forest mb-4">Activity</h2>
+            <div className="space-y-2.5">
+              {transactions.map((tx) => (
                 <div
-                  key={transaction.id}
-                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                  key={tx.id}
+                  className="flex items-center justify-between py-2.5 border-b border-brand-sand/30 last:border-0 last:pb-0"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <p className="text-sm text-gray-500">{formatDate(transaction.date)}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body text-sm text-brand-forest truncate">{tx.description}</p>
+                    <p className="font-body text-xs text-brand-forest-muted mt-0.5">{formatDate(tx.date)}</p>
                   </div>
-                  <div
-                    className={`text-lg font-semibold ${getTransactionColor(
-                      transaction.points_amount
-                    )}`}
-                  >
-                    {transaction.points_amount > 0 ? '+' : ''}
-                    {transaction.points_amount.toLocaleString()}
-                  </div>
+                  <span className={`font-body text-sm font-semibold flex-shrink-0 ml-3 tabular-nums ${
+                    tx.points_amount > 0 ? 'text-brand-sage-dark' : 'text-brand-error'
+                  }`}>
+                    {tx.points_amount > 0 ? '+' : ''}{tx.points_amount.toLocaleString()}
+                  </span>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </section>
+        )}
 
-        {/* Sign Out Footer */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
+        {/* ============================================================
+            SECTION 10: Sign Out
+            ============================================================ */}
+        <section className="pt-4 pb-2">
           <button
             onClick={handleLogout}
-            className="w-full py-3 px-4 text-brand-coral hover:text-red-600 font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 font-body text-sm text-brand-forest-muted hover:text-brand-error font-medium transition-colors flex items-center justify-center gap-2 min-h-[44px] rounded-2xl"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
+            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Sign Out
           </button>
-        </div>
-      </main>
+        </section>
+      </div>
 
-      {/* Confirmation Modal */}
+      {/* =============================================================
+          MODALS
+          ============================================================= */}
+
+      {/* Confirm Redemption Modal */}
       <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -1033,11 +977,11 @@ export function DashboardPage() {
       >
         {selectedTier && (
           <div className="space-y-4">
-            <p className="text-gray-700">
+            <p className="font-body text-brand-forest">
               You are about to redeem <span className="font-semibold">{selectedTier.points.toLocaleString()} points</span> for
-              a <span className="font-semibold text-green-600">${selectedTier.discount} grooming discount</span>.
+              a <span className="font-semibold text-brand-sage-dark">${selectedTier.discount} grooming discount</span>.
             </p>
-            <p className="text-gray-600 text-sm">
+            <p className="font-body text-sm text-brand-forest-muted">
               This will create a redemption code that you can show at checkout. Points will be deducted when you use the code.
             </p>
             {redemptionError && (
@@ -1064,7 +1008,7 @@ export function DashboardPage() {
         )}
       </Modal>
 
-      {/* Success Modal with Redemption Code */}
+      {/* Success Modal */}
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseSuccessModal}
@@ -1072,21 +1016,21 @@ export function DashboardPage() {
       >
         <div className="space-y-4">
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto w-16 h-16 bg-brand-sage/15 rounded-2xl flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-brand-sage-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="font-body text-brand-forest mb-4">
               Show this code at checkout to receive your{' '}
-              <span className="font-semibold text-green-600">${selectedTier?.discount} discount</span>:
+              <span className="font-semibold text-brand-sage-dark">${selectedTier?.discount} discount</span>:
             </p>
-            <div className="bg-gray-100 rounded-xl p-4 mb-4">
-              <p className="text-3xl font-mono font-bold text-gray-900 tracking-wider">
+            <div className="bg-brand-cream rounded-2xl p-4 mb-4 border border-brand-sand/50">
+              <p className="text-3xl font-mono font-bold text-brand-forest tracking-wider">
                 {redemptionCode}
               </p>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm font-body text-brand-forest-muted">
               This code is pending and will be completed when you use it at checkout.
             </p>
           </div>
@@ -1133,12 +1077,12 @@ export function DashboardPage() {
         />
       )}
 
-      {/* Toast notifications */}
+      {/* Toast */}
       <Toast
         message={toastMessage}
         isVisible={isToastVisible}
         onHide={() => setIsToastVisible(false)}
       />
-    </div>
+    </AppShell>
   );
 }

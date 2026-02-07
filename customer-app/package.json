@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
+    "@fontsource/quicksand": "^5.2.10",
     "@hookform/resolvers": "^5.2.2",
+    "motion": "^12.33.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

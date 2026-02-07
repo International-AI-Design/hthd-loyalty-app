@@ -398,13 +398,32 @@ export const dogProfileApi = {
 // Messaging APIs
 export const messagingApi = {
   getConversations: () => api.get<any[]>('/v2/messaging/conversations'),
-  startConversation: () => api.post<any>('/v2/messaging/conversations', {}),
+  startConversation: (dogId?: string) => api.post<any>('/v2/messaging/conversations', { dogId }),
   getMessages: (conversationId: string, limit?: number, offset?: number) =>
     api.get<any>(`/v2/messaging/conversations/${conversationId}/messages?limit=${limit || 50}&offset=${offset || 0}`),
-  sendMessage: (conversationId: string, content: string) =>
-    api.post<any>(`/v2/messaging/conversations/${conversationId}/messages`, { content }),
+  sendMessage: (conversationId: string, content: string, photoUrl?: string) =>
+    api.post<any>(`/v2/messaging/conversations/${conversationId}/messages`, { content, photoUrl }),
+  sendQuickReply: (conversationId: string, quickReplyId: string) =>
+    api.post<any>(`/v2/messaging/conversations/${conversationId}/quick-reply`, { quickReplyId }),
   closeConversation: (conversationId: string) =>
     api.post<any>(`/v2/messaging/conversations/${conversationId}/close`, {}),
+  markRead: (conversationId: string) =>
+    api.put<any>(`/v2/messaging/conversations/${conversationId}/read`, {}),
+  getQuickReplies: () => api.get<any>('/v2/messaging/quick-replies'),
+};
+
+// Notification APIs
+export const notificationApi = {
+  getNotifications: () => api.get<any>('/v2/notifications'),
+  markRead: (id: string) => api.put<any>(`/v2/notifications/${id}/read`, {}),
+  markAllRead: () => api.put<any>('/v2/notifications/read-all', {}),
+};
+
+// Activity Feed APIs
+export const activityApi = {
+  getActivities: (bookingId: string) => api.get<any>(`/v2/bookings/${bookingId}/activities`),
+  getActivitiesByDog: (dogId: string) => api.get<any>(`/v2/dogs/${dogId}/activities`),
+  getTodayActivities: () => api.get<any>('/v2/activities/today'),
 };
 
 // Report Card APIs

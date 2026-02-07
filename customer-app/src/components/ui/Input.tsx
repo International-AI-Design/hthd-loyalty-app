@@ -15,7 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={inputId} className="block text-sm font-medium text-brand-forest-light mb-1.5">
             {label}
           </label>
         )}
@@ -28,12 +28,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             autoCorrect={isPassword ? 'off' : props.autoCorrect}
             autoComplete={isPassword ? props.autoComplete || 'current-password' : props.autoComplete}
             className={`
-              w-full px-3 py-2 border rounded-lg shadow-sm
-              placeholder-gray-400
-              focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue
-              disabled:bg-gray-100 disabled:cursor-not-allowed
-              ${isPassword ? 'pr-10' : ''}
-              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-brand-light-gray'}
+              w-full px-4 py-3 border-2 rounded-xl shadow-warm-sm
+              placeholder-brand-forest-muted bg-white
+              focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary
+              disabled:bg-brand-sand disabled:cursor-not-allowed
+              transition-all duration-200
+              ${isPassword ? 'pr-12' : ''}
+              ${error ? 'border-brand-error focus:ring-brand-error/20 focus:border-brand-error' : 'border-brand-sand'}
               ${className}
             `}
             {...props}
@@ -42,7 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-brand-forest-muted hover:text-brand-forest transition-colors"
               tabIndex={-1}
             >
               {showPassword ? (
@@ -58,7 +59,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </button>
           )}
         </div>
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-1.5 text-sm text-brand-error">{error}</p>}
       </div>
     );
   }
