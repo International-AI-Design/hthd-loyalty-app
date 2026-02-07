@@ -50,7 +50,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Happy Tail Happy Dog API is running' });
+  res.json({ status: 'ok', message: 'Happy Tail Happy Dog API is running', version: '3.1.0' });
 });
 
 // Auth routes
@@ -95,7 +95,7 @@ app.use('/api/v2/admin/checkout', adminCheckoutRouter);
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', debug: err.message, path: req.path });
 });
 
 const server = app.listen(PORT, () => {

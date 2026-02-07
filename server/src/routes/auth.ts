@@ -207,8 +207,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Account creation failed. Please try again.' });
+    res.status(500).json({ error: 'Account creation failed. Please try again.', debug: errMsg });
   }
 });
 
