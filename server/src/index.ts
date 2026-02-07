@@ -95,7 +95,7 @@ app.use('/api/v2/admin/checkout', adminCheckoutRouter);
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
-  res.status(500).json({ error: 'Internal server error', debug: err.message, path: req.path });
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 const server = app.listen(PORT, () => {
