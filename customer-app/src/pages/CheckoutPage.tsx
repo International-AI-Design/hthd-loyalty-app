@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { checkoutApi } from '../lib/api';
 import type { Booking, WalletResponse } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { BottomNav } from '../components/BottomNav';
 import { Button, Alert } from '../components/ui';
 
 /** 1 point = $0.10 */
@@ -159,12 +160,13 @@ export function CheckoutPage() {
             </div>
           </div>
         </header>
-        <main className="max-w-lg mx-auto px-4 py-8">
+        <main className="max-w-lg mx-auto px-4 py-8 pb-24">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <p className="text-gray-600 mb-4">Booking details not found. Please start from your bookings.</p>
             <Button onClick={() => navigate('/bookings')}>View My Bookings</Button>
           </div>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -230,7 +232,7 @@ export function CheckoutPage() {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-5">
         {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
         {/* Order Summary */}
@@ -441,6 +443,7 @@ export function CheckoutPage() {
           {payButtonLabel()}
         </Button>
       </main>
+      <BottomNav />
     </div>
   );
 }

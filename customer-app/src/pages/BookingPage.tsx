@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { bookingApi, customerApi, dogProfileApi } from '../lib/api';
+import { BottomNav } from '../components/BottomNav';
 import { Input } from '../components/ui';
 import type {
   ServiceType,
@@ -458,7 +459,7 @@ export function BookingPage() {
     return (
       <div className="min-h-screen bg-brand-cream">
         {renderHeader()}
-        <main className="max-w-lg mx-auto px-4 py-8">
+        <main className="max-w-lg mx-auto px-4 py-8 pb-24">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="mx-auto w-20 h-20 bg-brand-soft-green/20 rounded-full flex items-center justify-center mb-6">
               <svg className="w-10 h-10 text-brand-soft-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -515,6 +516,7 @@ export function BookingPage() {
             </div>
           </div>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -522,7 +524,7 @@ export function BookingPage() {
   return (
     <div className="min-h-screen bg-brand-cream">
       {renderHeader()}
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-lg mx-auto px-4 py-6 pb-24">
         {error && (
           <Alert variant="error" className="mb-4">
             {error}
@@ -1223,6 +1225,7 @@ export function BookingPage() {
           </div>
         )}
       </main>
+      <BottomNav />
     </div>
   );
 }

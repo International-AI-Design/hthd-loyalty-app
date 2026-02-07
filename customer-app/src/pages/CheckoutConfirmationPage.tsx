@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { checkoutApi } from '../lib/api';
 import type { ReceiptData, Booking, CheckoutResult } from '../lib/api';
+import { BottomNav } from '../components/BottomNav';
 import { Button, Alert, Toast } from '../components/ui';
 
 export function CheckoutConfirmationPage() {
@@ -110,10 +111,11 @@ export function CheckoutConfirmationPage() {
             <h1 className="font-heading text-lg font-bold text-brand-navy">Payment Receipt</h1>
           </div>
         </header>
-        <main className="max-w-lg mx-auto px-4 py-8">
+        <main className="max-w-lg mx-auto px-4 py-8 pb-24">
           <Alert variant="error">{error}</Alert>
           <Button className="w-full mt-4" onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -141,7 +143,7 @@ export function CheckoutConfirmationPage() {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-lg mx-auto px-4 py-8 pb-24 space-y-6">
         {/* Success Icon */}
         <div className="text-center">
           <div
@@ -247,6 +249,7 @@ export function CheckoutConfirmationPage() {
         </div>
       </main>
 
+      <BottomNav />
       <Toast
         message={toastMessage}
         isVisible={isToastVisible}

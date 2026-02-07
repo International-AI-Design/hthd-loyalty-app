@@ -7,52 +7,52 @@
 @import "@fontsource/quicksand/700.css";
 
 @theme {
-  /* Primary - Terracotta */
-  --color-brand-primary: #C2704E;
-  --color-brand-primary-light: #D4896B;
-  --color-brand-primary-dark: #A85D3E;
+  /* Primary - Brand Blue (matches happytailhappydog.com) */
+  --color-brand-primary: #62A2C3;
+  --color-brand-primary-light: #7BB8D4;
+  --color-brand-primary-dark: #4E8BA8;
 
-  /* Secondary - Sage Green */
-  --color-brand-sage: #8BA888;
-  --color-brand-sage-light: #A3BDA0;
-  --color-brand-sage-dark: #6F8E6C;
+  /* Secondary - Soft Green */
+  --color-brand-sage: #7FB685;
+  --color-brand-sage-light: #9BC89F;
+  --color-brand-sage-dark: #5EA065;
 
   /* Surfaces */
-  --color-brand-cream: #FAF6F1;
-  --color-brand-warm-white: #FFF8F2;
-  --color-brand-sand: #F0E8DE;
+  --color-brand-cream: #F8F6F3;
+  --color-brand-warm-white: #FDF8F3;
+  --color-brand-sand: #E8E8E8;
 
   /* Accents */
-  --color-brand-amber: #D4A843;
-  --color-brand-amber-light: #E4C06A;
-  --color-brand-amber-dark: #B8912E;
+  --color-brand-amber: #F5C65D;
+  --color-brand-amber-light: #F7D47D;
+  --color-brand-amber-dark: #D4A843;
 
   /* Text */
-  --color-brand-forest: #2C3E2D;
-  --color-brand-forest-light: #4A5E4B;
-  --color-brand-forest-muted: #6B7D6C;
+  --color-brand-forest: #1B365D;
+  --color-brand-forest-light: #3A5578;
+  --color-brand-forest-muted: #6B7D8C;
 
   /* Status */
   --color-brand-success: #7FB685;
-  --color-brand-warning: #D4A843;
-  --color-brand-error: #C2584E;
-  --color-brand-info: #8BA888;
+  --color-brand-warning: #F5C65D;
+  --color-brand-error: #E8837B;
+  --color-brand-info: #62A2C3;
 
   /* Dark mode */
-  --color-brand-dark-bg: #1A2A1B;
-  --color-brand-dark-surface: #243226;
-  --color-brand-dark-elevated: #2E3F30;
-  --color-brand-dark-border: #3D5240;
+  --color-brand-dark-bg: #0D1B2A;
+  --color-brand-dark-surface: #1B2B3D;
+  --color-brand-dark-elevated: #253A50;
+  --color-brand-dark-border: #3A5578;
 
   /* Legacy compatibility tokens */
-  --color-brand-blue: #C2704E;
-  --color-brand-blue-dark: #A85D3E;
-  --color-brand-navy: #2C3E2D;
-  --color-brand-coral: #C2584E;
-  --color-brand-golden-yellow: #D4A843;
-  --color-brand-soft-green: #8BA888;
-  --color-brand-light-gray: #E8E0D6;
-  --color-brand-soft-cream: #FAF6F1;
+  --color-brand-blue: #62A2C3;
+  --color-brand-blue-dark: #4E8BA8;
+  --color-brand-navy: #1B365D;
+  --color-brand-coral: #E8837B;
+  --color-brand-golden-yellow: #F5C65D;
+  --color-brand-soft-green: #7FB685;
+  --color-brand-light-gray: #E8E8E8;
+  --color-brand-soft-cream: #FDF8F3;
 
   /* Typography */
   --font-heading: 'Fraunces Variable', Georgia, serif;
@@ -63,27 +63,27 @@
 /* Base styles */
 html {
   font-family: var(--font-body);
-  color: #2C3E2D;
+  color: #1B365D;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: #FAF6F1;
+  background-color: #F8F6F3;
   min-height: 100dvh;
 }
 
 /* Dark mode base */
 html.dark body {
-  background-color: #1A2A1B;
-  color: #E8E0D6;
+  background-color: #0D1B2A;
+  color: #E8E8E8;
 }
 
 /* Heading defaults */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   font-weight: 600;
-  color: #2C3E2D;
+  color: #1B365D;
 }
 
 html.dark h1,
@@ -92,7 +92,7 @@ html.dark h3,
 html.dark h4,
 html.dark h5,
 html.dark h6 {
-  color: #FAF6F1;
+  color: #F8F6F3;
 }
 
 /* Pet name styling */
@@ -122,23 +122,23 @@ button, a, [role="button"] {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C2704E33;
+  background: #62A2C333;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C2704E66;
+  background: #62A2C366;
 }
 
 /* Focus visible ring */
 *:focus-visible {
-  outline: 2px solid #C2704E;
+  outline: 2px solid #62A2C3;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* Selection */
 ::selection {
-  background-color: #C2704E22;
-  color: #2C3E2D;
+  background-color: #62A2C322;
+  color: #1B365D;
 }

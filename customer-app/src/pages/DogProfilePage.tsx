@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dogProfileApi } from '../lib/api';
+import { BottomNav } from '../components/BottomNav';
 import { Button, Modal, Input, Alert } from '../components/ui';
 
 interface Vaccination {
@@ -317,7 +318,7 @@ export function DogProfilePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-24 space-y-6">
         {/* Dog Identity Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-start gap-4">
@@ -590,6 +591,8 @@ export function DogProfilePage() {
           </div>
         )}
       </main>
+
+      <BottomNav />
 
       {/* Vaccination Modal */}
       <Modal
