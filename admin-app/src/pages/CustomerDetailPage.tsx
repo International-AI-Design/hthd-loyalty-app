@@ -7,6 +7,7 @@ import type {
   CustomerDetail,
   CustomerTransaction,
   CustomerRedemption,
+  CustomerDog,
   AddPointsResponse,
   CreateRedemptionResponse,
 } from '../lib/api';
@@ -24,6 +25,26 @@ const REWARD_TIERS = [
   { points: 250, discount: 25 },
   { points: 500, discount: 50 },
 ];
+
+const BOOKING_STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
+  confirmed: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Confirmed' },
+  checked_in: { bg: 'bg-green-100', text: 'text-green-800', label: 'Checked In' },
+  checked_out: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Checked Out' },
+  cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' },
+  no_show: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'No Show' },
+};
+
+const SIZE_LABELS: Record<string, string> = {
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  xl: 'X-Large',
+};
+
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -278,6 +299,37 @@ export function CustomerDetailPage() {
     });
   };
 
+  const calculateAge = (birthDate: string): string => {
+    const birth = new Date(birthDate);
+    const now = new Date();
+    const years = now.getFullYear() - birth.getFullYear();
+    const months = now.getMonth() - birth.getMonth();
+    const adjustedYears = months < 0 || (months === 0 && now.getDate() < birth.getDate()) ? years - 1 : years;
+    if (adjustedYears < 1) {
+      const totalMonths = (now.getFullYear() - birth.getFullYear()) * 12 + now.getMonth() - birth.getMonth();
+      return totalMonths <= 1 ? '< 1 month' : totalMonths + ' months';
+    }
+    return adjustedYears === 1 ? '1 year' : adjustedYears + ' years';
+  };
+
+  const getVaccinationStatus = (dog: CustomerDog): { label: string; color: string } => {
+    if (!dog.vaccinations || dog.vaccinations.length === 0) {
+      return { label: 'No records', color: 'bg-gray-100 text-gray-600' };
+    }
+    const now = new Date();
+    const hasExpired = dog.vaccinations.some(
+      (v) => v.expires_at && new Date(v.expires_at) < now
+    );
+    const hasUnverified = dog.vaccinations.some((v) => !v.verified);
+    if (hasExpired) {
+      return { label: 'Expired', color: 'bg-red-100 text-red-700' };
+    }
+    if (hasUnverified) {
+      return { label: 'Needs verification', color: 'bg-yellow-100 text-yellow-700' };
+    }
+    return { label: 'Up to date', color: 'bg-green-100 text-green-700' };
+  };
+
   const parsedAmount = parseFloat(dollarAmount) || 0;
   const previewPoints = parsedAmount > 0 ? calculatePoints(parsedAmount, serviceType) : 0;
 
@@ -405,6 +457,51 @@ export function CustomerDetailPage() {
           </div>
         </div>
 
+        {/* Pets Section */}
+        {customer.dogs && customer.dogs.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Pets ({customer.dogs.length})
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customer.dogs.map((dog) => (
+                <div
+                  key={dog.id}
+                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 text-base">{dog.name}</h4>
+                      {dog.breed && (
+                        <p className="text-sm text-gray-500">{dog.breed}</p>
+                      )}
+                    </div>
+                    {dog.size_category && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {SIZE_LABELS[dog.size_category] || dog.size_category}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    {dog.weight && (
+                      <p className="text-gray-600">Weight: {dog.weight} lbs</p>
+                    )}
+                    {dog.temperament && (
+                      <p className="text-gray-600">Temperament: <span className="capitalize">{dog.temperament}</span></p>
+                    )}
+                    {dog.is_neutered && (
+                      <p className="text-gray-600">Neutered/Spayed</p>
+                    )}
+                    {dog.notes && (
+                      <p className="text-gray-500 mt-2 text-xs italic">{dog.notes}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Referral Information */}
         {(customer.referred_by || customer.referrals.length > 0) && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -479,6 +576,270 @@ export function CustomerDetailPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Dogs Section */}
+        {customer.dogs && customer.dogs.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Dogs ({customer.dogs.length})
+            </h3>
+            <div className="space-y-3">
+              {customer.dogs.map((dog) => (
+                <div key={dog.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Dog summary row */}
+                  <button
+                    onClick={() => setExpandedDogId(expandedDogId === dog.id ? null : dog.id)}
+                    className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors min-h-[56px]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#62A2C3]/15 flex items-center justify-center flex-shrink-0">
+                        {dog.photo_url ? (
+                          <img src={dog.photo_url} alt={dog.name} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <svg className="w-5 h-5 text-[#62A2C3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">{dog.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {dog.breed || 'Unknown breed'}
+                          {dog.size_category && ` · ${dog.size_category}`}
+                          {dog.weight && ` · ${dog.weight} lbs`}
+                          {dog.birth_date && ` · ${calculateAge(dog.birth_date)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const vaxStatus = getVaccinationStatus(dog);
+                        return (
+                          <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${vaxStatus.color}`}>
+                            {vaxStatus.label}
+                          </span>
+                        );
+                      })()}
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ${expandedDogId === dog.id ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {/* Expanded details */}
+                  {expandedDogId === dog.id && (
+                    <div className="border-t border-gray-200 p-4 bg-gray-50">
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {dog.birth_date && (
+                          <div>
+                            <p className="text-xs text-gray-500">Birthday</p>
+                            <p className="text-sm font-medium text-gray-900">{formatDate(dog.birth_date)}</p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500">Neutered/Spayed</p>
+                          <p className="text-sm font-medium text-gray-900">{dog.is_neutered ? 'Yes' : 'No'}</p>
+                        </div>
+                        {dog.temperament && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-gray-500">Temperament</p>
+                            <p className="text-sm font-medium text-gray-900">{dog.temperament}</p>
+                          </div>
+                        )}
+                        {dog.care_instructions && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-gray-500">Care Instructions</p>
+                            <p className="text-sm text-gray-700">{dog.care_instructions}</p>
+                          </div>
+                        )}
+                        {dog.notes && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-gray-500">Notes</p>
+                            <p className="text-sm text-gray-700">{dog.notes}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Vaccination Status */}
+                      {dog.vaccinations && dog.vaccinations.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-xs text-gray-500 mb-2">Vaccinations</p>
+                          <div className="space-y-1.5">
+                            {dog.vaccinations.map((vax) => {
+                              const isExpired = vax.expires_at && new Date(vax.expires_at) < new Date();
+                              return (
+                                <div key={vax.id} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                      isExpired ? 'bg-red-500' : vax.verified ? 'bg-green-500' : 'bg-yellow-500'
+                                    }`} />
+                                    <span className="text-gray-700 capitalize">{vax.name.replace('_', ' ')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    {vax.expires_at && (
+                                      <span className={isExpired ? 'text-red-600 font-medium' : ''}>
+                                        {isExpired ? 'Expired' : 'Exp'} {formatDate(vax.expires_at)}
+                                      </span>
+                                    )}
+                                    {vax.verified && (
+                                      <span className="text-green-600">Verified</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {dog.vaccinations && dog.vaccinations.length === 0 && (
+                        <div className="mb-4">
+                          <p className="text-xs text-gray-500 mb-1">Vaccinations</p>
+                          <p className="text-sm text-gray-400 italic">No vaccination records on file</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => handleOpenBehaviorNote(dog.id)}
+                        className="px-3 py-2 text-sm font-medium text-[#1B365D] border border-[#1B365D]/20 rounded-lg hover:bg-[#1B365D]/5 transition-colors min-h-[40px]"
+                      >
+                        + Add Behavior Note
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Bookings Section */}
+        {customer.upcoming_bookings && customer.upcoming_bookings.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Upcoming Bookings ({customer.upcoming_bookings.length})
+            </h3>
+            <div className="space-y-3">
+              {customer.upcoming_bookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-gray-200 gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatDate(booking.date)}
+                      </span>
+                      {booking.start_time && (
+                        <span className="text-xs text-gray-500">at {booking.start_time}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">{booking.service_display_name || booking.service_name}</p>
+                    {booking.dogs.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {booking.dogs.map((d) => d.name).join(', ')}
+                      </p>
+                    )}
+                    {booking.notes && (
+                      <p className="text-xs text-gray-400 mt-1 italic">
+                        {booking.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
+                      booking.status === 'confirmed'
+                        ? 'bg-green-100 text-green-700'
+                        : booking.status === 'checked_in'
+                        ? 'bg-blue-100 text-blue-700'
+                        : booking.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {booking.status.replace('_', ' ')}
+                    </span>
+                    {booking.total_cents > 0 && (
+                      <span className="text-sm font-medium text-gray-700">
+                        ${(booking.total_cents / 100).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Booking History Section */}
+        {customer.recent_bookings && customer.recent_bookings.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Booking History</h3>
+              <span className="text-sm text-gray-500">{customer.recent_bookings.length} total</span>
+            </div>
+            <div className="space-y-2">
+              {paginatedRecentBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-gray-100 last:border-0 gap-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatDate(booking.date)}
+                      </p>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                        booking.status === 'checked_out' || booking.status === 'completed'
+                          ? 'bg-green-100 text-green-700'
+                          : booking.status === 'cancelled'
+                          ? 'bg-red-100 text-red-600'
+                          : booking.status === 'no_show'
+                          ? 'bg-gray-200 text-gray-600'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {booking.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">{booking.service_display_name || booking.service_name}</p>
+                    {booking.dogs.length > 0 && (
+                      <p className="text-xs text-gray-400">
+                        {booking.dogs.map((d) => d.name).join(', ')}
+                      </p>
+                    )}
+                    {booking.notes && (
+                      <p className="text-xs text-gray-400 mt-1 italic">
+                        {booking.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left sm:text-right">
+                    {booking.total_cents > 0 && (
+                      <p className="text-sm font-medium text-gray-700">
+                        ${(booking.total_cents / 100).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {hasMoreBookingHistory && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBookingHistoryPage((p) => p + 1)}
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -806,6 +1167,87 @@ export function CustomerDetailPage() {
                 {redemptionSuccess ? 'Close' : 'Cancel'}
               </Button>
             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Behavior Note Modal */}
+      <Modal
+        isOpen={showBehaviorNoteModal}
+        onClose={handleCloseBehaviorNoteModal}
+        title="Add Behavior Note"
+      >
+        <div>
+          {behaviorNoteSuccess ? (
+            <>
+              <Alert variant="success" className="mb-4">
+                Behavior note added successfully.
+              </Alert>
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={handleCloseBehaviorNoteModal}>
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <p className="text-gray-600 text-sm mb-3">
+                  Add a behavior note for{' '}
+                  <span className="font-semibold">
+                    {customer.dogs?.find((d) => d.id === behaviorNoteDogId)?.name || 'this dog'}
+                  </span>
+                </p>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Note Type</label>
+                  <div className="flex gap-2">
+                    {(['positive', 'concern', 'info'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setBehaviorNoteType(type)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors min-h-[40px] ${
+                          behaviorNoteType === type
+                            ? type === 'positive'
+                              ? 'bg-green-100 text-green-700 border-2 border-green-400'
+                              : type === 'concern'
+                              ? 'bg-red-100 text-red-700 border-2 border-red-400'
+                              : 'bg-blue-100 text-blue-700 border-2 border-blue-400'
+                            : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                  <textarea
+                    rows={4}
+                    value={behaviorNoteText}
+                    onChange={(e) => setBehaviorNoteText(e.target.value)}
+                    placeholder="Describe the behavior observation..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#62A2C3] focus:border-[#62A2C3]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={handleCloseBehaviorNoteModal}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSubmitBehaviorNote}
+                  isLoading={isSubmittingBehaviorNote}
+                  disabled={!behaviorNoteText.trim()}
+                >
+                  Add Note
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </Modal>

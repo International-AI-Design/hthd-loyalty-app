@@ -24,6 +24,26 @@ const NAV_ITEMS = [
     ),
   },
   {
+    to: '/staff-schedule',
+    label: 'Staff Schedule',
+    roles: ['owner', 'admin', 'manager'],
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/loyalty',
+    label: 'Loyalty Points',
+    roles: null,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
     to: '/customers',
     label: 'Customers',
     roles: null,
@@ -94,7 +114,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Logo area */}
       <div className="px-4 py-5 border-b border-brand-navy/20">
         <h1 className="font-heading text-lg font-bold text-white">Happy Tail</h1>
-        <p className="text-brand-teal text-xs mt-0.5">Admin Portal</p>
+        <p className="text-brand-blue text-xs mt-0.5">Admin Portal</p>
       </div>
 
       {/* Nav items */}
@@ -121,7 +141,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Bottom: staff info + logout */}
       <div className="px-4 py-4 border-t border-brand-navy/20">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-brand-teal/30 flex items-center justify-center text-white text-sm font-medium">
+          <div className="w-8 h-8 rounded-full bg-brand-blue/30 flex items-center justify-center text-white text-sm font-medium">
             {staff?.first_name?.[0]}
             {staff?.last_name?.[0]}
           </div>
@@ -178,7 +198,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
           <h1 className="font-heading text-lg font-bold text-brand-navy">Happy Tail</h1>
           <div className="w-11 h-11 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full bg-brand-teal/20 flex items-center justify-center text-brand-navy text-xs font-medium">
+            <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-navy text-xs font-medium">
               {staff?.first_name?.[0]}
               {staff?.last_name?.[0]}
             </div>

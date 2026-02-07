@@ -83,6 +83,12 @@ export function BookingPage() {
   const [newDogBreed, setNewDogBreed] = useState('');
   const [isAddingDog, setIsAddingDog] = useState(false);
 
+  // Quick Add Pet at checkout (step 7)
+  const [quickAddName, setQuickAddName] = useState('');
+  const [quickAddBreed, setQuickAddBreed] = useState('');
+  const [isQuickAdding, setIsQuickAdding] = useState(false);
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
+
   const isGrooming = selectedService?.name === 'grooming';
 
   // Load service types on mount
@@ -331,6 +337,25 @@ export function BookingPage() {
     setIsAddingDog(false);
   };
 
+  const handleQuickAddDog = async () => {
+    if (!quickAddName.trim()) return;
+    setIsQuickAdding(true);
+    setQuickAddError(null);
+    const { data, error: err } = await customerApi.addDog({
+      name: quickAddName.trim(),
+      breed: quickAddBreed.trim() || undefined,
+    });
+    if (data) {
+      setDogs((prev) => [...prev, data]);
+      setSelectedDogIds((prev) => [...prev, data.id]);
+      setQuickAddName('');
+      setQuickAddBreed('');
+    } else if (err) {
+      setQuickAddError(err);
+    }
+    setIsQuickAdding(false);
+  };
+
   const handleBundleSelect = async (bundle: ServiceBundle) => {
     setSelectedBundle(bundle);
     const { data } = await bookingApi.calculateBundlePrice(bundle.id, selectedDogIds);
@@ -340,7 +365,11 @@ export function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedService || !selectedDate || selectedDogIds.length === 0) return;
+    if (!selectedService || !selectedDate) return;
+    if (selectedDogIds.length === 0) {
+      setError('Please add a pet before confirming your booking.');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
 
@@ -387,9 +416,9 @@ export function BookingPage() {
             key={i}
             className={`w-2.5 h-2.5 rounded-full transition-colors ${
               dotStep === currentStepIndex
-                ? 'bg-brand-teal w-6 rounded-full'
+                ? 'bg-brand-blue w-6 rounded-full'
                 : dotStep < currentStepIndex
-                ? 'bg-brand-teal/40'
+                ? 'bg-brand-blue/40'
                 : 'bg-gray-300'
             }`}
           />
@@ -477,7 +506,7 @@ export function BookingPage() {
               </Button>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="w-full text-center text-sm text-brand-teal font-medium hover:underline py-2 min-h-[44px]"
+                className="w-full text-center text-sm text-brand-blue font-medium hover:underline py-2 min-h-[44px]"
               >
                 Back to Dashboard
               </button>
@@ -522,7 +551,7 @@ export function BookingPage() {
             <h2 className="font-heading text-xl font-bold text-brand-navy">Choose a Service</h2>
             {isLoadingServices ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : (
               <div className="space-y-3">
@@ -530,7 +559,7 @@ export function BookingPage() {
                   <button
                     key={service.id}
                     onClick={() => handleServiceSelect(service)}
-                    className="w-full bg-white rounded-2xl shadow-md p-5 text-left hover:shadow-lg hover:ring-2 hover:ring-brand-teal transition-all min-h-[88px]"
+                    className="w-full bg-white rounded-2xl shadow-md p-5 text-left hover:shadow-lg hover:ring-2 hover:ring-brand-blue transition-all min-h-[88px]"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -540,7 +569,7 @@ export function BookingPage() {
                         <p className="text-sm text-gray-600 mt-1">{service.description}</p>
                       </div>
                       <div className="ml-4 text-right flex-shrink-0">
-                        <p className="text-xl font-bold text-brand-teal">
+                        <p className="text-xl font-bold text-brand-blue">
                           {service.name === 'grooming'
                             ? `From ${formatPrice(service.basePriceCents)}+`
                             : formatPrice(service.basePriceCents)}
@@ -568,12 +597,12 @@ export function BookingPage() {
             )}
             {isLoadingDogs ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : dogs.length === 0 && !showAddDog ? (
               <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-                <div className="mx-auto w-16 h-16 bg-brand-teal/10 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="mx-auto w-16 h-16 bg-brand-blue/10 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
@@ -587,10 +616,10 @@ export function BookingPage() {
                   Add Your Dog
                 </Button>
                 <button
-                  onClick={() => navigate('/dashboard')}
-                  className="w-full mt-3 py-3 text-sm text-gray-500 hover:text-brand-teal font-medium transition-colors min-h-[44px]"
+                  onClick={goNext}
+                  className="w-full mt-3 py-3 text-sm text-gray-500 hover:text-brand-blue font-medium transition-colors min-h-[44px]"
                 >
-                  Skip for now — just browsing
+                  Continue without adding a pet
                 </button>
               </div>
             ) : showAddDog && dogs.length === 0 ? (
@@ -642,14 +671,14 @@ export function BookingPage() {
                         onClick={() => handleDogToggle(dog.id)}
                         className={`w-full rounded-2xl p-4 text-left transition-all min-h-[68px] ${
                           isSelected
-                            ? 'bg-brand-teal/10 ring-2 ring-brand-teal shadow-md'
+                            ? 'bg-brand-blue/10 ring-2 ring-brand-blue shadow-md'
                             : 'bg-white shadow-md hover:shadow-lg'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
-                              isSelected ? 'bg-brand-teal' : 'bg-gray-300'
+                              isSelected ? 'bg-brand-blue' : 'bg-gray-300'
                             }`}
                           >
                             {dog.name.charAt(0).toUpperCase()}
@@ -660,7 +689,7 @@ export function BookingPage() {
                           </div>
                           <div
                             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              isSelected ? 'border-brand-teal bg-brand-teal' : 'border-gray-300'
+                              isSelected ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'
                             }`}
                           >
                             {isSelected && (
@@ -684,7 +713,7 @@ export function BookingPage() {
                                 key={opt.value}
                                 onClick={() => handleSizeUpdate(dog.id, opt.value)}
                                 disabled={updatingSize}
-                                className="py-3 px-3 rounded-xl border-2 border-gray-200 hover:border-brand-teal hover:bg-brand-teal/5 transition-all text-center min-h-[44px]"
+                                className="py-3 px-3 rounded-xl border-2 border-gray-200 hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-center min-h-[44px]"
                               >
                                 <p className="font-semibold text-brand-navy text-sm">{opt.label}</p>
                                 <p className="text-xs text-gray-500">{opt.desc}</p>
@@ -701,7 +730,7 @@ export function BookingPage() {
                 {!showAddDog ? (
                   <button
                     onClick={() => setShowAddDog(true)}
-                    className="w-full text-sm text-brand-teal hover:text-brand-teal-dark font-medium py-2"
+                    className="w-full text-sm text-brand-blue hover:text-brand-blue-dark font-medium py-2"
                   >
                     + Add another dog
                   </button>
@@ -729,13 +758,21 @@ export function BookingPage() {
                   </div>
                 )}
 
+                {selectedDogIds.length === 0 && (
+                  <div className="mt-4 rounded-xl p-3 border border-[#62A2C3]/30 bg-[#62A2C3]/5">
+                    <p className="text-sm text-[#62A2C3]">
+                      Add your pet's details for a personalized experience
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   className="w-full mt-4"
                   size="lg"
                   onClick={goNext}
-                  disabled={selectedDogIds.length === 0 || sizePendingDogId !== null}
+                  disabled={sizePendingDogId !== null}
                 >
-                  Continue
+                  {selectedDogIds.length > 0 ? 'Continue' : 'Continue Without Selecting'}
                 </Button>
               </div>
             )}
@@ -748,7 +785,7 @@ export function BookingPage() {
             <h2 className="font-heading text-xl font-bold text-brand-navy">Pick a Date</h2>
             {isLoadingAvailability ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : (
               <>
@@ -767,9 +804,9 @@ export function BookingPage() {
                         disabled={!day.available}
                         className={`rounded-xl p-3 text-center transition-all min-h-[72px] ${
                           isSelected
-                            ? 'bg-brand-teal text-white shadow-md'
+                            ? 'bg-brand-blue text-white shadow-md'
                             : day.available
-                            ? 'bg-white hover:ring-2 hover:ring-brand-teal shadow-sm'
+                            ? 'bg-white hover:ring-2 hover:ring-brand-blue shadow-sm'
                             : 'bg-gray-100 opacity-50 cursor-not-allowed'
                         }`}
                       >
@@ -812,7 +849,7 @@ export function BookingPage() {
             </p>
             {isLoadingSlots ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : groomingSlots.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
@@ -833,9 +870,9 @@ export function BookingPage() {
                         disabled={!slot.available}
                         className={`rounded-xl p-4 text-center transition-all min-h-[56px] ${
                           isSelected
-                            ? 'bg-brand-teal text-white shadow-md'
+                            ? 'bg-brand-blue text-white shadow-md'
                             : slot.available
-                            ? 'bg-white hover:ring-2 hover:ring-brand-teal shadow-sm'
+                            ? 'bg-white hover:ring-2 hover:ring-brand-blue shadow-sm'
                             : 'bg-gray-100 opacity-50 cursor-not-allowed'
                         }`}
                       >
@@ -901,7 +938,7 @@ export function BookingPage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center py-8 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-teal transition-colors min-h-[120px]">
+                <label className="flex flex-col items-center justify-center py-8 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue transition-colors min-h-[120px]">
                   <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -945,7 +982,7 @@ export function BookingPage() {
             <h2 className="font-heading text-xl font-bold text-brand-navy">Save with a Bundle</h2>
             {isLoadingBundles ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : bundles.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -1043,17 +1080,69 @@ export function BookingPage() {
           <div className="space-y-4">
             <h2 className="font-heading text-xl font-bold text-brand-navy">Review & Confirm</h2>
 
+            {/* Quick Add Pet — shown when user reached checkout without selecting a dog */}
+            {selectedDogIds.length === 0 && (
+              <div className="bg-white rounded-2xl shadow-md p-5 space-y-4 border-2 border-[#62A2C3]/40">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#62A2C3]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-5 h-5 text-[#62A2C3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-brand-navy text-base">Quick Add Your Pet</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      Just a name is all we need to complete your booking.
+                    </p>
+                  </div>
+                </div>
+
+                {quickAddError && (
+                  <Alert variant="error">{quickAddError}</Alert>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pet name *</label>
+                  <Input
+                    value={quickAddName}
+                    onChange={(e) => setQuickAddName(e.target.value)}
+                    placeholder="e.g., Bella"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Breed (optional)</label>
+                  <Input
+                    value={quickAddBreed}
+                    onChange={(e) => setQuickAddBreed(e.target.value)}
+                    placeholder="e.g., Golden Retriever"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleQuickAddDog}
+                  disabled={!quickAddName.trim() || isQuickAdding}
+                  isLoading={isQuickAdding}
+                  style={{ backgroundColor: '#62A2C3', borderColor: '#62A2C3' }}
+                >
+                  Add Pet & Continue
+                </Button>
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Service</span>
                 <span className="font-semibold text-brand-navy">{selectedService?.displayName}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
-                <span className="font-semibold text-brand-navy">
-                  {selectedDogIds.map((id) => dogs.find((d) => d.id === id)?.name).filter(Boolean).join(', ')}
-                </span>
-              </div>
+              {selectedDogIds.length > 0 && (
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>
+                  <span className="font-semibold text-brand-navy">
+                    {selectedDogIds.map((id) => dogs.find((d) => d.id === id)?.name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Date</span>
                 <span className="font-semibold text-brand-navy">
@@ -1078,7 +1167,7 @@ export function BookingPage() {
                   {bundleCalc
                     ? formatPrice(bundleCalc.finalTotalCents)
                     : selectedService
-                    ? formatPrice(selectedService.basePriceCents * selectedDogIds.length)
+                    ? formatPrice(selectedService.basePriceCents * Math.max(selectedDogIds.length, 1))
                     : '--'}
                 </span>
               </div>
@@ -1092,7 +1181,7 @@ export function BookingPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none"
+                className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent resize-none"
                 placeholder="Any special requests or things we should know..."
               />
             </div>
@@ -1112,9 +1201,10 @@ export function BookingPage() {
               className="w-full"
               size="lg"
               onClick={handleSubmit}
+              disabled={selectedDogIds.length === 0}
               isLoading={isSubmitting}
             >
-              Confirm Booking
+              {selectedDogIds.length === 0 ? 'Add a pet above to confirm' : 'Confirm Booking'}
             </Button>
           </div>
         )}

@@ -154,7 +154,7 @@ export function TermsPage() {
               Refunds of wallet balances are available upon request &mdash; contact us at{' '}
               <a
                 href="mailto:support@happytailhappydog.com"
-                className="text-brand-teal hover:text-brand-teal-dark font-medium"
+                className="text-brand-blue hover:text-brand-blue-dark font-medium"
               >
                 support@happytailhappydog.com
               </a>{' '}
@@ -199,7 +199,7 @@ export function TermsPage() {
             messages, or email us at{' '}
             <a
               href="mailto:support@happytailhappydog.com"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium"
             >
               support@happytailhappydog.com
             </a>
@@ -302,7 +302,7 @@ export function TermsPage() {
             Email:{' '}
             <a
               href="mailto:support@happytailhappydog.com"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium"
             >
               support@happytailhappydog.com
             </a>
@@ -311,7 +311,7 @@ export function TermsPage() {
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <Link
               to="/login"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium text-sm"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium text-sm"
             >
               &larr; Back to Login
             </Link>

@@ -98,13 +98,13 @@ export function ServiceSelector({ onSelect, selectedId }: ServiceSelectorProps) 
             onClick={() => onSelect(service.id, service.name)}
             className={`w-full rounded-2xl p-5 text-left transition-all min-h-[88px] ${
               isSelected
-                ? 'bg-brand-teal/10 ring-2 ring-brand-teal shadow-lg'
-                : 'bg-white shadow-md hover:shadow-lg hover:ring-2 hover:ring-brand-teal/50'
+                ? 'bg-brand-blue/10 ring-2 ring-brand-blue shadow-lg'
+                : 'bg-white shadow-md hover:shadow-lg hover:ring-2 hover:ring-brand-blue/50'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isSelected ? 'bg-brand-teal text-white' : 'bg-brand-cream text-brand-teal'
+                isSelected ? 'bg-brand-blue text-white' : 'bg-brand-cream text-brand-blue'
               }`}>
                 {service.icon}
               </div>
@@ -113,7 +113,7 @@ export function ServiceSelector({ onSelect, selectedId }: ServiceSelectorProps) 
                 <p className="text-sm text-gray-600 mt-0.5">{service.description}</p>
               </div>
               <div className="flex-shrink-0 text-right">
-                <p className="text-lg font-bold text-brand-teal">{service.priceLabel}</p>
+                <p className="text-lg font-bold text-brand-blue">{service.priceLabel}</p>
               </div>
             </div>
           </button>

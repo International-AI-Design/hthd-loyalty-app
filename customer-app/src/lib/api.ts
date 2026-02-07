@@ -1,18 +1,54 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 800;
+const RETRY_DELAYS_MS = [1_000, 3_000]; // exponential backoff: 1s, 3s
 
 interface ApiError {
   error: string;
   details?: unknown;
 }
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   data?: T;
   error?: string;
   details?: unknown;
+  /** True when the error was a cold-start / network issue (enables retry UI) */
+  isRetryable?: boolean;
+}
+
+/**
+ * Subscribers receive progressive status messages during retries.
+ * Components can use this to show "Connecting to server..." / "Server is waking up..." UI.
+ */
+export type RetryStatusListener = (status: RetryStatus) => void;
+
+export interface RetryStatus {
+  /** Which attempt we are on (1 = first retry, 2 = second retry) */
+  attempt: number;
+  /** Max retries configured */
+  maxRetries: number;
+  /** User-friendly message for this retry stage */
+  message: string;
+}
+
+const retryStatusListeners = new Set<RetryStatusListener>();
+
+/** Subscribe to retry status updates. Returns an unsubscribe function. */
+export function onRetryStatus(listener: RetryStatusListener): () => void {
+  retryStatusListeners.add(listener);
+  return () => { retryStatusListeners.delete(listener); };
+}
+
+function notifyRetryListeners(attempt: number): void {
+  const status: RetryStatus = {
+    attempt,
+    maxRetries: MAX_RETRIES,
+    message: attempt === 1
+      ? 'Connecting to server...'
+      : 'Server is waking up, please wait...',
+  };
+  retryStatusListeners.forEach((fn) => fn(status));
 }
 
 function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
@@ -21,7 +57,7 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number):
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-function isRetryable(error: unknown): boolean {
+function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
   if (error instanceof TypeError) return true; // network failure
   return false;
@@ -43,16 +79,42 @@ async function request<T>(
   }
 
   let lastError: unknown;
+  let lastWas503 = false;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      if (attempt > 0) {
+        notifyRetryListeners(attempt);
+      }
+
       const response = await fetchWithTimeout(
         `${API_BASE}${endpoint}`,
         { ...options, headers },
         REQUEST_TIMEOUT_MS,
       );
 
-      const json = await response.json();
+      // Retry on 503 Service Unavailable (Railway cold-start)
+      if (response.status === 503 && attempt < MAX_RETRIES) {
+        lastWas503 = true;
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt] ?? 3_000));
+        continue;
+      }
+
+      lastWas503 = false;
+
+      let json: unknown;
+      try {
+        json = await response.json();
+      } catch {
+        // Non-JSON response (e.g. HTML error page from Railway)
+        if (!response.ok) {
+          return {
+            error: `Server error (${response.status}). Please try again.`,
+            isRetryable: true,
+          };
+        }
+        return { error: 'Unexpected server response. Please try again.' };
+      }
 
       if (!response.ok) {
         const apiError = json as ApiError;
@@ -62,15 +124,27 @@ async function request<T>(
       return { data: json as T };
     } catch (err) {
       lastError = err;
-      if (!isRetryable(err) || attempt === MAX_RETRIES) break;
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
+      if (!isRetryableError(err) || attempt === MAX_RETRIES) break;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt] ?? 3_000));
     }
   }
 
-  if (lastError instanceof DOMException && lastError.name === 'AbortError') {
-    return { error: 'Request timed out. The server may be starting up — please try again.' };
+  if (lastWas503) {
+    return {
+      error: 'The server is still starting up. Please wait a moment and try again.',
+      isRetryable: true,
+    };
   }
-  return { error: 'Network error. Please check your connection and try again.' };
+  if (lastError instanceof DOMException && lastError.name === 'AbortError') {
+    return {
+      error: 'Request timed out. The server may be starting up — please try again.',
+      isRetryable: true,
+    };
+  }
+  return {
+    error: 'Unable to reach the server. Please check your connection and try again.',
+    isRetryable: true,
+  };
 }
 
 export const api = {

@@ -30,6 +30,11 @@ import v2AdminStaffRoutes from './routes/v2/admin/staff';
 import v2ReportCardsRoutes from './routes/v2/report-cards';
 import v2AdminDashboardRoutes from './routes/v2/admin/dashboard';
 import { checkoutRouter, adminCheckoutRouter } from './modules/checkout';
+import v2DogProfileRoutes from './modules/dog-profile/router';
+import v2AdminDogProfileRoutes from './modules/dog-profile/admin-router';
+import v2MessagingRoutes from './modules/messaging/router';
+import v2AdminMessagingRoutes from './modules/messaging/admin-router';
+import v2AdminSchedulesRoutes from './modules/staff-schedule/admin-router';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -93,7 +98,12 @@ app.use('/api/v2/bundles', v2BundlesRoutes);
 app.use('/api/v2/admin/staff', v2AdminStaffRoutes);
 app.use('/api/v2/report-cards', v2ReportCardsRoutes);
 app.use('/api/v2/admin/dashboard', v2AdminDashboardRoutes);
+app.use('/api/v2/dogs', v2DogProfileRoutes);
+app.use('/api/v2/messaging', v2MessagingRoutes);
 app.use('/api/v2/checkout', checkoutRouter);
+app.use('/api/v2/admin/dogs', v2AdminDogProfileRoutes);
+app.use('/api/v2/admin/messaging', v2AdminMessagingRoutes);
+app.use('/api/v2/admin/schedules', v2AdminSchedulesRoutes);
 app.use('/api/v2/admin/checkout', adminCheckoutRouter);
 
 // Global error handler - catches unhandled errors to prevent crashes

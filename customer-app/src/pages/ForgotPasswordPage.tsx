@@ -145,7 +145,7 @@ export function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-brand-teal hover:text-brand-teal-dark"
+                  className="text-sm text-brand-blue hover:text-brand-blue-dark"
                 >
                   Back to login
                 </Link>
@@ -215,7 +215,7 @@ export function ForgotPasswordPage() {
                     setServerError(null);
                     identifierForm.handleSubmit(onRequestCode)();
                   }}
-                  className="text-sm text-brand-teal hover:text-brand-teal-dark"
+                  className="text-sm text-brand-blue hover:text-brand-blue-dark"
                 >
                   Resend code
                 </button>
@@ -262,13 +262,13 @@ export function ForgotPasswordPage() {
             <div className="mt-6 text-center space-y-2">
               <p className="text-gray-600">
                 Remember your password?{' '}
-                <Link to="/login" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+                <Link to="/login" className="text-brand-blue hover:text-brand-blue-dark font-medium">
                   Sign in
                 </Link>
               </p>
               <p className="text-gray-600">
                 Don't have an account?{' '}
-                <Link to="/register" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+                <Link to="/register" className="text-brand-blue hover:text-brand-blue-dark font-medium">
                   Create one
                 </Link>
               </p>

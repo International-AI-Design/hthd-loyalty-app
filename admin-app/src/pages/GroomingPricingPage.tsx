@@ -215,7 +215,7 @@ export function GroomingPricingPage() {
                                   handleStartEdit(tier.id, 'price', tier.priceCents);
                                 }
                               }}
-                              className="w-20 px-2 py-1 border border-brand-teal rounded text-sm text-center"
+                              className="w-20 px-2 py-1 border border-brand-blue rounded text-sm text-center"
                               autoFocus={editing.field === 'price'}
                             />
                           </div>
@@ -232,7 +232,7 @@ export function GroomingPricingPage() {
                                   handleStartEdit(tier.id, 'minutes', tier.estimatedMinutes);
                                 }
                               }}
-                              className="w-20 px-2 py-1 border border-brand-teal rounded text-sm text-center"
+                              className="w-20 px-2 py-1 border border-brand-blue rounded text-sm text-center"
                               autoFocus={editing.field === 'minutes'}
                             />
                             <span className="text-xs text-gray-500">min</span>
@@ -241,7 +241,7 @@ export function GroomingPricingPage() {
                             <button
                               onClick={handleSave}
                               disabled={isSaving}
-                              className="flex-1 px-2 py-1 bg-brand-teal text-white rounded text-xs font-medium hover:bg-brand-teal-dark"
+                              className="flex-1 px-2 py-1 bg-brand-blue text-white rounded text-xs font-medium hover:bg-brand-blue-dark"
                             >
                               {isSaving ? '...' : 'Save'}
                             </button>
@@ -329,7 +329,7 @@ export function GroomingPricingPage() {
                             onChange={(e) =>
                               editing.field === 'price' && setEditing({ ...editing, value: e.target.value })
                             }
-                            className="w-20 px-2 py-1.5 border border-brand-teal rounded text-sm"
+                            className="w-20 px-2 py-1.5 border border-brand-blue rounded text-sm"
                             autoFocus
                           />
                         </div>
@@ -348,7 +348,7 @@ export function GroomingPricingPage() {
                         <button
                           onClick={handleSave}
                           disabled={isSaving}
-                          className="min-h-[36px] px-3 py-1.5 bg-brand-teal text-white rounded text-sm font-medium"
+                          className="min-h-[36px] px-3 py-1.5 bg-brand-blue text-white rounded text-sm font-medium"
                         >
                           {isSaving ? '...' : 'Save'}
                         </button>

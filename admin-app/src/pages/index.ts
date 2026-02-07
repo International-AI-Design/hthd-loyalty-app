@@ -1,9 +1,11 @@
 export { LoginPage } from './LoginPage';
 export { DashboardPage } from './DashboardPage';
+export { LoyaltyPage } from './LoyaltyPage';
 export { CustomersPage } from './CustomersPage';
 export { CustomerDetailPage } from './CustomerDetailPage';
 export { GingrSyncPage } from './GingrSyncPage';
 export { SchedulePage } from './SchedulePage';
+export { StaffSchedulePage } from './StaffSchedulePage';
 export { GroomingPricingPage } from './GroomingPricingPage';
 export { BundleManagementPage } from './BundleManagementPage';
 export { StaffPage } from './StaffPage';

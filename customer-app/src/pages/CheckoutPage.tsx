@@ -176,21 +176,21 @@ export function CheckoutPage() {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-        <input type="text" inputMode="numeric" value={cardNumber} onChange={(e) => handleCardNumberChange(e.target.value)} placeholder="4242 4242 4242 4242" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]" autoComplete="cc-number" />
+        <input type="text" inputMode="numeric" value={cardNumber} onChange={(e) => handleCardNumberChange(e.target.value)} placeholder="4242 4242 4242 4242" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]" autoComplete="cc-number" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Expiry</label>
-          <input type="text" inputMode="numeric" value={cardExpiry} onChange={(e) => handleExpiryChange(e.target.value)} placeholder="MM/YY" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]" autoComplete="cc-exp" />
+          <input type="text" inputMode="numeric" value={cardExpiry} onChange={(e) => handleExpiryChange(e.target.value)} placeholder="MM/YY" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]" autoComplete="cc-exp" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">CVV</label>
-          <input type="text" inputMode="numeric" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]" autoComplete="cc-csc" />
+          <input type="text" inputMode="numeric" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]" autoComplete="cc-csc" />
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Cardholder Name</label>
-        <input type="text" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Smith" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]" autoComplete="cc-name" />
+        <input type="text" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Smith" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]" autoComplete="cc-name" />
       </div>
     </div>
   );
@@ -236,7 +236,7 @@ export function CheckoutPage() {
         {/* Order Summary */}
         <div className="bg-white rounded-2xl shadow-md p-5">
           <h2 className="font-heading text-lg font-bold text-brand-navy mb-4 flex items-center gap-2">
-            <svg className="w-5 h-5 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            <svg className="w-5 h-5 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
             Order Summary
           </h2>
           <div className="space-y-3">
@@ -413,13 +413,13 @@ export function CheckoutPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-600">$</span>
-                  <input type="number" min={0} max={Math.min(walletBalanceCents, totalCents) / 100} step={0.01} value={(splitWalletCents / 100).toFixed(2)} onChange={(e) => { const cents = Math.round(parseFloat(e.target.value || '0') * 100); setSplitWalletCents(Math.max(0, Math.min(cents, walletBalanceCents, totalCents))); }} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]" />
+                  <input type="number" min={0} max={Math.min(walletBalanceCents, totalCents) / 100} step={0.01} value={(splitWalletCents / 100).toFixed(2)} onChange={(e) => { const cents = Math.round(parseFloat(e.target.value || '0') * 100); setSplitWalletCents(Math.max(0, Math.min(cents, walletBalanceCents, totalCents))); }} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]" />
                 </div>
                 <div className="flex gap-2 mt-3">
                   {[25, 50, 75, 100].map((pct) => {
                     const amount = Math.min(Math.round(totalCents * pct / 100), walletBalanceCents);
                     return (
-                      <button key={pct} onClick={() => setSplitWalletCents(amount)} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors min-h-[36px] ${splitWalletCents === amount ? 'bg-brand-teal text-white' : 'bg-white text-brand-navy border border-gray-200 hover:border-brand-teal'}`}>
+                      <button key={pct} onClick={() => setSplitWalletCents(amount)} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors min-h-[36px] ${splitWalletCents === amount ? 'bg-brand-blue text-white' : 'bg-white text-brand-navy border border-gray-200 hover:border-brand-blue'}`}>
                         {pct}%
                       </button>
                     );

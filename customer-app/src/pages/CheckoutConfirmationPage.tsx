@@ -96,7 +96,7 @@ export function CheckoutConfirmationPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-brand-cream flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
       </div>
     );
   }
@@ -166,7 +166,7 @@ export function CheckoutConfirmationPage() {
         {/* Receipt Card */}
         <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
           <h3 className="font-heading text-lg font-bold text-brand-navy flex items-center gap-2">
-            <svg className="w-5 h-5 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Receipt
@@ -177,7 +177,7 @@ export function CheckoutConfirmationPage() {
             <span className="text-gray-600 text-sm">Transaction ID</span>
             <button
               onClick={() => handleCopyId(transactionId)}
-              className="flex items-center gap-1 text-sm font-mono text-brand-navy hover:text-brand-teal transition-colors min-h-[44px]"
+              className="flex items-center gap-1 text-sm font-mono text-brand-navy hover:text-brand-blue transition-colors min-h-[44px]"
               title="Copy transaction ID"
             >
               {truncateId(transactionId)}

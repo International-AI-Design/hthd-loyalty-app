@@ -11,7 +11,7 @@ export function DogSelector({ dogs, selectedDogIds, onToggle, isLoading }: DogSe
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
       </div>
     );
   }
@@ -38,14 +38,14 @@ export function DogSelector({ dogs, selectedDogIds, onToggle, isLoading }: DogSe
             onClick={() => onToggle(dog.id)}
             className={`w-full rounded-2xl p-4 text-left transition-all min-h-[72px] ${
               isSelected
-                ? 'bg-brand-teal/10 ring-2 ring-brand-teal shadow-md'
+                ? 'bg-brand-blue/10 ring-2 ring-brand-blue shadow-md'
                 : 'bg-white shadow-md hover:shadow-lg'
             }`}
           >
             <div className="flex items-center gap-3">
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ${
-                  isSelected ? 'bg-brand-teal' : 'bg-gray-300'
+                  isSelected ? 'bg-brand-blue' : 'bg-gray-300'
                 }`}
               >
                 {dog.name.charAt(0).toUpperCase()}
@@ -63,7 +63,7 @@ export function DogSelector({ dogs, selectedDogIds, onToggle, isLoading }: DogSe
               </div>
               <div
                 className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  isSelected ? 'border-brand-teal bg-brand-teal' : 'border-gray-300'
+                  isSelected ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'
                 }`}
               >
                 {isSelected && (

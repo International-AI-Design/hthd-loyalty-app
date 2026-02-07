@@ -133,7 +133,7 @@ export function StaffPage() {
             setShowAddForm(true);
             setFormError(null);
           }}
-          className="min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-medium hover:bg-brand-teal-dark transition-colors"
+          className="min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-medium hover:bg-brand-blue-dark transition-colors"
         >
           Add Staff
         </button>
@@ -275,7 +275,7 @@ export function StaffPage() {
                 type="text"
                 value={addForm.firstName}
                 onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
               />
             </div>
             <div>
@@ -284,7 +284,7 @@ export function StaffPage() {
                 type="text"
                 value={addForm.lastName}
                 onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@ export function StaffPage() {
               type="text"
               value={addForm.username}
               onChange={(e) => setAddForm({ ...addForm, username: e.target.value })}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
             />
           </div>
 
@@ -305,7 +305,7 @@ export function StaffPage() {
               type="password"
               value={addForm.password}
               onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
             />
           </div>
 
@@ -314,7 +314,7 @@ export function StaffPage() {
             <select
               value={addForm.role}
               onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
             >
               {ROLE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -338,7 +338,7 @@ export function StaffPage() {
             <button
               onClick={handleAddStaff}
               disabled={isSubmitting}
-              className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-medium hover:bg-brand-teal-dark transition-colors disabled:opacity-50"
+              className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-medium hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Creating...' : 'Add Staff'}
             </button>

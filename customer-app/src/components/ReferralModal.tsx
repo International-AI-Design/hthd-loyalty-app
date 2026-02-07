@@ -25,7 +25,7 @@ export function ReferralModal({
       <div className="space-y-6">
         {/* QR Code */}
         <div className="flex flex-col items-center">
-          <div className="bg-white p-4 rounded-xl border-2 border-brand-teal/20 shadow-sm">
+          <div className="bg-white p-4 rounded-xl border-2 border-brand-blue/20 shadow-sm">
             <QRCodeSVG
               value={referralUrl}
               size={180}
@@ -57,7 +57,7 @@ export function ReferralModal({
             </p>
           </div>
           <div className="bg-brand-cream rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-brand-teal">+{bonusPoints.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-brand-blue">+{bonusPoints.toLocaleString()}</p>
             <p className="text-xs text-gray-600">bonus points</p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export function ReferralModal({
 
         {/* Incentive reminder */}
         <p className="text-center text-sm text-gray-500">
-          You earn <span className="font-semibold text-brand-teal">100 points</span> for each friend who joins!
+          You earn <span className="font-semibold text-brand-blue">100 points</span> for each friend who joins!
         </p>
       </div>
     </Modal>

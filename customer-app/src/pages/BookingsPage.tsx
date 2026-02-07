@@ -134,7 +134,7 @@ export function BookingsPage() {
             key={bd.id}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cream text-sm text-brand-navy"
           >
-            <span className="w-5 h-5 bg-brand-teal rounded-full flex items-center justify-center text-white text-xs font-bold">
+            <span className="w-5 h-5 bg-brand-blue rounded-full flex items-center justify-center text-white text-xs font-bold">
               {bd.dog.name.charAt(0).toUpperCase()}
             </span>
             {bd.dog.name}
@@ -215,7 +215,7 @@ export function BookingsPage() {
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-colors min-h-[44px] capitalize ${
                 activeTab === tab
-                  ? 'bg-brand-teal text-white shadow-sm'
+                  ? 'bg-brand-blue text-white shadow-sm'
                   : 'text-gray-600 hover:text-brand-navy'
               }`}
             >
@@ -229,7 +229,7 @@ export function BookingsPage() {
           <div className="space-y-4">
             {isLoadingUpcoming ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : upcomingBookings.length === 0 ? (
               renderEmptyState('upcoming')
@@ -243,7 +243,7 @@ export function BookingsPage() {
           <div className="space-y-4">
             {isLoadingPast ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-teal" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
               </div>
             ) : pastBookings.length === 0 ? (
               renderEmptyState('past')

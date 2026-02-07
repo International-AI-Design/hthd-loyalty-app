@@ -135,7 +135,7 @@ export function PrivacyPolicyPage() {
             To exercise any of these rights, email us at{' '}
             <a
               href="mailto:support@happytailhappydog.com"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium"
             >
               support@happytailhappydog.com
             </a>
@@ -176,7 +176,7 @@ export function PrivacyPolicyPage() {
             Email:{' '}
             <a
               href="mailto:support@happytailhappydog.com"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium"
             >
               support@happytailhappydog.com
             </a>
@@ -185,7 +185,7 @@ export function PrivacyPolicyPage() {
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <Link
               to="/login"
-              className="text-brand-teal hover:text-brand-teal-dark font-medium text-sm"
+              className="text-brand-blue hover:text-brand-blue-dark font-medium text-sm"
             >
               &larr; Back to Login
             </Link>

@@ -174,7 +174,7 @@ export function BundleManagementPage() {
         </div>
         <button
           onClick={handleCreate}
-          className="min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-medium hover:bg-brand-teal-dark transition-colors"
+          className="min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-medium hover:bg-brand-blue-dark transition-colors"
         >
           Create Bundle
         </button>
@@ -225,7 +225,7 @@ export function BundleManagementPage() {
                       </span>
                     ))}
                   </div>
-                  <p className="text-sm text-brand-teal-dark font-medium">
+                  <p className="text-sm text-brand-blue-dark font-medium">
                     Discount: {bundle.discountType === 'percentage'
                       ? `${bundle.discountValue}%`
                       : formatCents(bundle.discountValue)}
@@ -274,7 +274,7 @@ export function BundleManagementPage() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g., Spa Day Package"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
             />
           </div>
 
@@ -285,7 +285,7 @@ export function BundleManagementPage() {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Optional description..."
               rows={2}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue"
             />
           </div>
 
@@ -295,7 +295,7 @@ export function BundleManagementPage() {
               <select
                 value={form.discountType}
                 onChange={(e) => setForm({ ...form, discountType: e.target.value as 'percentage' | 'fixed' })}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
               >
                 <option value="percentage">Percentage (%)</option>
                 <option value="fixed">Fixed ($)</option>
@@ -312,7 +312,7 @@ export function BundleManagementPage() {
                 value={form.discountValue}
                 onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
                 placeholder={form.discountType === 'percentage' ? '10' : '5.00'}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
               />
             </div>
           </div>
@@ -337,7 +337,7 @@ export function BundleManagementPage() {
                             : [...prev.serviceTypeIds, st.id],
                         }));
                       }}
-                      className="w-4 h-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal"
+                      className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
                     />
                     <span className="text-sm text-gray-700">
                       {st.displayName} ({formatCents(st.basePriceCents)})
@@ -355,7 +355,7 @@ export function BundleManagementPage() {
               min="0"
               value={form.sortOrder}
               onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
             />
           </div>
 
@@ -375,7 +375,7 @@ export function BundleManagementPage() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-medium hover:bg-brand-teal-dark transition-colors disabled:opacity-50"
+              className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-medium hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
             </button>

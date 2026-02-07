@@ -27,7 +27,7 @@ function formatDateRange(startDate: string, endDate?: string): string {
 }
 
 const SERVICE_COLORS: Record<string, string> = {
-  daycare: 'bg-brand-teal/10 text-brand-teal-dark',
+  daycare: 'bg-brand-blue/10 text-brand-blue-dark',
   boarding: 'bg-brand-navy/10 text-brand-navy',
   grooming: 'bg-brand-coral/10 text-brand-coral',
 };
@@ -191,7 +191,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
                       onClick={() => setPaymentMethod(method)}
                       className={`flex items-center gap-2 p-3 rounded-lg border-2 text-sm font-medium transition-colors min-h-[44px] ${
                         paymentMethod === method
-                          ? 'border-brand-teal bg-brand-teal/5 text-brand-navy'
+                          ? 'border-brand-blue bg-brand-blue/5 text-brand-navy'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}
                     >
@@ -239,7 +239,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
                     placeholder="0.00"
                     value={cashReceived}
                     onChange={(e) => setCashReceived(e.target.value)}
-                    className="w-full pl-7 pr-3 py-3 border border-gray-300 rounded-lg text-base min-h-[44px] focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal"
+                    className="w-full pl-7 pr-3 py-3 border border-gray-300 rounded-lg text-base min-h-[44px] focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue"
                   />
                 </div>
                 {cashReceivedCents > 0 && cashReceivedCents >= totalCents && (
@@ -265,7 +265,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
                       placeholder="0.00"
                       value={walletSplitAmount}
                       onChange={(e) => setWalletSplitAmount(e.target.value)}
-                      className="w-full pl-7 pr-3 py-3 border border-gray-300 rounded-lg text-base min-h-[44px] focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal"
+                      className="w-full pl-7 pr-3 py-3 border border-gray-300 rounded-lg text-base min-h-[44px] focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue"
                     />
                   </div>
                 </div>
@@ -285,7 +285,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
             <button
               onClick={handleConfirmPayment}
               disabled={(paymentMethod === 'wallet' && walletBalance !== null && walletBalance < totalCents) || isLoadingWallet}
-              className="w-full min-h-[48px] px-4 py-3 bg-brand-teal text-white rounded-lg font-semibold text-base hover:bg-brand-teal-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-h-[48px] px-4 py-3 bg-brand-blue text-white rounded-lg font-semibold text-base hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue to Confirm
             </button>
@@ -336,7 +336,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
               <button
                 onClick={handleProcessPayment}
                 disabled={isProcessing}
-                className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-semibold hover:bg-brand-teal-dark transition-colors disabled:opacity-50"
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
               >
                 {isProcessing ? (
                   <span className="flex items-center justify-center gap-2">
@@ -413,7 +413,7 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
               </button>
               <button
                 onClick={onClose}
-                className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-teal text-white rounded-lg font-semibold hover:bg-brand-teal-dark transition-colors"
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue-dark transition-colors"
               >
                 Done
               </button>

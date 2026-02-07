@@ -145,10 +145,10 @@ export function Calendar({
     let dotClass = '';
 
     if (isSelected) {
-      bgClass = 'bg-brand-teal shadow-md';
+      bgClass = 'bg-brand-blue shadow-md';
       textClass = 'text-white';
     } else if (inRange) {
-      bgClass = 'bg-brand-teal/15';
+      bgClass = 'bg-brand-blue/15';
     } else if (past) {
       textClass = 'text-gray-300';
     }
@@ -175,7 +175,7 @@ export function Calendar({
         key={day}
         onClick={() => !disabled && onDateSelect(dateKey)}
         disabled={disabled}
-        className={`relative flex flex-col items-center justify-center rounded-xl min-h-[48px] min-w-[44px] transition-all duration-150 ${bgClass} ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-brand-teal/10 active:scale-95'} ${todayCell && !isSelected ? 'ring-2 ring-brand-teal/40' : ''}`}
+        className={`relative flex flex-col items-center justify-center rounded-xl min-h-[48px] min-w-[44px] transition-all duration-150 ${bgClass} ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-brand-blue/10 active:scale-95'} ${todayCell && !isSelected ? 'ring-2 ring-brand-blue/40' : ''}`}
         aria-label={`${new Date(currentYear, currentMonth, day).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}${isSelected ? ' (selected)' : ''}${status === 'full' ? ' (full)' : ''}`}
       >
         <span className={`text-sm font-semibold ${textClass}`}>{day}</span>
@@ -228,7 +228,7 @@ export function Calendar({
       {/* Calendar Grid */}
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-teal" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue" />
         </div>
       ) : (
         <div className="grid grid-cols-7 gap-1">

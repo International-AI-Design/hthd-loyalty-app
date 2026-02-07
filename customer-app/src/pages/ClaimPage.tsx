@@ -230,7 +230,7 @@ export function ClaimPage() {
                   Hi <span className="font-bold">{customerData.firstName}</span>!
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-2">
-                  <span className="text-3xl font-bold text-brand-teal">
+                  <span className="text-3xl font-bold text-brand-blue">
                     {customerData.pointsBalance.toLocaleString()}
                   </span>
                   <span className="text-gray-600">points waiting</span>
@@ -238,7 +238,7 @@ export function ClaimPage() {
 
                 {/* Dogs preview */}
                 {customerData.dogs.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-brand-teal/20">
+                  <div className="mt-4 pt-4 border-t border-brand-blue/20">
                     <p className="text-sm text-gray-600 text-center mb-2">Your pups:</p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {customerData.dogs.map((dog) => (
@@ -256,7 +256,7 @@ export function ClaimPage() {
 
                 {/* Recent visits preview */}
                 {customerData.recentVisits.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-brand-teal/20">
+                  <div className="mt-4 pt-4 border-t border-brand-blue/20">
                     <p className="text-sm text-gray-600 text-center mb-2">Recent visits:</p>
                     <div className="space-y-2">
                       {customerData.recentVisits.slice(0, 3).map((visit) => (
@@ -324,7 +324,7 @@ export function ClaimPage() {
                       setCodeSent(false);
                       sendCode();
                     }}
-                    className="w-full text-sm text-brand-teal hover:text-brand-teal-dark"
+                    className="w-full text-sm text-brand-blue hover:text-brand-blue-dark"
                     disabled={isSendingCode}
                   >
                     Resend code
@@ -426,7 +426,7 @@ export function ClaimPage() {
 
               <div className="bg-brand-soft-cream rounded-xl p-6">
                 <p className="text-gray-600">Your points balance:</p>
-                <p className="text-4xl font-bold text-brand-teal">
+                <p className="text-4xl font-bold text-brand-blue">
                   {customerData.pointsBalance.toLocaleString()}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
@@ -445,13 +445,13 @@ export function ClaimPage() {
             <div className="mt-6 text-center space-y-2">
               <p className="text-gray-600">
                 Already have an account?{' '}
-                <Link to="/login" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+                <Link to="/login" className="text-brand-blue hover:text-brand-blue-dark font-medium">
                   Sign in
                 </Link>
               </p>
               <p className="text-gray-600">
                 New customer?{' '}
-                <Link to="/register" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+                <Link to="/register" className="text-brand-blue hover:text-brand-blue-dark font-medium">
                   Register
                 </Link>
               </p>
@@ -464,9 +464,9 @@ export function ClaimPage() {
         </p>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          <Link to="/privacy" className="hover:text-brand-teal">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-brand-blue">Privacy Policy</Link>
           {' · '}
-          <Link to="/terms" className="hover:text-brand-teal">Terms & Conditions</Link>
+          <Link to="/terms" className="hover:text-brand-blue">Terms & Conditions</Link>
         </p>
       </div>
     </div>

@@ -117,15 +117,15 @@ Caption: 12px / 0.75rem (medium sans)
 **Logo Clearspace:** Minimum padding of logo height on all sides
 **Minimum Size:** 120px width for digital, 1" for print
 **Color Variations:**
-- Full color (teal + navy) on white/light backgrounds
-- White/reversed on dark or teal backgrounds
+- Full color (blue + navy) on white/light backgrounds
+- White/reversed on dark or blue backgrounds
 - Never stretch, rotate, or apply effects
 
 ### Iconography
 
 **Style:** Rounded, friendly line icons (not sharp/angular)
 **Stroke Weight:** 2px consistent
-**Color:** Match brand palette (teal primary, navy secondary)
+**Color:** Match brand palette (blue primary, navy secondary)
 
 **Common Icons:**
 - 🐕 Dog silhouette - Daycare/general
@@ -382,7 +382,7 @@ Styles: [component].css or Tailwind classes
 ✅ Emphasize kennel-free, family-like care
 ✅ Show real dogs and genuine moments
 ✅ Keep UI clean, simple, mobile-friendly
-✅ Use teal as primary action color
+✅ Use blue as primary action color
 ✅ Round corners (8-12px) on cards and buttons
 ✅ Celebrate milestones with enthusiasm
 

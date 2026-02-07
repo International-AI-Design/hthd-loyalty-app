@@ -101,8 +101,8 @@ export function RegisterPage() {
           </div>
 
           {referrerName && (
-            <div className="mb-6 bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-4 text-center">
-              <p className="text-brand-teal font-medium">
+            <div className="mb-6 bg-brand-blue/10 border border-brand-blue/30 rounded-xl p-4 text-center">
+              <p className="text-brand-blue font-medium">
                 🎉 Referred by {referrerName}!
               </p>
               <p className="text-sm text-gray-600 mt-1">
@@ -175,9 +175,9 @@ export function RegisterPage() {
 
             <p className="text-xs text-gray-500 text-center">
               By creating an account, you agree to our{' '}
-              <Link to="/terms" className="text-brand-teal hover:text-brand-teal-dark">Terms & Conditions</Link>
+              <Link to="/terms" className="text-brand-blue hover:text-brand-blue-dark">Terms & Conditions</Link>
               {' and '}
-              <Link to="/privacy" className="text-brand-teal hover:text-brand-teal-dark">Privacy Policy</Link>.
+              <Link to="/privacy" className="text-brand-blue hover:text-brand-blue-dark">Privacy Policy</Link>.
             </p>
 
             <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>
@@ -187,7 +187,7 @@ export function RegisterPage() {
 
           <p className="mt-6 text-center text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+            <Link to="/login" className="text-brand-blue hover:text-brand-blue-dark font-medium">
               Sign in
             </Link>
           </p>
@@ -198,9 +198,9 @@ export function RegisterPage() {
         </p>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          <Link to="/privacy" className="hover:text-brand-teal">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-brand-blue">Privacy Policy</Link>
           {' · '}
-          <Link to="/terms" className="hover:text-brand-teal">Terms & Conditions</Link>
+          <Link to="/terms" className="hover:text-brand-blue">Terms & Conditions</Link>
         </p>
       </div>
     </div>

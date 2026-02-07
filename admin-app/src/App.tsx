@@ -5,10 +5,12 @@ import { Layout } from './components/Layout';
 import {
   LoginPage,
   DashboardPage,
+  LoyaltyPage,
   CustomersPage,
   CustomerDetailPage,
   GingrSyncPage,
   SchedulePage,
+  StaffSchedulePage,
   GroomingPricingPage,
   BundleManagementPage,
   StaffPage,
@@ -86,6 +88,26 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <StaffPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff-schedule"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StaffSchedulePage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loyalty"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LoyaltyPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -213,7 +213,7 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
         <div className="bg-white rounded-2xl shadow-2xl p-5 relative">
           {/* Step indicator */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-brand-teal">
+            <span className="text-xs font-medium text-brand-blue">
               Step {currentStep + 1} of {steps.length}
             </span>
             <button
@@ -233,7 +233,7 @@ export function Walkthrough({ steps, onComplete, onSkip }: WalkthroughProps) {
           {/* Next button */}
           <button
             onClick={handleNext}
-            className="w-full py-3 px-4 bg-brand-teal text-white font-medium rounded-xl hover:bg-brand-teal-dark transition-colors min-h-[48px] text-base"
+            className="w-full py-3 px-4 bg-brand-blue text-white font-medium rounded-xl hover:bg-brand-blue-dark transition-colors min-h-[48px] text-base"
           >
             {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
           </button>

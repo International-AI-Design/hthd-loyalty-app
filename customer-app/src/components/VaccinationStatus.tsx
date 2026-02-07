@@ -46,7 +46,7 @@ export function VaccinationStatus({ dogId, dogName, compact = false }: Vaccinati
   if (isLoading) {
     return (
       <div className="flex justify-center py-6">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue" />
       </div>
     );
   }

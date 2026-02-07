@@ -369,7 +369,7 @@ export function DashboardPage() {
           </div>
           <div className="py-6">
             <p className="text-gray-600 text-sm uppercase tracking-wide">Your Points Balance</p>
-            <p className="text-6xl font-bold text-brand-teal mt-2">
+            <p className="text-6xl font-bold text-brand-blue mt-2">
               {customer.points_balance.toLocaleString()}
             </p>
             <p className="text-gray-500 mt-1">points</p>
@@ -394,7 +394,7 @@ export function DashboardPage() {
           {customer.points_balance >= 450 && customer.points_balance < POINTS_CAP && (
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-brand-teal flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-brand-blue flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
@@ -412,7 +412,7 @@ export function DashboardPage() {
         <button
           id="refer-tile"
           onClick={() => setIsReferralModalOpen(true)}
-          className="w-full bg-gradient-to-r from-brand-teal to-brand-teal-dark rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
+          className="w-full bg-gradient-to-r from-brand-blue to-brand-blue-dark rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow min-h-[88px]"
         >
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -505,7 +505,7 @@ export function DashboardPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg
-                className="w-5 h-5 text-brand-teal"
+                className="w-5 h-5 text-brand-blue"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -524,7 +524,7 @@ export function DashboardPage() {
                 <p>No upcoming bookings</p>
                 <button
                   onClick={() => navigate('/book')}
-                  className="text-brand-teal font-medium mt-1 hover:underline min-h-[44px]"
+                  className="text-brand-blue font-medium mt-1 hover:underline min-h-[44px]"
                 >
                   Book your first appointment
                 </button>
@@ -553,7 +553,7 @@ export function DashboardPage() {
                 {upcomingBookings.length > 0 && (
                   <button
                     onClick={() => navigate('/bookings')}
-                    className="w-full text-center text-sm text-brand-teal font-medium hover:underline py-2 min-h-[44px]"
+                    className="w-full text-center text-sm text-brand-blue font-medium hover:underline py-2 min-h-[44px]"
                   >
                     View all bookings
                   </button>
@@ -568,7 +568,7 @@ export function DashboardPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg
-                className="w-5 h-5 text-brand-teal"
+                className="w-5 h-5 text-brand-blue"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -587,7 +587,7 @@ export function DashboardPage() {
                 <p className="text-gray-500 text-sm">No pups added yet</p>
                 <button
                   onClick={() => navigate("/book")}
-                  className="text-brand-teal font-medium text-sm mt-2 hover:underline min-h-[44px]"
+                  className="text-brand-blue font-medium text-sm mt-2 hover:underline min-h-[44px]"
                 >
                   Add your dog when you book
                 </button>
@@ -600,7 +600,7 @@ export function DashboardPage() {
                     onClick={() => navigate(`/dogs/${dog.id}`)}
                     className="bg-brand-warm-white rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-brand-cream transition-colors min-h-[44px]"
                   >
-                    <div className="w-10 h-10 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 bg-brand-blue rounded-full flex items-center justify-center text-white font-bold">
                       {dog.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left">
@@ -622,7 +622,7 @@ export function DashboardPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg
-                className="w-5 h-5 text-brand-teal"
+                className="w-5 h-5 text-brand-blue"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -665,7 +665,7 @@ export function DashboardPage() {
                       {formatDate(visit.visit_date)} • ${visit.amount.toFixed(2)}
                     </p>
                   </div>
-                  <div className="text-sm font-medium text-brand-teal">
+                  <div className="text-sm font-medium text-brand-blue">
                     +{visit.points_earned} pts
                   </div>
                 </div>
@@ -678,7 +678,7 @@ export function DashboardPage() {
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <svg
-              className="w-5 h-5 text-brand-teal"
+              className="w-5 h-5 text-brand-blue"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -695,7 +695,7 @@ export function DashboardPage() {
           {isLoadingReferrals ? (
             <div className="flex justify-center py-8">
               <svg
-                className="animate-spin h-8 w-8 text-brand-teal"
+                className="animate-spin h-8 w-8 text-brand-blue"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -742,7 +742,7 @@ export function DashboardPage() {
                   <p className="text-sm text-gray-600">Friends Referred</p>
                 </div>
                 <div className="bg-brand-warm-white rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-brand-teal">+{referralBonusPoints.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-brand-blue">+{referralBonusPoints.toLocaleString()}</p>
                   <p className="text-sm text-gray-600">Bonus Points Earned</p>
                 </div>
               </div>
@@ -758,7 +758,7 @@ export function DashboardPage() {
                         className="flex items-center justify-between py-2 px-3 bg-brand-cream rounded-lg"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-brand-teal rounded-full flex items-center justify-center text-white font-medium text-sm">
+                          <div className="w-8 h-8 bg-brand-blue rounded-full flex items-center justify-center text-white font-medium text-sm">
                             {referral.first_name.charAt(0).toUpperCase()}
                           </div>
                           <span className="font-medium text-brand-navy">{referral.first_name}</span>
@@ -791,7 +791,7 @@ export function DashboardPage() {
                   disabled={!canAfford}
                   className={`rounded-xl p-4 border-2 transition-all text-left w-full shadow-md ${
                     canAfford
-                      ? 'border-brand-teal bg-white hover:bg-brand-cream hover:border-brand-teal-dark cursor-pointer'
+                      ? 'border-brand-blue bg-white hover:bg-brand-cream hover:border-brand-blue-dark cursor-pointer'
                       : 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
                   }`}
                 >
@@ -801,14 +801,14 @@ export function DashboardPage() {
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <p
                         className={`text-lg font-semibold ${
-                          canAfford ? 'text-brand-teal' : 'text-gray-500'
+                          canAfford ? 'text-brand-blue' : 'text-gray-500'
                         }`}
                       >
                         {tier.points.toLocaleString()} pts
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         {canAfford ? (
-                          <span className="text-brand-teal font-medium">Tap to redeem</span>
+                          <span className="text-brand-blue font-medium">Tap to redeem</span>
                         ) : (
                           `${(tier.points - customer.points_balance).toLocaleString()} more needed`
                         )}
@@ -827,7 +827,7 @@ export function DashboardPage() {
           {isLoadingRedemptions ? (
             <div className="flex justify-center py-8">
               <svg
-                className="animate-spin h-8 w-8 text-brand-teal"
+                className="animate-spin h-8 w-8 text-brand-blue"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -938,7 +938,7 @@ export function DashboardPage() {
           {isLoadingTransactions ? (
             <div className="flex justify-center py-8">
               <svg
-                className="animate-spin h-8 w-8 text-brand-teal"
+                className="animate-spin h-8 w-8 text-brand-blue"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"

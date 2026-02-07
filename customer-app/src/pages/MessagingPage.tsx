@@ -199,7 +199,7 @@ export function MessagingPage() {
   const getSenderIcon = (senderType: string) => {
     if (senderType === 'ai') {
       return (
-        <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-brand-blue flex items-center justify-center flex-shrink-0">
           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
@@ -248,7 +248,7 @@ export function MessagingPage() {
                   className="w-full bg-white rounded-xl shadow-sm p-4 text-left hover:shadow-md transition-shadow min-h-[64px] flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${convo.status === 'active' ? 'bg-brand-teal' : 'bg-gray-300'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${convo.status === 'active' ? 'bg-brand-blue' : 'bg-gray-300'}`}>
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
@@ -273,7 +273,7 @@ export function MessagingPage() {
           ) : (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto bg-brand-cream rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
@@ -326,7 +326,7 @@ export function MessagingPage() {
       {/* AI disclaimer */}
       <div className="bg-brand-cream border-b border-brand-light-gray px-4 py-2 flex-shrink-0">
         <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-gray-600">
-          <svg className="w-4 h-4 text-brand-teal flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-brand-blue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
           <span>Powered by AI assistant. A team member can join anytime.</span>
@@ -338,7 +338,7 @@ export function MessagingPage() {
         <div className="max-w-4xl mx-auto space-y-4">
           {isLoadingMessages ? (
             <div className="flex justify-center py-12">
-              <svg className="animate-spin h-8 w-8 text-brand-teal" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-8 w-8 text-brand-blue" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
@@ -368,14 +368,14 @@ export function MessagingPage() {
                             <p className="text-xs text-gray-500 mb-0.5 ml-1">
                               {msg.senderName}
                               {msg.senderType === 'ai' && (
-                                <span className="ml-1 text-brand-teal">(AI)</span>
+                                <span className="ml-1 text-brand-blue">(AI)</span>
                               )}
                             </p>
                           )}
                           <div
                             className={`rounded-2xl px-4 py-2.5 ${
                               isCustomer
-                                ? 'bg-brand-teal text-white rounded-br-md'
+                                ? 'bg-brand-blue text-white rounded-br-md'
                                 : 'bg-white text-gray-800 shadow-sm rounded-bl-md border border-gray-100'
                             }`}
                           >
@@ -396,7 +396,7 @@ export function MessagingPage() {
           {/* AI typing indicator */}
           {isAiTyping && (
             <div className="flex justify-start gap-2">
-              <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-brand-blue flex items-center justify-center flex-shrink-0">
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -439,7 +439,7 @@ export function MessagingPage() {
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             rows={1}
-            className="flex-1 resize-none rounded-2xl border border-brand-light-gray px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal min-h-[44px] max-h-[120px]"
+            className="flex-1 resize-none rounded-2xl border border-brand-light-gray px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px] max-h-[120px]"
             style={{ overflow: 'auto' }}
           />
           <button
@@ -447,7 +447,7 @@ export function MessagingPage() {
             disabled={!messageInput.trim() || isSending}
             className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-colors ${
               messageInput.trim() && !isSending
-                ? 'bg-brand-teal text-white hover:bg-brand-teal-dark'
+                ? 'bg-brand-blue text-white hover:bg-brand-blue-dark'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >

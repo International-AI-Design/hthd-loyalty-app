@@ -102,7 +102,7 @@ export function LoginPage() {
               <Checkbox label="Remember me" {...register('remember_me')} />
               <Link
                 to="/forgot-password"
-                className="text-sm text-brand-teal hover:text-brand-teal-dark"
+                className="text-sm text-brand-blue hover:text-brand-blue-dark"
               >
                 Forgot password?
               </Link>
@@ -115,7 +115,7 @@ export function LoginPage() {
 
           <p className="mt-6 text-center text-gray-600">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+            <Link to="/register" className="text-brand-blue hover:text-brand-blue-dark font-medium">
               Create one
             </Link>
           </p>
@@ -123,7 +123,7 @@ export function LoginPage() {
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-center text-gray-600">
               Received an invite?{' '}
-              <Link to="/claim" className="text-brand-teal hover:text-brand-teal-dark font-medium">
+              <Link to="/claim" className="text-brand-blue hover:text-brand-blue-dark font-medium">
                 Claim your account
               </Link>
             </p>
@@ -135,9 +135,9 @@ export function LoginPage() {
         </p>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          <Link to="/privacy" className="hover:text-brand-teal">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-brand-blue">Privacy Policy</Link>
           {' · '}
-          <Link to="/terms" className="hover:text-brand-teal">Terms & Conditions</Link>
+          <Link to="/terms" className="hover:text-brand-blue">Terms & Conditions</Link>
         </p>
       </div>
     </div>

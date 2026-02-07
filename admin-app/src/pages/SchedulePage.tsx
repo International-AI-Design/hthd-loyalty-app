@@ -69,8 +69,8 @@ function ConditionRater({ bookingDog, onRated }: { bookingDog: BookingDog; onRat
             disabled={isSubmitting}
             className={`w-9 h-9 rounded-md text-sm font-semibold transition-colors ${
               v <= rating
-                ? 'bg-brand-teal text-white'
-                : 'bg-white border border-gray-300 text-gray-500 hover:border-brand-teal'
+                ? 'bg-brand-blue text-white'
+                : 'bg-white border border-gray-300 text-gray-500 hover:border-brand-blue'
             } ${isSubmitting ? 'opacity-50' : ''}`}
           >
             {v}
@@ -78,7 +78,7 @@ function ConditionRater({ bookingDog, onRated }: { bookingDog: BookingDog; onRat
         ))}
       </div>
       {quotedPrice !== null && (
-        <p className="text-sm font-semibold text-brand-teal-dark mt-1.5">
+        <p className="text-sm font-semibold text-brand-blue-dark mt-1.5">
           Price: {formatCents(quotedPrice)}
         </p>
       )}
@@ -200,7 +200,7 @@ export function SchedulePage() {
           {!isToday && (
             <button
               onClick={goToToday}
-              className="text-sm text-brand-teal hover:text-brand-teal-dark font-medium mt-0.5"
+              className="text-sm text-brand-blue hover:text-brand-blue-dark font-medium mt-0.5"
             >
               Back to Today
             </button>
