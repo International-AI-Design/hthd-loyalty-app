@@ -46,7 +46,7 @@ router.get('/', requireRole('owner', 'admin'), async (req: Request, res: Respons
 router.put('/:id/role', requireRole('owner', 'admin'), async (req: Request, res: Response): Promise<void> => {
   try {
     const staffReq = req as AuthenticatedStaffRequest;
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { role } = req.body;
 
     const validRoles = ['owner', 'manager', 'staff'];

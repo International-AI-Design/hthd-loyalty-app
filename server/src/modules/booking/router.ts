@@ -52,7 +52,7 @@ router.get('/grooming-slots', async (req: Request, res: Response): Promise<void>
 router.put('/dogs/:id/size', async (req: Request, res: Response): Promise<void> => {
   try {
     const customerReq = req as AuthenticatedCustomerRequest;
-    const dogId = req.params.id;
+    const dogId = req.params.id as string;
     const { sizeCategory } = req.body;
 
     const validSizes = ['small', 'medium', 'large', 'xl'];

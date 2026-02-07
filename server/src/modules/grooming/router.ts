@@ -9,7 +9,7 @@ const groomingService = new GroomingService();
 // GET /pricing/:sizeCategory — customer-facing price range
 router.get('/pricing/:sizeCategory', authenticateCustomer, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sizeCategory } = req.params;
+    const sizeCategory = req.params.sizeCategory as string;
     const validSizes = ['small', 'medium', 'large', 'xl'];
     if (!validSizes.includes(sizeCategory)) {
       res.status(400).json({ error: 'Invalid size category. Must be: small, medium, large, xl' });
@@ -31,7 +31,7 @@ router.get('/pricing/:sizeCategory', authenticateCustomer, async (req: Request, 
 router.post('/rate/:bookingDogId', authenticateStaff, async (req: Request, res: Response): Promise<void> => {
   try {
     const staffReq = req as AuthenticatedStaffRequest;
-    const { bookingDogId } = req.params;
+    const bookingDogId = req.params.bookingDogId as string;
     const { conditionRating } = req.body;
 
     if (!conditionRating || typeof conditionRating !== 'number') {
@@ -65,7 +65,7 @@ router.get('/matrix', authenticateStaff, requireRole('owner', 'admin', 'manager'
 // PUT /matrix/:id — update a price tier (owner only)
 router.put('/matrix/:id', authenticateStaff, requireRole('owner', 'admin'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { priceCents, estimatedMinutes } = req.body;
 
     if (priceCents !== undefined && (typeof priceCents !== 'number' || priceCents < 0)) {

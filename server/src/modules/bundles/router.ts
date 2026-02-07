@@ -114,7 +114,7 @@ router.post('/', authenticateStaff, requireRole('owner', 'admin'), async (req: R
 // PUT /:id — update bundle (owner only)
 router.put('/:id', authenticateStaff, requireRole('owner', 'admin'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const bundle = await bundleService.updateBundle(id, req.body);
     res.json({ bundle });
   } catch (error) {
@@ -130,7 +130,7 @@ router.put('/:id', authenticateStaff, requireRole('owner', 'admin'), async (req:
 // DELETE /:id — deactivate bundle (owner only, soft delete)
 router.delete('/:id', authenticateStaff, requireRole('owner', 'admin'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const bundle = await bundleService.toggleBundle(id);
     res.json({ bundle });
   } catch (error) {
