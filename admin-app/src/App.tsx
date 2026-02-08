@@ -14,6 +14,8 @@ import {
   GroomingPricingPage,
   BundleManagementPage,
   StaffPage,
+  MessagingPage,
+  AIMonitoringPage,
 } from './pages';
 
 function App() {
@@ -118,6 +120,26 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <GingrSyncPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MessagingPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ai-monitoring"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AIMonitoringPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -106,11 +106,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Touch targets */
-button, a, [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
-}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

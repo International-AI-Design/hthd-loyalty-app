@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { bookingApi, customerApi, dogProfileApi } from '../lib/api';
+import { bookingApi, customerApi, dogProfileApi, multiDayBookingApi } from '../lib/api';
+import { Calendar } from "../components/Calendar";
 import { BottomNav } from '../components/BottomNav';
 import { Input } from '../components/ui';
 import type {
@@ -12,6 +13,7 @@ import type {
   ServiceBundle,
   BundleCalculation,
   Booking,
+  DateAvailability,
 } from '../lib/api';
 import { Button, Alert } from '../components/ui';
 
@@ -24,15 +26,18 @@ interface VaxWarning {
 type BookingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 const SIZE_OPTIONS = [
-  { value: 'small', label: 'Small', desc: 'Under 25 lbs' },
-  { value: 'medium', label: 'Medium', desc: '25-50 lbs' },
-  { value: 'large', label: 'Large', desc: '50-100 lbs' },
-  { value: 'xl', label: 'XL', desc: '100+ lbs' },
+  { value: 'small', label: 'Small', desc: 'Up to 25 lbs' },
+  { value: 'medium', label: 'Medium', desc: '26-55 lbs' },
+  { value: 'large', label: 'Large', desc: '56-85 lbs' },
+  { value: 'xl', label: 'XL', desc: '85+ lbs' },
 ];
 
 export function BookingPage() {
   const { customer: _customer } = useAuth();
   const navigate = useNavigate();
+
+  // Direction tracking to prevent back-arrow infinite loop on auto-skip steps
+  const directionRef = useRef<"forward" | "backward">("forward");
 
   // Wizard state
   const [step, setStep] = useState<BookingStep>(1);
@@ -54,6 +59,9 @@ export function BookingPage() {
   const [availability, setAvailability] = useState<AvailabilityDay[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+  const [calendarAvailability, setCalendarAvailability] = useState<Record<string, DateAvailability>>({});
+  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
   // Step 4: Time selection (grooming only)
   const [groomingSlots, setGroomingSlots] = useState<GroomingSlot[]>([]);
@@ -91,6 +99,7 @@ export function BookingPage() {
   const [quickAddError, setQuickAddError] = useState<string | null>(null);
 
   const isGrooming = selectedService?.name === 'grooming';
+  const isBoarding = selectedService?.name === 'boarding';
 
   // Load service types on mount
   useEffect(() => {
@@ -209,8 +218,8 @@ export function BookingPage() {
           setBundles(data.bundles);
         } else {
           setBundles([]);
-          // Auto-skip if no bundles
-          setStep(7);
+          // Auto-skip if no bundles (only when navigating forward)
+          if (directionRef.current === "forward") { setStep(7); }
         }
         setIsLoadingBundles(false);
       });
@@ -237,6 +246,7 @@ export function BookingPage() {
   };
 
   const goNext = () => {
+    directionRef.current = "forward";
     if (step === 3 && !isGrooming) {
       // Skip time and photo steps for non-grooming
       setStep(6);
@@ -248,6 +258,7 @@ export function BookingPage() {
   };
 
   const goBack = () => {
+    directionRef.current = "backward";
     if (step === 6 && !isGrooming) {
       setStep(3);
     } else if (step === 5 && isGrooming) {
@@ -261,6 +272,7 @@ export function BookingPage() {
     setSelectedService(service);
     setSelectedDogIds([]);
     setSelectedDate(null);
+    setSelectedEndDate(null);
     setSelectedTime(null);
     setPhotoData(null);
     setSelectedBundle(null);
@@ -311,6 +323,42 @@ export function BookingPage() {
     if (!slot.available) return;
     setSelectedTime(slot.startTime);
   };
+
+  const handleBoardingDateSelect = (dateKey: string) => {
+    if (!selectedDate) {
+      setSelectedDate(dateKey);
+      setSelectedEndDate(null);
+    } else if (!selectedEndDate) {
+      if (dateKey > selectedDate) {
+        setSelectedEndDate(dateKey);
+      } else if (dateKey < selectedDate) {
+        setSelectedDate(dateKey);
+        setSelectedEndDate(null);
+      } else {
+        setSelectedDate(null);
+        setSelectedEndDate(null);
+      }
+    } else {
+      setSelectedDate(dateKey);
+      setSelectedEndDate(null);
+    }
+  };
+
+  const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
+    if (!selectedService) return;
+    setIsLoadingCalendar(true);
+    const startDate = new Date(year, month, 1).toISOString().split("T")[0];
+    const endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    const { data } = await bookingApi.checkAvailability(selectedService.id, startDate, endDate);
+    if (data) {
+      const record: Record<string, DateAvailability> = {};
+      data.availability.forEach((day: AvailabilityDay) => {
+        record[day.date] = { available: day.available ? day.spotsRemaining : 0, capacity: day.totalCapacity };
+      });
+      setCalendarAvailability((prev: Record<string, DateAvailability>) => ({ ...prev, ...record }));
+    }
+    setIsLoadingCalendar(false);
+  }, [selectedService]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -374,7 +422,16 @@ export function BookingPage() {
     setIsSubmitting(true);
     setError(null);
 
-    const { data, error: err } = await bookingApi.createBooking({
+    const bookingPayload = isBoarding && selectedEndDate ? {
+      startDate: selectedDate,
+      endDate: selectedEndDate,
+      serviceTypeId: selectedService.id,
+      dogIds: selectedDogIds,
+    } : null;
+
+    const { data, error: err } = bookingPayload
+      ? await multiDayBookingApi.createMultiDayBooking(bookingPayload) as any
+      : await bookingApi.createBooking({
       serviceTypeId: selectedService.id,
       dogIds: selectedDogIds,
       date: selectedDate,
@@ -474,8 +531,7 @@ export function BookingPage() {
               </svg>
             </button>
           )}
-          <div className="flex-1 flex items-center justify-center gap-3">
-            <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
+          <div className="flex-1 flex items-center justify-center">
             <h1 className="font-heading text-lg font-bold text-brand-forest">Book Appointment</h1>
           </div>
           {step > 1 && !confirmedBooking && <div className="w-11" />}
@@ -506,7 +562,7 @@ export function BookingPage() {
                 <span className="font-semibold text-brand-forest">{confirmedBooking.serviceType.displayName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-forest-muted">Date</span>
+                <span className="text-brand-forest-muted">{isBoarding && selectedEndDate ? "Dates" : "Date"}</span>
                 <span className="font-semibold text-brand-forest">{formatDate(confirmedBooking.date)}</span>
               </div>
               {confirmedBooking.startTime && (
@@ -834,6 +890,31 @@ export function BookingPage() {
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
               </div>
+            ) : isBoarding ? (
+              <>
+                <p className="text-sm text-brand-forest-muted mb-2">Select your drop-off and pick-up dates</p>
+                <Calendar
+                  availability={calendarAvailability}
+                  startDate={selectedDate}
+                  endDate={selectedEndDate}
+                  onDateSelect={handleBoardingDateSelect}
+                  isLoading={isLoadingCalendar}
+                  onMonthChange={handleCalendarMonthChange}
+                />
+                {selectedDate && selectedEndDate && (
+                  <div className="bg-white rounded-xl p-3 shadow-sm text-sm text-brand-forest">
+                    <span className="font-semibold">Drop-off:</span> {formatDate(selectedDate)} — <span className="font-semibold">Pick-up:</span> {formatDate(selectedEndDate)}
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={goNext}
+                  disabled={!selectedDate || !selectedEndDate}
+                >
+                  Continue
+                </Button>
+              </>
             ) : (
               <>
                 <div className="grid grid-cols-4 gap-2">
@@ -889,7 +970,7 @@ export function BookingPage() {
           <div className="space-y-4">
             <h2 className="font-heading text-xl font-bold text-brand-forest">Pick a Time</h2>
             <p className="text-sm text-brand-forest-muted">
-              {selectedDate && formatDate(selectedDate)}
+              {selectedDate && (isBoarding && selectedEndDate ? formatDate(selectedDate) + " — " + formatDate(selectedEndDate) : formatDate(selectedDate))}
             </p>
             {isLoadingSlots ? (
               <div className="flex justify-center py-12">
@@ -1188,9 +1269,9 @@ export function BookingPage() {
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-brand-forest-muted">Date</span>
+                <span className="text-brand-forest-muted">{isBoarding && selectedEndDate ? "Dates" : "Date"}</span>
                 <span className="font-semibold text-brand-forest">
-                  {selectedDate && formatDate(selectedDate)}
+                  {selectedDate && (isBoarding && selectedEndDate ? formatDate(selectedDate) + " — " + formatDate(selectedEndDate) : formatDate(selectedDate))}
                 </span>
               </div>
               {selectedTime && (

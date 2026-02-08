@@ -9,3 +9,5 @@ export { StaffSchedulePage } from './StaffSchedulePage';
 export { GroomingPricingPage } from './GroomingPricingPage';
 export { BundleManagementPage } from './BundleManagementPage';
 export { StaffPage } from './StaffPage';
+export { MessagingPage } from './MessagingPage';
+export { AIMonitoringPage } from './AIMonitoringPage';

@@ -175,7 +175,7 @@ export function MessagingPage() {
       }
     }
     setIsSending(false);
-    inputRef.current?.focus();
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -330,7 +330,6 @@ export function MessagingPage() {
   }
 
   return (
-    <>
     <div className="fixed inset-0 flex flex-col bg-brand-cream overflow-hidden">
       {/* Chat Header */}
       <header className="bg-white/90 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0 z-10">
@@ -357,11 +356,13 @@ export function MessagingPage() {
         </div>
       </header>
 
-      {/* AI disclaimer */}
+      {/* Privacy notice */}
       <div className="bg-brand-sage/5 border-b border-brand-sand/30 px-4 py-2 flex-shrink-0">
         <div className="max-w-lg mx-auto flex items-center gap-2 text-xs text-brand-forest-muted">
-          <span className="text-sm">🤖</span>
-          <span>Powered by AI assistant. A team member can join anytime.</span>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <span>Messages in this chat are visible to Happy Tail staff. Please don't share sensitive personal information like passwords or payment details.</span>
         </div>
       </div>
 
@@ -395,9 +396,11 @@ export function MessagingPage() {
                       <div key={msg.id} className={`flex ${isCustomer ? 'justify-end' : 'justify-start'} gap-2`}>
                         {!isCustomer && getSenderIcon(msg.senderType)}
                         <div className="max-w-[80%]">
-                          {!isCustomer && msg.senderName && (
+                          {!isCustomer && (
                             <p className="text-xs text-brand-forest-muted mb-0.5 ml-1">
-                              {msg.senderName}
+                              {msg.senderType === 'ai'
+                                ? (msg.senderName || 'HTHD Assistant')
+                                : msg.senderName}
                               {msg.senderType === 'ai' && (
                                 <span className="ml-1 text-brand-sage">(AI)</span>
                               )}
@@ -416,7 +419,7 @@ export function MessagingPage() {
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           </div>
                           <div className={`flex items-center gap-1.5 mt-1 ${isCustomer ? 'justify-end' : 'justify-start'}`}>
-                            <p className="text-[11px] text-brand-forest-muted">{formatTime(msg.createdAt)}</p>
+                            <p className="text-xs text-brand-forest-muted">{formatTime(msg.createdAt)}</p>
                             {isCustomer && msg.readAt && (
                               <svg className="w-3.5 h-3.5 text-brand-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -453,22 +456,26 @@ export function MessagingPage() {
       </div>
 
       {/* Quick Replies */}
-      {showQuickReplies && messages.length <= 1 && (
+      {showQuickReplies && messages.length <= 4 && (
         <div className="bg-white/80 backdrop-blur-sm border-t border-brand-sand/30 px-4 py-3 flex-shrink-0">
           <div className="max-w-lg mx-auto">
             <p className="text-xs text-brand-forest-muted mb-2 font-medium">Quick replies</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {QUICK_REPLIES.map((qr) => (
-                <button
-                  key={qr.id}
-                  onClick={() => handleSendMessage(qr.text)}
-                  disabled={isSending}
-                  className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-full border border-brand-sand bg-white text-xs font-medium text-brand-forest hover:border-brand-primary hover:text-brand-primary transition-colors min-h-[36px]"
-                >
-                  <span>{qr.icon}</span>
-                  {qr.text}
-                </button>
-              ))}
+            <div className="relative">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {QUICK_REPLIES.map((qr) => (
+                  <button
+                    key={qr.id}
+                    onClick={() => handleSendMessage(qr.text)}
+                    disabled={isSending}
+                    className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-full border border-brand-sand bg-white text-xs font-medium text-brand-forest hover:border-brand-primary hover:text-brand-primary transition-colors min-h-[36px]"
+                  >
+                    <span>{qr.icon}</span>
+                    {qr.text}
+                  </button>
+                ))}
+              </div>
+              {/* Right-edge fade gradient to indicate scrollability */}
+              <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white/80 to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
@@ -489,7 +496,7 @@ export function MessagingPage() {
       )}
 
       {/* Message Input */}
-      <div className="bg-white border-t border-brand-sand/50 px-4 py-3 pb-[calc(0.75rem+4rem)] flex-shrink-0">
+      <div className="bg-white border-t border-brand-sand/50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex-shrink-0">
         <div className="max-w-lg mx-auto flex items-end gap-2 overflow-hidden">
           <textarea
             ref={inputRef}
@@ -499,6 +506,7 @@ export function MessagingPage() {
             placeholder="Type a message..."
             rows={1}
             autoComplete="off"
+            autoFocus
             className="flex-1 min-w-0 w-0 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />
@@ -525,9 +533,5 @@ export function MessagingPage() {
         </div>
       </div>
     </div>
-
-    {/* Bottom Navigation — outside fixed container to prevent overflow conflicts */}
-    <BottomNav />
-    </>
   );
 }
