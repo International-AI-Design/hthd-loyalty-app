@@ -330,7 +330,7 @@ export function MessagingPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-brand-cream flex flex-col pb-16">
+    <div className="min-h-[100dvh] max-w-full overflow-x-hidden bg-brand-cream flex flex-col pb-16">
       {/* Chat Header */}
       <header className="bg-white/90 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
@@ -489,7 +489,7 @@ export function MessagingPage() {
 
       {/* Message Input */}
       <div className="bg-white border-t border-brand-sand/50 px-4 py-3 flex-shrink-0 safe-area-bottom">
-        <div className="max-w-lg mx-auto flex items-end gap-3">
+        <div className="max-w-lg mx-auto flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={messageInput}
@@ -498,13 +498,13 @@ export function MessagingPage() {
             placeholder="Type a message..."
             rows={1}
             autoComplete="off"
-            className="flex-1 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
+            className="flex-1 min-w-0 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />
           <button
             onClick={() => handleSendMessage()}
             disabled={!messageInput.trim() || isSending}
-            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${
+            className={`min-h-[44px] w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full transition-all ${
               messageInput.trim() && !isSending
                 ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-warm'
                 : 'bg-brand-sand text-brand-forest-muted cursor-not-allowed'
