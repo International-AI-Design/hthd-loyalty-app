@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { customerApi } from '../lib/api';
-import type { Dog } from '../lib/api';
 
 const APP_VERSION = '1.0.0';
 
