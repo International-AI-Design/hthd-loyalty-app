@@ -453,7 +453,8 @@ export class MessagingService {
 
       // Exceeded max rounds
       return "I'm working on that but it's taking a bit longer than expected. Let me connect you with our team for help.";
-    } catch {
+    } catch (err) {
+      console.error('[WebChat AI Error]', err instanceof Error ? err.message : err);
       return "Thanks for your message! A team member will be with you shortly.";
     }
   }

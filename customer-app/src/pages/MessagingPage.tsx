@@ -4,6 +4,7 @@ import { messagingApi, customerApi } from '../lib/api';
 import type { Dog } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui';
+import { BottomNav } from '../components/BottomNav';
 
 interface Message {
   id: string;
@@ -329,7 +330,7 @@ export function MessagingPage() {
   }
 
   return (
-    <div className="h-[100dvh] bg-brand-cream flex flex-col">
+    <div className="min-h-[100dvh] bg-brand-cream flex flex-col pb-16">
       {/* Chat Header */}
       <header className="bg-white/90 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
@@ -522,6 +523,9 @@ export function MessagingPage() {
           </button>
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
