@@ -50,6 +50,9 @@ import { prisma, pool } from './lib/prisma';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust Railway's reverse proxy so rate limiter uses real client IP
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmetMiddleware);
 app.use(rateLimiter);
