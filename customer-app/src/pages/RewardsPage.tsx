@@ -73,7 +73,7 @@ export function RewardsPage() {
   const [selectedTier, setSelectedTier] = useState<(typeof REWARD_TIERS)[number] | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
-  const [redemptionCode, setRedemptionCode] = useState<string | null>(null);
+  const [_redemptionCode, setRedemptionCode] = useState<string | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [redemptionError, setRedemptionError] = useState<string | null>(null);
 

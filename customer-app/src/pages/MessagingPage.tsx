@@ -4,7 +4,7 @@ import { messagingApi, customerApi } from '../lib/api';
 import type { Dog } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui';
-import { BottomNav } from '../components/BottomNav';
+
 
 interface Message {
   id: string;

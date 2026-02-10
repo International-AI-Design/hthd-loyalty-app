@@ -56,7 +56,7 @@ export function BookingPage() {
   const [updatingSize, setUpdatingSize] = useState(false);
 
   // Step 3: Date selection
-  const [availability, setAvailability] = useState<AvailabilityDay[]>([]);
+  const [_availability, setAvailability] = useState<AvailabilityDay[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
