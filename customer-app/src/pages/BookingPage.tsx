@@ -1352,7 +1352,7 @@ export function BookingPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
+                className="w-full rounded-xl border border-gray-300 p-3 text-base focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
                 placeholder="Any special requests or things we should know..."
               />
             </div>

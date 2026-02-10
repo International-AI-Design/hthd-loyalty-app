@@ -378,7 +378,7 @@ export function MessagingPage() {
                   }}
                   placeholder="Type a reply..."
                   rows={1}
-                  className="flex-1 resize-none border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#62A2C3]/30 focus:border-[#62A2C3] min-h-[44px]"
+                  className="flex-1 resize-none border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#62A2C3]/30 focus:border-[#62A2C3] min-h-[44px]"
                 />
                 <button
                   onClick={handleSendReply}

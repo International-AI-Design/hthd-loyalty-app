@@ -548,7 +548,7 @@ export function MessagingPage() {
             rows={1}
             autoComplete="off"
             autoFocus
-            className="flex-1 min-w-0 w-0 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
+            className="flex-1 min-w-0 w-0 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />
           <button

@@ -15,24 +15,36 @@ Pet business loyalty program - MVP complete with 25 user stories implemented. Ac
 ## Deployment Workflow
 **Repository:** `https://github.com/International-AI-Design/hthd-loyalty-app.git`
 
-**All deployments are automatic on push to `main`:**
+### Server (Railway) — Auto-deploys on push
 ```bash
-# 1. Stage and commit changes
-git add <files>
-git commit -m "Description of changes"
-
-# 2. Push to trigger deployment
-git push origin main
-
-# 3. Monitor deployment
-# - Railway: Check dashboard at railway.app (API deploys in ~2-3 min)
-# - Vercel: Check dashboard at vercel.com (Apps deploy in ~1-2 min)
+git push origin main  # Railway auto-deploys server/ changes (~2-3 min)
 ```
 
-**What deploys where:**
-- `server/` changes → Railway (API)
-- `customer-app/` changes → Vercel (Customer App)
-- `admin-app/` changes → Vercel (Admin App)
+### Customer & Admin Apps (Vercel) — Manual deploy required
+Vercel is NOT connected to GitHub for auto-deploy. You must deploy manually from the **monorepo root** (`happy-tail/`).
+
+**CRITICAL: Vercel project names do NOT match directory names:**
+
+| App | Directory | Vercel Project Name | Custom Domain |
+|-----|-----------|-------------------|---------------|
+| Customer | `customer-app/` | `hthd-loyalty-app` | `hthd.internationalaidesign.com` |
+| Admin | `admin-app/` | `hthd-loyalty-app-3fgb` | `hthd-admin.internationalaidesign.com` |
+
+```bash
+# Deploy customer app (from monorepo root!)
+cd production/happy-tail
+vercel link --project hthd-loyalty-app --yes
+vercel --prod --yes
+
+# Deploy admin app (from monorepo root!)
+vercel link --project hthd-loyalty-app-3fgb --yes
+vercel --prod --yes
+
+# Re-link to customer project after (default)
+vercel link --project hthd-loyalty-app --yes
+```
+
+**Why from monorepo root?** Each Vercel project has Root Directory set (`customer-app/` or `admin-app/`). Deploying from a subdirectory causes path errors.
 
 **Rollback:** Use Railway/Vercel dashboards to redeploy previous version if needed.
 
