@@ -1,10 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { DateAvailability } from '../lib/api';
 
+type SelectionMode = 'range' | 'multi';
+
 interface CalendarProps {
   availability: Record<string, DateAvailability>;
   startDate: string | null;
   endDate: string | null;
+  selectedDates?: string[];
+  selectionMode?: SelectionMode;
   onDateSelect: (date: string) => void;
   isLoading: boolean;
   onMonthChange: (year: number, month: number) => void;
@@ -57,6 +61,8 @@ export function Calendar({
   availability,
   startDate,
   endDate,
+  selectedDates = [],
+  selectionMode = 'range',
   onDateSelect,
   isLoading,
   onMonthChange,
@@ -134,11 +140,21 @@ export function Calendar({
     const past = isPast(currentYear, currentMonth, day);
     const todayCell = isToday(currentYear, currentMonth, day);
     const status = getAvailabilityStatus(dateKey, availability);
-    const inRange = isDateInRange(dateKey, startDate, endDate);
-    const isStart = dateKey === startDate;
-    const isEnd = dateKey === endDate;
-    const isSelected = isStart || isEnd;
     const disabled = past || status === 'full';
+
+    // Determine selection state based on mode
+    let isSelected = false;
+    let inRange = false;
+
+    if (selectionMode === 'multi') {
+      isSelected = selectedDates.includes(dateKey);
+    } else {
+      // range mode
+      const isStart = dateKey === startDate;
+      const isEnd = dateKey === endDate;
+      isSelected = isStart || isEnd;
+      inRange = isDateInRange(dateKey, startDate, endDate);
+    }
 
     let bgClass = '';
     let textClass = 'text-brand-navy';
@@ -182,6 +198,28 @@ export function Calendar({
         {dotClass && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotClass}`} />}
       </button>
     );
+  };
+
+  // Hint text based on selection mode
+  const renderHint = () => {
+    if (selectionMode === 'multi') {
+      if (selectedDates.length === 0) {
+        return <p className="text-center text-xs text-gray-400 mt-2">Tap dates to select days (tap again to deselect)</p>;
+      }
+      return (
+        <p className="text-center text-xs text-gray-400 mt-2">
+          {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''} selected
+        </p>
+      );
+    }
+    // range mode
+    if (!startDate) {
+      return <p className="text-center text-xs text-gray-400 mt-2">Tap a date to select your start date</p>;
+    }
+    if (startDate && !endDate) {
+      return <p className="text-center text-xs text-gray-400 mt-2">Tap another date to select your end date</p>;
+    }
+    return null;
   };
 
   return (
@@ -256,12 +294,7 @@ export function Calendar({
       </div>
 
       {/* Selection Hint */}
-      {!startDate && (
-        <p className="text-center text-xs text-gray-400 mt-2">Tap a date to select your start date</p>
-      )}
-      {startDate && !endDate && (
-        <p className="text-center text-xs text-gray-400 mt-2">Tap another date to select your end date</p>
-      )}
+      {renderHint()}
     </div>
   );
 }

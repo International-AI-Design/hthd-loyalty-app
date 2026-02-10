@@ -10,12 +10,12 @@ export class MessagingService {
    * Find an active web_chat conversation for a customer, or create a new one.
    */
   async getOrCreateConversation(customerId: string) {
-    // Look for an existing active web_chat conversation
+    // Look for an existing active or escalated web_chat conversation
     const existing = await (prisma as any).conversation.findFirst({
       where: {
         customerId,
         channel: 'web_chat',
-        status: 'active',
+        status: { in: ['active', 'escalated'] },
       },
       include: {
         messages: {
@@ -429,7 +429,8 @@ export class MessagingService {
               const result = await executeTool(
                 block.name,
                 block.input as Record<string, unknown>,
-                customerId
+                customerId,
+                conversationId
               );
               toolResults.push({
                 type: 'tool_result',

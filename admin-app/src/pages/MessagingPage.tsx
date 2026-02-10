@@ -5,16 +5,16 @@ import { adminMessagingApi } from '../lib/api';
 
 interface ConversationMessage {
   id: string;
-  sender_type: 'customer' | 'ai' | 'staff';
-  sender_name: string;
+  role: 'customer' | 'assistant';
+  sender_name?: string;
   content: string;
-  created_at: string;
+  createdAt: string;
 }
 
 interface Conversation {
   id: string;
   customer_name: string;
-  dog_name: string;
+  dog_name?: string;
   status: 'active' | 'escalated' | 'closed';
   last_message: string;
   last_message_at: string;
@@ -61,23 +61,20 @@ function statusBadge(status: Conversation['status']) {
     </span>
   );
 }
-function senderBubbleStyle(type: ConversationMessage['sender_type']) {
-  switch (type) {
+function senderBubbleStyle(role: ConversationMessage['role']) {
+  switch (role) {
     case 'customer':
       return 'bg-gray-100 text-gray-900 self-start rounded-tl-sm';
-    case 'ai':
-      return 'bg-[#62A2C3]/10 text-[#1B365D] self-start rounded-tl-sm border border-[#62A2C3]/20';
-    case 'staff':
+    case 'assistant':
       return 'bg-[#1B365D] text-white self-end rounded-tr-sm';
     default:
       return 'bg-gray-100 text-gray-900 self-start';
   }
 }
 
-function senderLabel(type: ConversationMessage['sender_type'], name: string) {
-  switch (type) {
-    case 'ai': return 'AI Assistant';
-    case 'staff': return name || 'Staff';
+function senderLabel(role: ConversationMessage['role'], name?: string) {
+  switch (role) {
+    case 'assistant': return name || 'Staff / AI';
     default: return name || 'Customer';
   }
 }
@@ -108,7 +105,22 @@ export function MessagingPage() {
     if (result.error) {
       setError(result.error);
     } else if (result.data) {
-      setConversations(result.data.conversations ?? result.data ?? []);
+      const raw = result.data.conversations ?? result.data ?? [];
+      const mapped: Conversation[] = raw.map((conv: any) => ({
+        id: conv.id,
+        customer_name: conv.customer
+          ? `${conv.customer.firstName ?? ''} ${conv.customer.lastName ?? ''}`.trim()
+          : 'Unknown',
+        dog_name: conv.dog_name ?? '',
+        status: conv.status,
+        last_message: conv.lastMessage?.content ?? '',
+        last_message_at: conv.lastMessageAt ?? conv.createdAt ?? '',
+        unread_count: conv.unread_count ?? 0,
+        assigned_to: conv.assignedStaff
+          ? `${conv.assignedStaff.firstName ?? ''} ${conv.assignedStaff.lastName ?? ''}`.trim()
+          : undefined,
+      }));
+      setConversations(mapped);
       setError(null);
     }
     setIsLoading(false);
@@ -124,7 +136,31 @@ export function MessagingPage() {
     setThreadLoading(true);
     const result = await adminMessagingApi.getConversation(id);
     if (result.data) {
-      setThread(result.data);
+      const { conversation: conv, messages: msgs } = result.data;
+      const mappedMessages: ConversationMessage[] = (msgs ?? []).map((m: any) => ({
+        id: m.id,
+        role: m.role === 'customer' ? 'customer' : 'assistant',
+        sender_name: m.senderName ?? (m.role === 'customer'
+          ? `${conv?.customer?.firstName ?? ''} ${conv?.customer?.lastName ?? ''}`.trim()
+          : undefined),
+        content: m.content,
+        createdAt: m.createdAt,
+      }));
+      setThread({
+        id: conv.id,
+        customer_name: conv.customer
+          ? `${conv.customer.firstName ?? ''} ${conv.customer.lastName ?? ''}`.trim()
+          : 'Unknown',
+        dog_name: conv.dog_name ?? '',
+        status: conv.status,
+        last_message: mappedMessages[mappedMessages.length - 1]?.content ?? '',
+        last_message_at: conv.lastMessageAt ?? conv.createdAt ?? '',
+        unread_count: 0,
+        assigned_to: conv.assignedStaff
+          ? `${conv.assignedStaff.firstName ?? ''} ${conv.assignedStaff.lastName ?? ''}`.trim()
+          : undefined,
+        messages: mappedMessages,
+      });
     }
     setThreadLoading(false);
   }, []);
@@ -313,13 +349,13 @@ export function MessagingPage() {
               </div>
             ) : (
               (thread.messages ?? []).map((msg) => (
-                <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.sender_type === 'staff' ? 'self-end items-end ml-auto' : 'self-start items-start'}`}>
+                <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.role === 'assistant' ? 'self-end items-end ml-auto' : 'self-start items-start'}`}>
                   <span className="text-[10px] text-gray-400 mb-1 px-1">
-                    {senderLabel(msg.sender_type, msg.sender_name)}
+                    {senderLabel(msg.role, msg.sender_name)}
                     {' · '}
-                    {formatMessageTime(msg.created_at)}
+                    {formatMessageTime(msg.createdAt)}
                   </span>
-                  <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${senderBubbleStyle(msg.sender_type)}`}>
+                  <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${senderBubbleStyle(msg.role)}`}>
                     {msg.content}
                   </div>
                 </div>
@@ -353,7 +389,7 @@ export function MessagingPage() {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   )}
                 </button>

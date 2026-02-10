@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { dogProfileApi } from '../lib/api';
-import { BottomNav } from '../components/BottomNav';
+import { AppShell } from '../components/AppShell';
 import { Button, Modal, Input, Alert } from '../components/ui';
 
 interface Vaccination {
@@ -57,7 +57,6 @@ interface DogProfile {
 
 export function DogProfilePage() {
   const { dogId } = useParams<{ dogId: string }>();
-  const navigate = useNavigate();
 
   const [dog, setDog] = useState<DogProfile | null>(null);
   const [compliance, setCompliance] = useState<ComplianceStatus | null>(null);
@@ -94,13 +93,17 @@ export function DogProfilePage() {
     if (fetchErr) {
       setError(fetchErr);
     } else if (data) {
-      setDog(data);
+      // Server wraps response as { dog: { ... } } — unwrap the nested object
+      const dogData: DogProfile = (data as Record<string, unknown>).dog
+        ? ((data as Record<string, unknown>).dog as DogProfile)
+        : (data as DogProfile);
+      setDog(dogData);
       setEditForm({
-        name: data.name || '',
-        breed: data.breed || '',
-        sizeCategory: data.sizeCategory || '',
-        weight: data.weight ? String(data.weight) : '',
-        temperament: data.temperament || '',
+        name: dogData.name || '',
+        breed: dogData.breed || '',
+        sizeCategory: dogData.sizeCategory || '',
+        weight: dogData.weight ? String(dogData.weight) : '',
+        temperament: dogData.temperament || '',
       });
     }
     setIsLoading(false);
@@ -286,39 +289,17 @@ export function DogProfilePage() {
 
   if (error || !dog) {
     return (
-      <div className="min-h-screen bg-brand-warm-white">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
-              <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="font-heading text-xl font-bold text-brand-navy">Dog Profile</h1>
-          </div>
-        </header>
-        <main className="max-w-4xl mx-auto px-4 py-8">
+      <AppShell title="Dog Profile" showBack>
+        <div className="max-w-4xl mx-auto px-4 py-8">
           <Alert variant="error">{error || 'Dog not found'}</Alert>
-        </main>
-      </div>
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-warm-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
-            <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="font-heading text-xl font-bold text-brand-navy">{dog.name}'s Profile</h1>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-6 pb-24 space-y-6">
+    <AppShell title={dog.name + "'s Profile"} showBack>
+      <div className="px-4 py-6 space-y-6">
         {/* Dog Identity Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-start gap-4">
@@ -590,9 +571,7 @@ export function DogProfilePage() {
             </div>
           </div>
         )}
-      </main>
-
-      <BottomNav />
+      </div>
 
       {/* Vaccination Modal */}
       <Modal
@@ -717,6 +696,6 @@ export function DogProfilePage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </AppShell>
   );
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { customerApi } from '../lib/api';
 import type { Dog } from '../lib/api';
 import { AppShell } from '../components/AppShell';
-import { Button } from '../components/ui';
+import { Button, Modal, Input, Alert } from '../components/ui';
 
 const SIZE_LABELS: Record<string, string> = {
   small: 'Small',
@@ -58,6 +58,12 @@ export function MyPetsPage() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Add Pet modal state
+  const [isAddPetOpen, setIsAddPetOpen] = useState(false);
+  const [addPetForm, setAddPetForm] = useState({ name: '', breed: '', birthDate: '', sizeCategory: '' });
+  const [isAddingPet, setIsAddingPet] = useState(false);
+  const [addPetError, setAddPetError] = useState<string | null>(null);
+
   const fetchDogs = useCallback(async () => {
     const { data } = await customerApi.getDogs();
     if (data) {
@@ -70,8 +76,33 @@ export function MyPetsPage() {
     fetchDogs();
   }, [fetchDogs]);
 
+  const openAddPet = () => {
+    setAddPetForm({ name: '', breed: '', birthDate: '', sizeCategory: '' });
+    setAddPetError(null);
+    setIsAddPetOpen(true);
+  };
+
+  const handleAddPet = async () => {
+    if (!addPetForm.name.trim()) return;
+    setIsAddingPet(true);
+    setAddPetError(null);
+    const { error } = await customerApi.addDog({
+      name: addPetForm.name.trim(),
+      breed: addPetForm.breed.trim() || undefined,
+      birthDate: addPetForm.birthDate || undefined,
+      sizeCategory: addPetForm.sizeCategory || undefined,
+    });
+    if (error) {
+      setAddPetError(error);
+    } else {
+      setIsAddPetOpen(false);
+      fetchDogs();
+    }
+    setIsAddingPet(false);
+  };
+
   if (!customer) return (
-    <AppShell title="My Pets">
+    <AppShell title="My Pets" showBack>
       <div className="flex flex-col items-center justify-center py-16">
         <div className="w-12 h-12 rounded-full border-3 border-brand-sand border-t-brand-primary animate-spin" />
         <p className="text-sm text-brand-forest-muted mt-4">Loading...</p>
@@ -80,7 +111,7 @@ export function MyPetsPage() {
   );
 
   return (
-    <AppShell title="My Pets">
+    <AppShell title="My Pets" showBack>
       <div className="px-4 pt-6 pb-8 space-y-6">
         {/* Header area with count + add button */}
         <div className="flex items-center justify-between">
@@ -96,7 +127,7 @@ export function MyPetsPage() {
           </div>
           <Button
             size="sm"
-            onClick={() => navigate('/book')}
+            onClick={openAddPet}
             className="flex items-center gap-1.5"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -131,10 +162,10 @@ export function MyPetsPage() {
               No pets yet
             </h3>
             <p className="text-brand-forest-muted text-sm leading-relaxed max-w-xs mx-auto mb-6">
-              Add your first furry friend when you book an appointment. We will keep track of all their info here.
+              Add your first furry friend to get started. We will keep track of all their info here.
             </p>
-            <Button onClick={() => navigate('/book')} className="mx-auto">
-              Book Your First Visit
+            <Button onClick={openAddPet} className="mx-auto">
+              Add Your First Pet
             </Button>
           </div>
         )}
@@ -226,7 +257,7 @@ export function MyPetsPage() {
         {!isLoading && dogs.length > 0 && (
           <div className="pt-2">
             <button
-              onClick={() => navigate('/book')}
+              onClick={openAddPet}
               className="w-full border-2 border-dashed border-brand-sand hover:border-brand-primary/40
                 rounded-3xl p-5 flex items-center justify-center gap-3 text-brand-forest-muted
                 hover:text-brand-primary transition-all duration-200 min-h-[64px]
@@ -237,11 +268,62 @@ export function MyPetsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </div>
-              <span className="font-medium text-sm">Add another pet during booking</span>
+              <span className="font-medium text-sm">Add another pet</span>
             </button>
           </div>
         )}
       </div>
+
+      {/* Add Pet Modal */}
+      <Modal
+        isOpen={isAddPetOpen}
+        onClose={() => setIsAddPetOpen(false)}
+        title="Add a New Pet"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Name"
+            value={addPetForm.name}
+            onChange={(e) => setAddPetForm({ ...addPetForm, name: e.target.value })}
+            placeholder="e.g. Buddy, Luna"
+          />
+          <Input
+            label="Breed (optional)"
+            value={addPetForm.breed}
+            onChange={(e) => setAddPetForm({ ...addPetForm, breed: e.target.value })}
+            placeholder="e.g. Golden Retriever"
+          />
+          <Input
+            label="Birthday (optional)"
+            type="date"
+            value={addPetForm.birthDate}
+            onChange={(e) => setAddPetForm({ ...addPetForm, birthDate: e.target.value })}
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Size (optional)</label>
+            <select
+              value={addPetForm.sizeCategory}
+              onChange={(e) => setAddPetForm({ ...addPetForm, sizeCategory: e.target.value })}
+              className="w-full px-3 py-2 border border-brand-light-gray rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary min-h-[44px]"
+            >
+              <option value="">Select size</option>
+              <option value="small">Small (under 25 lbs)</option>
+              <option value="medium">Medium (25-50 lbs)</option>
+              <option value="large">Large (50-100 lbs)</option>
+              <option value="xlarge">X-Large (100+ lbs)</option>
+            </select>
+          </div>
+          {addPetError && <Alert variant="error">{addPetError}</Alert>}
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setIsAddPetOpen(false)} disabled={isAddingPet}>
+              Cancel
+            </Button>
+            <Button className="flex-1" onClick={handleAddPet} isLoading={isAddingPet} disabled={!addPetForm.name.trim()}>
+              Add Pet
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

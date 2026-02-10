@@ -77,6 +77,9 @@ export function RewardsPage() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [redemptionError, setRedemptionError] = useState<string | null>(null);
 
+  // Activity feed expansion
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+
   // Toast + share
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info' | 'warning'>('success');
@@ -247,7 +250,7 @@ export function RewardsPage() {
   const currentTierLabel = getCurrentTierLabel();
 
   return (
-    <AppShell title="Rewards">
+    <AppShell title="Rewards" showBack>
       <div className="px-4 pt-6 pb-8 space-y-6">
 
         {/* ==============================
@@ -398,7 +401,7 @@ export function RewardsPage() {
         ) : pendingRedemptions.length > 0 && (
           <div>
             <h3 className="font-heading text-lg font-semibold text-brand-forest mb-3 px-1">
-              Active Codes
+              Active Rewards
             </h3>
             <div className="space-y-3">
               {pendingRedemptions.map((redemption) => (
@@ -409,26 +412,36 @@ export function RewardsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-brand-amber/10 text-brand-amber-dark">
                       <span className="w-1.5 h-1.5 rounded-full bg-brand-amber animate-pulse" />
-                      Pending
+                      Ready to Use
                     </span>
                     <span className="text-xs text-brand-forest-muted">
                       {formatDate(redemption.created_at)}
                     </span>
                   </div>
                   <div className="text-center py-2">
-                    <p className="text-3xl font-mono font-bold text-brand-forest tracking-[0.15em]">
-                      {redemption.redemption_code}
-                    </p>
-                    <p className="text-lg font-heading font-semibold text-brand-sage mt-2">
+                    <p className="text-lg font-heading font-semibold text-brand-sage">
                       ${redemption.discount_value} grooming discount
                     </p>
                     <p className="text-xs text-brand-forest-muted mt-1">
-                      {redemption.reward_tier.toLocaleString()} points
+                      {redemption.reward_tier.toLocaleString()} points redeemed
                     </p>
                   </div>
-                  <p className="text-xs text-center text-brand-forest-muted mt-3 pt-3 border-t border-brand-sand/30">
-                    Show this code at checkout to apply your discount
-                  </p>
+                  <div className="mt-3 pt-3 border-t border-brand-sand/30 text-center space-y-2">
+                    <p className="text-xs text-brand-forest-muted">
+                      This discount will be automatically applied at checkout.
+                    </p>
+                    <button
+                      onClick={() => navigate('/book')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold
+                        bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20
+                        transition-colors duration-200 min-h-[44px]"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                      </svg>
+                      Book Now to Use Discount
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -581,41 +594,105 @@ export function RewardsPage() {
             </div>
           ) : (
             <div className="bg-white rounded-3xl shadow-warm border border-brand-sand/50 overflow-hidden">
-              {transactions.map((tx, i) => (
-                <div
-                  key={tx.id}
-                  className={`flex items-center justify-between px-5 py-3.5 ${
-                    i < transactions.length - 1 ? 'border-b border-brand-sand/20' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      tx.points_amount > 0
-                        ? 'bg-brand-sage/10'
-                        : 'bg-brand-error/10'
-                    }`}>
-                      {tx.points_amount > 0 ? (
-                        <svg className="w-4 h-4 text-brand-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 text-brand-error" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-brand-forest truncate">{tx.description}</p>
-                      <p className="text-xs text-brand-forest-muted">{formatDate(tx.date)}</p>
-                    </div>
+              {transactions.map((tx, i) => {
+                const isPurchase = tx.type === 'purchase' || tx.type === 'earn' || tx.type === 'booking';
+                const isRedemption = tx.type === 'redemption' || tx.type === 'redeem';
+                const isExpandable = isPurchase || isRedemption;
+                const isExpanded = expandedTxId === tx.id;
+
+                return (
+                  <div
+                    key={tx.id}
+                    className={`${
+                      i < transactions.length - 1 ? 'border-b border-brand-sand/20' : ''
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => isExpandable ? setExpandedTxId(isExpanded ? null : tx.id) : undefined}
+                      className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-150 ${
+                        isExpandable ? 'cursor-pointer hover:bg-brand-cream/40 active:bg-brand-cream/60' : 'cursor-default'
+                      }`}
+                      aria-expanded={isExpandable ? isExpanded : undefined}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          tx.points_amount > 0
+                            ? 'bg-brand-sage/10'
+                            : 'bg-brand-error/10'
+                        }`}>
+                          {tx.points_amount > 0 ? (
+                            <svg className="w-4 h-4 text-brand-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-brand-error" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-brand-forest truncate">{tx.description}</p>
+                          <p className="text-xs text-brand-forest-muted">{formatDate(tx.date)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                        <span className={`text-sm font-bold tabular-nums ${
+                          tx.points_amount > 0 ? 'text-brand-sage-dark' : 'text-brand-error'
+                        }`}>
+                          {tx.points_amount > 0 ? '+' : ''}{tx.points_amount.toLocaleString()}
+                        </span>
+                        {isExpandable && (
+                          <svg
+                            className={`w-4 h-4 text-brand-forest-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                    {/* Expandable detail panel */}
+                    {isExpandable && isExpanded && (
+                      <div className="px-5 pb-4 pt-0">
+                        <div className="bg-brand-cream/60 rounded-2xl p-4 space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-brand-forest-muted">Date</span>
+                            <span className="text-brand-forest font-medium">{formatDate(tx.date)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-brand-forest-muted">Type</span>
+                            <span className="text-brand-forest font-medium capitalize">
+                              {isPurchase ? 'Service Purchase' : 'Points Redemption'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-brand-forest-muted">Points {tx.points_amount > 0 ? 'Earned' : 'Used'}</span>
+                            <span className={`font-semibold ${tx.points_amount > 0 ? 'text-brand-sage-dark' : 'text-brand-error'}`}>
+                              {tx.points_amount > 0 ? '+' : ''}{tx.points_amount.toLocaleString()} pts
+                            </span>
+                          </div>
+                          {isPurchase && tx.points_amount > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-brand-forest-muted">Est. Amount Paid</span>
+                              <span className="text-brand-forest font-medium">
+                                ${(tx.points_amount).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-xs">
+                            <span className="text-brand-forest-muted">Description</span>
+                            <span className="text-brand-forest font-medium text-right max-w-[60%]">{tx.description}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className={`text-sm font-bold tabular-nums flex-shrink-0 ml-3 ${
-                    tx.points_amount > 0 ? 'text-brand-sage-dark' : 'text-brand-error'
-                  }`}>
-                    {tx.points_amount > 0 ? '+' : ''}{tx.points_amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -657,7 +734,7 @@ export function RewardsPage() {
               <span className="font-semibold text-brand-sage">${selectedTier.discount} grooming discount</span>.
             </p>
             <p className="text-brand-forest-muted text-xs">
-              This creates a redemption code to show at checkout. Points will be deducted when the code is used.
+              Your discount will be automatically applied at your next checkout. Points will be deducted immediately.
             </p>
             {redemptionError && (
               <div className="bg-brand-error/10 border border-brand-error/20 rounded-2xl p-3">
@@ -691,7 +768,7 @@ export function RewardsPage() {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseSuccessModal}
-        title="Redemption Code Ready!"
+        title="Discount Ready!"
       >
         <div className="space-y-4">
           <div className="text-center">
@@ -700,22 +777,23 @@ export function RewardsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-brand-forest-light text-sm mb-4">
-              Show this code at checkout for your{' '}
-              <span className="font-semibold text-brand-sage">${selectedTier?.discount} discount</span>:
+            <p className="text-brand-forest-light text-sm mb-2">
+              Your{' '}
+              <span className="font-semibold text-brand-sage">${selectedTier?.discount} discount</span>{' '}
+              is ready!
             </p>
-            <div className="bg-brand-cream rounded-2xl p-5 mb-4">
-              <p className="text-3xl font-mono font-bold text-brand-forest tracking-[0.15em]">
-                {redemptionCode}
-              </p>
-            </div>
-            <p className="text-xs text-brand-forest-muted">
-              This code is pending and will be completed when you use it at checkout.
+            <p className="text-xs text-brand-forest-muted mb-4">
+              It will be automatically applied at your next checkout. No code needed.
             </p>
           </div>
-          <Button className="w-full" onClick={handleCloseSuccessModal}>
-            Done
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={handleCloseSuccessModal}>
+              Done
+            </Button>
+            <Button className="flex-1" onClick={() => { handleCloseSuccessModal(); navigate('/book'); }}>
+              Book Now
+            </Button>
+          </div>
         </div>
       </Modal>
 

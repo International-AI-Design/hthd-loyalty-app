@@ -193,7 +193,7 @@ export function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#1B365D]">
-            {isToday ? 'Today at Happy Tail' : 'Happy Tail Dashboard'}
+            {isToday ? 'Today at Happy Tail Happy Dog' : 'Happy Tail Happy Dog Dashboard'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {

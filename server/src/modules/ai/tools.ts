@@ -114,6 +114,20 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'escalate_to_staff',
+    description: 'Escalate the conversation to a human staff member. Use this when the customer asks to speak to a person, manager, or staff member, or when you cannot resolve their issue and they need human help. This flags the conversation for immediate staff attention.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        reason: {
+          type: 'string',
+          description: 'Brief reason for escalation',
+        },
+      },
+      required: ['reason'],
+    },
+  },
 ];
 
 /**
@@ -156,11 +170,13 @@ async function resolveDogIds(
 /**
  * Execute a tool call and return the result as a JSON-serializable object.
  * The customerId is resolved from the SMS sender's phone number before this is called.
+ * The conversationId is optionally passed for tools that need to modify conversation state.
  */
 export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
-  customerId: string | null
+  customerId: string | null,
+  conversationId?: string
 ): Promise<unknown> {
   logger.info(`Executing tool: ${toolName}`, { input: toolInput, customerId });
 
@@ -341,6 +357,44 @@ export async function executeTool(
         notes:
           'Grooming price varies by dog size and coat condition. Multi-dog discount: 10% off for 2+ dogs.',
       };
+    }
+
+    case 'escalate_to_staff': {
+      if (!conversationId) {
+        return { error: 'No conversation context available for escalation.' };
+      }
+
+      try {
+        await (prisma as any).conversation.update({
+          where: { id: conversationId },
+          data: { status: 'escalated' },
+        });
+
+        // Log the escalation reason as a system message for staff visibility
+        await (prisma as any).message.create({
+          data: {
+            conversationId,
+            role: 'system',
+            content: `[Escalation] ${toolInput.reason as string}`,
+            channel: 'web_chat',
+          },
+        });
+
+        logger.info('Conversation escalated to staff', {
+          conversationId,
+          reason: toolInput.reason,
+          customerId,
+        });
+
+        return {
+          success: true,
+          message: 'Conversation has been escalated. A staff member will be notified.',
+        };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to escalate conversation';
+        logger.error('Escalation failed', { conversationId, error: message });
+        return { error: message };
+      }
     }
 
     default:

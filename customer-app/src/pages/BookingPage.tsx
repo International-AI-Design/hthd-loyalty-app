@@ -60,6 +60,7 @@ export function BookingPage() {
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [calendarAvailability, setCalendarAvailability] = useState<Record<string, DateAvailability>>({});
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
@@ -100,6 +101,8 @@ export function BookingPage() {
 
   const isGrooming = selectedService?.name === 'grooming';
   const isBoarding = selectedService?.name === 'boarding';
+  // Multi-day selection for daycare and non-boarding, non-grooming
+  const isMultiDay = !isGrooming && !isBoarding;
 
   // Load service types on mount
   useEffect(() => {
@@ -245,6 +248,21 @@ export function BookingPage() {
     return `${displayH}:${minutes} ${ampm}`;
   };
 
+  /** Format a list of selected dates into a compact summary */
+  const formatSelectedDates = (dates: string[]): string => {
+    if (dates.length === 0) return '';
+    if (dates.length === 1) return formatDate(dates[0]);
+    const sorted = [...dates].sort();
+    return `${formatDate(sorted[0])} + ${dates.length - 1} more`;
+  };
+
+  /** Whether the Continue button on step 3 should be enabled */
+  const isDateStepValid = (): boolean => {
+    if (isBoarding) return !!(selectedDate && selectedEndDate);
+    if (isGrooming) return !!selectedDate;
+    return selectedDates.length > 0;
+  };
+
   const goNext = () => {
     directionRef.current = "forward";
     if (step === 3 && !isGrooming) {
@@ -273,6 +291,7 @@ export function BookingPage() {
     setSelectedDogIds([]);
     setSelectedDate(null);
     setSelectedEndDate(null);
+    setSelectedDates([]);
     setSelectedTime(null);
     setPhotoData(null);
     setSelectedBundle(null);
@@ -313,9 +332,13 @@ export function BookingPage() {
     setUpdatingSize(false);
   };
 
-  const handleDateSelect = (day: AvailabilityDay) => {
-    if (!day.available) return;
-    setSelectedDate(day.date);
+  // Grooming: single date select from calendar
+  const handleGroomingDateSelect = (dateKey: string) => {
+    if (selectedDate === dateKey) {
+      setSelectedDate(null);
+    } else {
+      setSelectedDate(dateKey);
+    }
     setSelectedTime(null);
   };
 
@@ -342,6 +365,22 @@ export function BookingPage() {
       setSelectedDate(dateKey);
       setSelectedEndDate(null);
     }
+  };
+
+  // Multi-day: toggle individual dates on/off (daycare and other services)
+  const handleMultiDateSelect = (dateKey: string) => {
+    setSelectedDates((prev) => {
+      const next = prev.includes(dateKey)
+        ? prev.filter((d) => d !== dateKey)
+        : [...prev, dateKey].sort();
+      // Keep selectedDate in sync for compatibility
+      if (next.length > 0) {
+        setSelectedDate(next[0]);
+      } else {
+        setSelectedDate(null);
+      }
+      return next;
+    });
   };
 
   const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
@@ -414,7 +453,9 @@ export function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedService || !selectedDate) return;
+    if (!selectedService) return;
+    const hasDate = selectedDate || selectedDates.length > 0;
+    if (!hasDate) return;
     if (selectedDogIds.length === 0) {
       setError('Please add a pet before confirming your booking.');
       return;
@@ -422,25 +463,67 @@ export function BookingPage() {
     setIsSubmitting(true);
     setError(null);
 
-    const bookingPayload = isBoarding && selectedEndDate ? {
-      startDate: selectedDate,
-      endDate: selectedEndDate,
-      serviceTypeId: selectedService.id,
-      dogIds: selectedDogIds,
-    } : null;
+    // Boarding with date range
+    if (isBoarding && selectedDate && selectedEndDate) {
+      const bookingPayload = {
+        startDate: selectedDate,
+        endDate: selectedEndDate,
+        serviceTypeId: selectedService.id,
+        dogIds: selectedDogIds,
+      };
+      const { data, error: err } = await multiDayBookingApi.createMultiDayBooking(bookingPayload) as any;
+      if (data) {
+        setConfirmedBooking(data.booking);
+      } else if (err) {
+        setError(err);
+      }
+      setIsSubmitting(false);
+      return;
+    }
 
-    const { data, error: err } = bookingPayload
-      ? await multiDayBookingApi.createMultiDayBooking(bookingPayload) as any
-      : await bookingApi.createBooking({
+    // Multi-day (daycare etc.) - create a booking for each selected date
+    if (isMultiDay && selectedDates.length > 1) {
+      let lastBooking: Booking | null = null;
+      let anyError: string | null = null;
+      for (const date of selectedDates) {
+        const { data, error: err } = await bookingApi.createBooking({
+          serviceTypeId: selectedService.id,
+          dogIds: selectedDogIds,
+          date,
+          notes: notes || undefined,
+        });
+        if (data) {
+          lastBooking = data.booking;
+        } else if (err) {
+          anyError = err;
+          break;
+        }
+      }
+      if (lastBooking && !anyError) {
+        setConfirmedBooking(lastBooking);
+      } else if (anyError) {
+        setError(anyError);
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Single date booking
+    const bookingDate = selectedDate || (selectedDates.length > 0 ? selectedDates[0] : null);
+    if (!bookingDate) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    const { data, error: err } = await bookingApi.createBooking({
       serviceTypeId: selectedService.id,
       dogIds: selectedDogIds,
-      date: selectedDate,
+      date: bookingDate,
       startTime: selectedTime || undefined,
       notes: notes || undefined,
     });
 
     if (data) {
-      // Upload photo if provided (non-blocking — booking is already confirmed)
       if (photoData && selectedDogIds.length === 1) {
         const photoResult = await bookingApi.uploadDogPhoto(data.booking.id, selectedDogIds[0], photoData);
         if (photoResult.error) {
@@ -455,65 +538,10 @@ export function BookingPage() {
     setIsSubmitting(false);
   };
 
-  // Progress step tracking
-  const currentStepIndex = isGrooming
-    ? step
-    : step <= 3
-    ? step
-    : step === 6
-    ? 4
-    : 5;
-
-  const stepLabels = isGrooming
-    ? ['Service', 'Pet', 'Date', 'Time', 'Photo', 'Bundle', 'Review']
-    : ['Service', 'Pet', 'Date', 'Bundle', 'Review'];
-
-  const renderProgressSteps = () => {
-    const total = stepLabels.length;
-    const idx = currentStepIndex - 1; // 0-based
-
-    // Build visible indices: previous, current, next (with ellipsis for hidden)
-    const visibleIndices: (number | 'ellipsis-left' | 'ellipsis-right')[] = [];
-    if (idx > 1) visibleIndices.push('ellipsis-left');
-    if (idx > 0) visibleIndices.push(idx - 1);
-    visibleIndices.push(idx);
-    if (idx < total - 1) visibleIndices.push(idx + 1);
-    if (idx < total - 2) visibleIndices.push('ellipsis-right');
-
-    return (
-      <div className="flex items-center justify-center gap-3 py-3">
-        {visibleIndices.map((item, i) => {
-          if (item === 'ellipsis-left' || item === 'ellipsis-right') {
-            return (
-              <span key={item} className="text-xs text-gray-400 select-none">
-                ...
-              </span>
-            );
-          }
-          const stepIdx = item as number;
-          const isCurrent = stepIdx === idx;
-          const isPast = stepIdx < idx;
-          return (
-            <div key={i} className="flex flex-col items-center min-w-0">
-              <span
-                className={`text-xs whitespace-nowrap ${
-                  isCurrent
-                    ? 'text-brand-primary font-bold'
-                    : isPast
-                    ? 'text-brand-primary'
-                    : 'text-gray-400'
-                }`}
-              >
-                {stepLabels[stepIdx]}
-              </span>
-              {isCurrent && (
-                <div className="mt-1 h-0.5 w-full rounded-full bg-brand-primary" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
+  const getBookingTitle = () => {
+    if (!selectedService) return 'Book Appointment';
+    if (selectedService.name === 'boarding') return 'Book Your Boarding Stay';
+    return `Book Your ${selectedService.displayName} Appointment`;
   };
 
   const renderHeader = () => (
@@ -531,12 +559,12 @@ export function BookingPage() {
               </svg>
             </button>
           )}
-          <div className="flex-1 flex items-center justify-center">
-            <h1 className="font-heading text-lg font-bold text-brand-forest">Book Appointment</h1>
+          <div className="flex-1 flex items-center justify-center gap-3">
+            <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
+            <h1 className="font-heading text-lg font-bold text-brand-forest">{getBookingTitle()}</h1>
           </div>
           {step > 1 && !confirmedBooking && <div className="w-11" />}
         </div>
-        {!confirmedBooking && renderProgressSteps()}
       </div>
     </header>
   );
@@ -882,10 +910,12 @@ export function BookingPage() {
           </div>
         )}
 
-        {/* Step 3: Select Date */}
+        {/* Step 3: Select Date(s) */}
         {step === 3 && (
           <div className="space-y-4">
-            <h2 className="font-heading text-xl font-bold text-brand-forest">Pick a Date</h2>
+            <h2 className="font-heading text-xl font-bold text-brand-forest">
+              {isBoarding ? 'Pick Your Dates' : isMultiDay ? 'Pick Your Days' : 'Pick a Date'}
+            </h2>
             {isLoadingAvailability ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
@@ -906,62 +936,60 @@ export function BookingPage() {
                     <span className="font-semibold">Drop-off:</span> {formatDate(selectedDate)} — <span className="font-semibold">Pick-up:</span> {formatDate(selectedEndDate)}
                   </div>
                 )}
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={goNext}
-                  disabled={!selectedDate || !selectedEndDate}
-                >
-                  Continue
-                </Button>
+
+              </>
+            ) : isGrooming ? (
+              <>
+                <p className="text-sm text-brand-forest-muted mb-2">Select your appointment date</p>
+                <Calendar
+                  availability={calendarAvailability}
+                  startDate={selectedDate}
+                  endDate={null}
+                  selectionMode="range"
+                  onDateSelect={handleGroomingDateSelect}
+                  isLoading={isLoadingCalendar}
+                  onMonthChange={handleCalendarMonthChange}
+                />
+                {selectedDate && (
+                  <div className="bg-white rounded-xl p-3 shadow-sm text-sm text-brand-forest">
+                    <span className="font-semibold">Date:</span> {formatDate(selectedDate)}
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <div className="grid grid-cols-4 gap-2">
-                  {availability.map((day) => {
-                    const date = new Date(day.date + 'T00:00:00');
-                    const isSelected = selectedDate === day.date;
-                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                    const dayNum = date.getDate();
-                    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-
-                    return (
-                      <button
-                        key={day.date}
-                        onClick={() => handleDateSelect(day)}
-                        disabled={!day.available}
-                        className={`rounded-xl p-2 text-center transition-all min-h-[52px] ${
-                          isSelected
-                            ? 'bg-brand-primary text-white shadow-md'
-                            : day.available
-                            ? 'bg-white hover:ring-2 hover:ring-brand-primary shadow-sm'
-                            : 'bg-gray-100 opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-brand-forest-muted'}`}>
-                          {dayName}
-                        </p>
-                        <p className={`text-base font-bold ${isSelected ? 'text-white' : 'text-brand-forest'}`}>
-                          {dayNum}
-                        </p>
-                        <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-brand-forest-muted'}`}>
-                          {monthName}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={goNext}
-                  disabled={!selectedDate}
-                >
-                  Continue
-                </Button>
+                <p className="text-sm text-brand-forest-muted mb-2">Tap dates to select multiple days</p>
+                <Calendar
+                  availability={calendarAvailability}
+                  startDate={null}
+                  endDate={null}
+                  selectedDates={selectedDates}
+                  selectionMode="multi"
+                  onDateSelect={handleMultiDateSelect}
+                  isLoading={isLoadingCalendar}
+                  onMonthChange={handleCalendarMonthChange}
+                />
+                {selectedDates.length > 0 && (
+                  <div className="bg-white rounded-xl p-3 shadow-sm text-sm text-brand-forest">
+                    <span className="font-semibold">Selected:</span>{' '}
+                    {selectedDates.length <= 3
+                      ? selectedDates.map(formatDate).join(', ')
+                      : `${selectedDates.slice(0, 2).map(formatDate).join(', ')} + ${selectedDates.length - 2} more`}
+                  </div>
+                )}
               </>
             )}
+            {/* bug-008 fix: Sticky continue button for the date step */}
+            <div className="sticky bottom-0 pt-3 pb-2 -mx-4 px-4 bg-gradient-to-t from-brand-cream via-brand-cream to-transparent">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={goNext}
+                disabled={!isDateStepValid()}
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         )}
 
@@ -1269,9 +1297,15 @@ export function BookingPage() {
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-brand-forest-muted">{isBoarding && selectedEndDate ? "Dates" : "Date"}</span>
-                <span className="font-semibold text-brand-forest">
-                  {selectedDate && (isBoarding && selectedEndDate ? formatDate(selectedDate) + " — " + formatDate(selectedEndDate) : formatDate(selectedDate))}
+                <span className="text-brand-forest-muted">
+                  {isMultiDay && selectedDates.length > 1 ? "Dates" : isBoarding && selectedEndDate ? "Dates" : "Date"}
+                </span>
+                <span className="font-semibold text-brand-forest text-right">
+                  {isMultiDay && selectedDates.length > 0
+                    ? formatSelectedDates(selectedDates)
+                    : selectedDate && (isBoarding && selectedEndDate
+                      ? formatDate(selectedDate) + " — " + formatDate(selectedEndDate)
+                      : formatDate(selectedDate))}
                 </span>
               </div>
               {selectedTime && (
@@ -1292,11 +1326,23 @@ export function BookingPage() {
                   {bundleCalc
                     ? formatPrice(bundleCalc.finalTotalCents)
                     : selectedService
-                    ? formatPrice(selectedService.basePriceCents * Math.max(selectedDogIds.length, 1))
+                    ? formatPrice(selectedService.basePriceCents * Math.max(selectedDogIds.length, 1) * Math.max(isMultiDay ? selectedDates.length : 1, 1))
                     : '--'}
                 </span>
               </div>
             </div>
+
+            {/* Show all selected dates for multi-day */}
+            {isMultiDay && selectedDates.length > 1 && (
+              <div className="bg-white rounded-2xl shadow-md p-5">
+                <p className="text-sm font-medium text-gray-700 mb-2">Selected Days ({selectedDates.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {[...selectedDates].sort().map((d) => (
+                    <span key={d} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-brand-blue/10 text-brand-forest">{formatDate(d)}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-md p-5">
               <label className="block text-sm font-medium text-gray-700 mb-2">

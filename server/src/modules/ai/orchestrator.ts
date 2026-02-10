@@ -194,7 +194,8 @@ export async function processMessage(
             const result = await executeTool(
               block.name,
               block.input as Record<string, unknown>,
-              customerId
+              customerId,
+              conversationId
             );
             toolResults.push({
               type: 'tool_result',

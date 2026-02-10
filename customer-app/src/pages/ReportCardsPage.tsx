@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AppShell } from '../components/AppShell';
 import { reportCardApi, customerApi } from '../lib/api';
 import type { Dog } from '../lib/api';
 
@@ -25,7 +25,6 @@ interface ReportCard {
 }
 
 export function ReportCardsPage() {
-  const navigate = useNavigate();
 
   const [reportCards, setReportCards] = useState<ReportCard[]>([]);
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -128,20 +127,8 @@ export function ReportCardsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-warm-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
-            <svg className="w-6 h-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="font-heading text-xl font-bold text-brand-navy">Report Cards</h1>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <AppShell title="Report Cards" showBack>
+      <div className="px-4 py-6 space-y-6">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
         )}
@@ -329,7 +316,7 @@ export function ReportCardsPage() {
             </div>
           ))
         )}
-      </main>
+      </div>
 
       {/* Photo Lightbox Modal */}
       {photoModalUrl && (
@@ -353,6 +340,6 @@ export function ReportCardsPage() {
           />
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

@@ -149,7 +149,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <>
       {/* Logo area */}
       <div className="px-4 py-5 border-b border-brand-navy/20">
-        <h1 className="font-heading text-lg font-bold text-white">Happy Tail</h1>
+        <h1 className="font-heading text-lg font-bold text-white">Happy Tail Happy Dog</h1>
         <p className="text-brand-blue text-xs mt-0.5">Admin Portal</p>
       </div>
 
@@ -232,7 +232,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h1 className="font-heading text-lg font-bold text-brand-navy">Happy Tail</h1>
+          <h1 className="font-heading text-lg font-bold text-brand-navy">Happy Tail Happy Dog</h1>
           <div className="flex items-center gap-1">
             <button
               onClick={() => navigate('/messages?filter=escalated')}

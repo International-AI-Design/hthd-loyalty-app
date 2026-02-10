@@ -17,9 +17,47 @@ interface Message {
   photoUrl?: string | null;
 }
 
+/**
+ * The server returns messages with a `role` field ('customer' | 'assistant' | 'system')
+ * but the UI expects `senderType` ('customer' | 'ai' | 'staff').
+ * This function normalizes the server response to match the component's interface.
+ */
+function normalizeMessage(raw: Record<string, any>): Message {
+  // If already normalized (e.g. optimistic messages), pass through
+  if (raw.senderType) return raw as Message;
+
+  const role: string = raw.role ?? '';
+  let senderType: Message['senderType'];
+  let senderName: string | null = raw.senderName ?? raw.sender_name ?? null;
+
+  if (role === 'customer') {
+    senderType = 'customer';
+  } else if (role === 'assistant') {
+    // The customer API doesn't distinguish AI from staff in the response.
+    // Default to 'ai' since the AI concierge handles most web chat messages.
+    // When senderName is explicitly set to a human name, treat as staff.
+    senderType = 'ai';
+    senderName = senderName || 'HTHD Assistant';
+  } else {
+    senderType = 'ai';
+    senderName = senderName || 'HTHD Assistant';
+  }
+
+  return {
+    id: raw.id,
+    conversationId: raw.conversationId ?? raw.conversation_id ?? '',
+    senderType,
+    senderName,
+    content: raw.content ?? '',
+    createdAt: raw.createdAt ?? raw.created_at ?? new Date().toISOString(),
+    readAt: raw.readAt ?? raw.read_at ?? null,
+    photoUrl: raw.photoUrl ?? raw.photo_url ?? null,
+  };
+}
+
 interface Conversation {
   id: string;
-  status: 'active' | 'closed';
+  status: 'active' | 'escalated' | 'closed';
   createdAt: string;
   lastMessageAt: string | null;
   unreadCount: number;
@@ -67,7 +105,7 @@ export function MessagingPage() {
     } else if (data) {
       const convos = Array.isArray(data) ? data : (data as any).conversations || [];
       setConversations(convos);
-      const active = convos.find((c: Conversation) => c.status === 'active');
+      const active = convos.find((c: Conversation) => c.status === 'active' || c.status === 'escalated');
       if (active && !activeConversationId) {
         setActiveConversationId(active.id);
       }
@@ -81,7 +119,8 @@ export function MessagingPage() {
     if (fetchErr) {
       setError(fetchErr);
     } else if (data) {
-      const msgs = Array.isArray(data) ? data : (data as any).messages || [];
+      const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
+      const msgs = rawMsgs.map(normalizeMessage);
       setMessages(msgs);
       if (msgs.length > 0) setShowQuickReplies(false);
     }
@@ -110,7 +149,8 @@ export function MessagingPage() {
       pollRef.current = setInterval(async () => {
         const { data } = await messagingApi.getMessages(activeConversationId);
         if (data) {
-          const msgs = Array.isArray(data) ? data : (data as any).messages || [];
+          const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
+          const msgs = rawMsgs.map(normalizeMessage);
           setMessages((prev) => {
             if (msgs.length !== prev.length) {
               setIsAiTyping(false);
@@ -169,7 +209,8 @@ export function MessagingPage() {
     } else {
       const { data } = await messagingApi.getMessages(activeConversationId);
       if (data) {
-        const msgs = Array.isArray(data) ? data : (data as any).messages || [];
+        const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
+        const msgs = rawMsgs.map(normalizeMessage);
         setMessages(msgs);
         setIsAiTyping(false);
       }
@@ -362,7 +403,7 @@ export function MessagingPage() {
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
-          <span>Messages in this chat are visible to Happy Tail staff. Please don't share sensitive personal information like passwords or payment details.</span>
+          <span>Messages in this chat are visible to Happy Tail Happy Dog staff. Please don't share sensitive personal information like passwords or payment details.</span>
         </div>
       </div>
 

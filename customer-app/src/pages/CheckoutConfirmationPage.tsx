@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { checkoutApi } from '../lib/api';
 import type { ReceiptData, Booking, CheckoutResult } from '../lib/api';
-import { BottomNav } from '../components/BottomNav';
+import { AppShell } from '../components/AppShell';
 import { Button, Alert, Toast } from '../components/ui';
 
 export function CheckoutConfirmationPage() {
@@ -104,19 +104,12 @@ export function CheckoutConfirmationPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-brand-cream">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center gap-3">
-            <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
-            <h1 className="font-heading text-lg font-bold text-brand-navy">Payment Receipt</h1>
-          </div>
-        </header>
-        <main className="max-w-lg mx-auto px-4 py-8 pb-24">
+      <AppShell title="Payment Receipt" showBack>
+        <div className="px-4 py-8">
           <Alert variant="error">{error}</Alert>
           <Button className="w-full mt-4" onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
-        </main>
-        <BottomNav />
-      </div>
+        </div>
+      </AppShell>
     );
   }
 
@@ -135,15 +128,8 @@ export function CheckoutConfirmationPage() {
   const dogNames = bookingInfo?.dogs ?? passedBooking?.dogs?.map((bd) => bd.dog.name) ?? [];
 
   return (
-    <div className="min-h-screen bg-brand-cream">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center gap-3">
-          <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-8" />
-          <h1 className="font-heading text-lg font-bold text-brand-navy">Payment Receipt</h1>
-        </div>
-      </header>
-
-      <main className="max-w-lg mx-auto px-4 py-8 pb-24 space-y-6">
+    <AppShell title="Payment Receipt" showBack>
+      <div className="px-4 py-8 space-y-6">
         {/* Success Icon */}
         <div className="text-center">
           <div
@@ -247,14 +233,12 @@ export function CheckoutConfirmationPage() {
             Back to Dashboard
           </Button>
         </div>
-      </main>
-
-      <BottomNav />
+      </div>
       <Toast
         message={toastMessage}
         isVisible={isToastVisible}
         onHide={() => setIsToastVisible(false)}
       />
-    </div>
+    </AppShell>
   );
 }

@@ -64,10 +64,8 @@ export function LoginPage() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo area */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-primary/10 rounded-full mb-4">
-            <span className="text-3xl">🐾</span>
-          </div>
-          <h1 className="text-3xl font-heading font-bold text-brand-forest">Happy Tail</h1>
+          <img src="/logo.png" alt="Happy Tail Happy Dog" className="h-16 mx-auto mb-4" />
+          <h1 className="text-3xl font-heading font-bold text-brand-forest">Happy Tail Happy Dog</h1>
           <p className="text-brand-forest-muted mt-1">Welcome back to the pack</p>
         </div>
 
