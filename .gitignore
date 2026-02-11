@@ -39,3 +39,4 @@ screenshot-*.png
 
 # Claude/AI working files
 .claude/
+.vercel

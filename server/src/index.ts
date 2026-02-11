@@ -65,6 +65,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Happy Tail Happy Dog API is running', version: '3.1.0' });
 });
 
+// Deep health — verifies DB connectivity (catches Railway internal network failures)
+app.get('/api/health/deep', async (req, res) => {
+  const start = Date.now();
+  try {
+    await pool.query('SELECT 1');
+    const dbLatencyMs = Date.now() - start;
+    res.json({
+      status: 'ok',
+      version: '3.1.0',
+      db: { connected: true, latencyMs: dbLatencyMs },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    const dbLatencyMs = Date.now() - start;
+    res.status(503).json({
+      status: 'degraded',
+      version: '3.1.0',
+      db: { connected: false, latencyMs: dbLatencyMs, error: err.message },
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // Auth routes
 app.use('/api/auth', authRoutes);
 

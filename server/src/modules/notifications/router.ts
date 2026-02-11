@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
         where: {
           customerId,
           status: { in: ['confirmed', 'checked_in', 'checked_out'] },
-          date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+          date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
         },
         include: { serviceType: true, dogs: { include: { dog: true } } },
         orderBy: { createdAt: 'desc' },

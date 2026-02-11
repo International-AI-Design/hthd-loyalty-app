@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.9] - QA Bug Sprint + iOS Mobile Fixes - 2026-02-10
+
+### Bug Fixes (15 bugs from QA walkthrough)
+- **P0: Pet profile white screen** — API response shape mismatch, added unwrap logic
+- **P1: Add Pet routing** — replaced hardcoded navigate('/book') with Add Pet modal
+- **P1: Missing back buttons** — added showBack to AppShell on 5 subpages
+- **P1: Multi-day date picker** — extended Calendar with range/multi selection modes
+- **P1: Chat alignment** — added normalizeMessage() mapping server `role` to UI `senderType`
+- **P1: Branding consistency** — fixed 7 instances of "Happy Tail" → "Happy Tail Happy Dog" across 4 files
+- **P1: Admin "Invalid Date"** — fixed camelCase/snake_case field mismatch in admin messaging
+- **P1: AI escalation routing** — added escalate_to_staff tool, updated prompts and service
+- **P2: Booking header** — added logo, removed progress bar, added dynamic title
+- **P2: Continue button below fold** — sticky bottom container with gradient
+- **P2: QR redemption** — replaced code display with auto-apply messaging
+- **P2: Admin send icon** — replaced up-pointing arrow with paper-plane send icon
+- **P3: Activity feed** — added expandable detail panels (accordion pattern)
+
+### iOS Mobile Fixes
+- **iOS auto-zoom on input focus** — set all inputs/textareas to `text-base` (16px min)
+- **Viewport meta** — added `maximum-scale=1.0` to both customer and admin index.html
+
+### Infrastructure
+- **QA Registry** — created `spine/senses/qa/known-bugs.jsonl` with structured bug tracking
+- **Deployment docs** — corrected Vercel project name mapping in CLAUDE.md
+- **Observer protocol** — updated to require bug registry reads before client app work
+
 ## [2.0.0-alpha.8] - Frontend Redesign: Earth-Tone Design System, New Pages, Real-Time Features - 2026-02-07
 
 ### Design System Overhaul

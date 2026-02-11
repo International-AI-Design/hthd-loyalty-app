@@ -1,4 +1,4 @@
-# Build stage - v3 (cache bust)
+# Build stage - v4 deep-health (cache bust)
 FROM node:20-alpine AS builder
 WORKDIR /app
 # Copy all source first to ensure fresh prisma schema
