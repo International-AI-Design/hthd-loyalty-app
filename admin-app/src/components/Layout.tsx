@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminMessagingApi } from '../lib/api';
 
@@ -119,6 +119,8 @@ const NAV_ITEMS = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const { staff, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [escalatedCount, setEscalatedCount] = useState(0);
 
@@ -235,7 +237,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <h1 className="font-heading text-lg font-bold text-brand-navy">Happy Tail Happy Dog</h1>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => navigate('/messages?filter=escalated')}
+              onClick={() => {
+                if (location.pathname === '/messages') {
+                  setSearchParams({ filter: 'escalated' });
+                } else {
+                  navigate('/messages?filter=escalated');
+                }
+              }}
               className="relative w-11 h-11 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
             >
               <svg className="w-5 h-5 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">

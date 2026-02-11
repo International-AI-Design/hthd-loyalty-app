@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminMessagingApi } from '../lib/api';
 
@@ -81,6 +81,7 @@ function senderLabel(role: ConversationMessage['role'], name?: string) {
 
 export function MessagingPage() {
   const { staff } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filterParam = (searchParams.get('filter') ?? 'all') as FilterKey;
@@ -223,7 +224,15 @@ export function MessagingPage() {
 
   const listPanel = (
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-5 pb-3">
+      <div className="px-4 pt-5 pb-3 flex items-center gap-2">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100"
+        >
+          <svg className="w-5 h-5 text-[#1B365D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
         <h2 className="font-heading text-xl font-bold text-[#1B365D]">Messages</h2>
       </div>
 
@@ -255,8 +264,31 @@ export function MessagingPage() {
             <div className="w-6 h-6 border-2 border-gray-200 border-t-[#62A2C3] rounded-full animate-spin" />
           </div>
         ) : conversations.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm">
-            No conversations found
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <svg className="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p className="text-sm text-gray-500 font-medium mb-1">
+              {activeFilter !== 'all' ? `No ${activeFilter} messages` : 'No conversations found'}
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              {activeFilter !== 'all' ? 'Try viewing all messages instead' : 'New conversations will appear here'}
+            </p>
+            {activeFilter !== 'all' ? (
+              <button
+                onClick={() => handleFilterChange('all')}
+                className="px-4 py-2 text-sm font-medium text-[#4F8BA8] bg-[#62A2C3]/10 rounded-lg hover:bg-[#62A2C3]/20 transition-colors min-h-[40px]"
+              >
+                View all messages
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="px-4 py-2 text-sm font-medium text-[#1B365D] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors min-h-[40px]"
+              >
+                Back to Dashboard
+              </button>
+            )}
           </div>
         ) : (
           conversations.map((conv) => (
