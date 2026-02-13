@@ -73,6 +73,11 @@ export class DogProfileService {
         },
         behaviorNotes: {
           orderBy: { createdAt: 'desc' },
+          include: {
+            reporter: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
         },
       },
     });
