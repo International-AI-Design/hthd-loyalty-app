@@ -120,7 +120,29 @@ export function DogProfilePage() {
     if (!dogId) return;
     const { data } = await dogProfileApi.getCompliance(dogId);
     if (data) {
-      setCompliance(data);
+      // Map backend response shape to frontend ComplianceStatus
+      const raw = data as Record<string, unknown>;
+      const items = (raw.compliance as Array<Record<string, unknown>>) || [];
+
+      let overall: ComplianceStatus['overall'] = 'unknown';
+      if (items.length === 0) {
+        overall = 'unknown';
+      } else if (items.every((c) => c.status === 'compliant')) {
+        overall = 'current';
+      } else if (items.some((c) => c.status === 'expired' || c.status === 'missing')) {
+        overall = 'expired';
+      } else {
+        overall = 'expiring_soon';
+      }
+
+      setCompliance({
+        overall,
+        vaccinations: items.map((c) => ({
+          name: (c.requirement as string) || 'Unknown',
+          status: c.status === 'compliant' ? 'current' as const : 'expired' as const,
+          expiresAt: (c.expiresAt as string) || null,
+        })),
+      });
     }
   }, [dogId]);
 

@@ -47,16 +47,19 @@ export class ErrorBoundary extends Component<Props, State> {
               We hit an unexpected issue. Please try again.
             </p>
             <button
-              onClick={this.handleRetry}
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
               className="w-full bg-brand-blue text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-blue/90 transition-colors min-h-[44px]"
             >
               Try Again
             </button>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => { window.location.href = '/dashboard'; }}
               className="w-full mt-3 text-brand-blue font-medium py-3 px-6 rounded-xl hover:bg-brand-cream transition-colors min-h-[44px]"
             >
-              Go Back
+              Go to Home
             </button>
           </div>
         </div>
