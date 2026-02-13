@@ -16,19 +16,26 @@ interface Vaccination {
 interface Medication {
   id: string;
   name: string;
-  dosage: string;
-  frequency: string;
-  startDate: string;
+  dosage: string | null;
+  frequency: string | null;
+  startDate: string | null;
   endDate: string | null;
-  active: boolean;
-  notes: string | null;
+  isActive: boolean;
+  instructions: string | null;
 }
 
 interface BehaviorNote {
   id: string;
+  category: string;
   note: string;
-  staffName: string;
-  date: string;
+  severity: number;
+  reportedBy: string | null;
+  createdAt: string;
+  reporter?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 interface ComplianceStatus {
@@ -198,11 +205,11 @@ export function DogProfilePage() {
     setEditingMed(med);
     setMedForm({
       name: med.name,
-      dosage: med.dosage,
-      frequency: med.frequency,
+      dosage: med.dosage || '',
+      frequency: med.frequency || '',
       startDate: med.startDate ? med.startDate.split('T')[0] : '',
       endDate: med.endDate ? med.endDate.split('T')[0] : '',
-      notes: med.notes || '',
+      notes: med.instructions || '',
     });
     setMedError(null);
     setIsMedModalOpen(true);
@@ -214,11 +221,11 @@ export function DogProfilePage() {
     setMedError(null);
     const payload = {
       name: medForm.name,
-      dosage: medForm.dosage,
-      frequency: medForm.frequency,
-      startDate: medForm.startDate,
-      endDate: medForm.endDate || null,
-      notes: medForm.notes || null,
+      dosage: medForm.dosage || undefined,
+      frequency: medForm.frequency || undefined,
+      startDate: medForm.startDate || undefined,
+      endDate: medForm.endDate || undefined,
+      instructions: medForm.notes || undefined,
     };
     let result;
     if (editingMed) {
@@ -253,9 +260,15 @@ export function DogProfilePage() {
     setIsDeleting(false);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00');
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const getComplianceColor = (status: string) => {
@@ -290,8 +303,37 @@ export function DogProfilePage() {
   if (error || !dog) {
     return (
       <AppShell title="Dog Profile" showBack>
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <Alert variant="error">{error || 'Dog not found'}</Alert>
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-cream flex items-center justify-center">
+              <svg className="w-8 h-8 text-brand-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="font-heading text-lg font-bold text-brand-navy mb-2">
+              {error ? 'Failed to load pet profile' : 'Pet not found'}
+            </h3>
+            <p className="text-gray-600 text-sm mb-6">
+              {error || "We couldn't find this pet. It may have been removed."}
+            </p>
+            <button
+              onClick={() => {
+                setError(null);
+                setIsLoading(true);
+                fetchDog();
+                fetchCompliance();
+              }}
+              className="w-full bg-brand-blue text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-blue/90 transition-colors min-h-[44px] mb-3"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              className="w-full text-brand-blue font-medium py-3 px-6 rounded-xl hover:bg-brand-cream transition-colors min-h-[44px]"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </AppShell>
     );
@@ -505,15 +547,15 @@ export function DogProfilePage() {
             </button>
           </div>
 
-          {dog.medications && dog.medications.filter(m => m.active).length > 0 ? (
+          {dog.medications && dog.medications.filter(m => m.isActive).length > 0 ? (
             <div className="space-y-3">
-              {dog.medications.filter(m => m.active).map((med) => (
+              {dog.medications.filter(m => m.isActive).map((med) => (
                 <div key={med.id} className="bg-brand-cream rounded-xl p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <p className="font-semibold text-brand-navy">{med.name}</p>
-                      <p className="text-sm text-gray-600">{med.dosage} &middot; {med.frequency}</p>
-                      {med.notes && <p className="text-sm text-gray-500 mt-1">{med.notes}</p>}
+                      <p className="text-sm text-gray-600">{med.dosage || 'No dosage'} &middot; {med.frequency || 'No frequency'}</p>
+                      {med.instructions && <p className="text-sm text-gray-500 mt-1">{med.instructions}</p>}
                     </div>
                     <div className="flex gap-1">
                       <button
@@ -564,7 +606,7 @@ export function DogProfilePage() {
                 <div key={note.id} className="bg-brand-cream rounded-xl p-4">
                   <p className="text-gray-800 text-sm">{note.note}</p>
                   <p className="text-xs text-gray-500 mt-2">
-                    {note.staffName} &middot; {formatDate(note.date)}
+                    {note.reporter ? `${note.reporter.firstName} ${note.reporter.lastName}` : 'Staff'} &middot; {formatDate(note.createdAt)}
                   </p>
                 </div>
               ))}
