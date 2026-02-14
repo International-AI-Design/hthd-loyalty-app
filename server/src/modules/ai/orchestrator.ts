@@ -32,7 +32,10 @@ function getClient(): Anthropic | null {
     logger.warn('ANTHROPIC_API_KEY not set — AI orchestrator disabled');
     return null;
   }
-  return new Anthropic({ apiKey });
+  return new Anthropic({
+    apiKey,
+    ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
+  });
 }
 
 /**

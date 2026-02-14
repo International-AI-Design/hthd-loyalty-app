@@ -397,7 +397,10 @@ export class MessagingService {
         return "Hi there! How can I help you today?";
       }
 
-      const client = new Anthropic({ apiKey });
+      const client = new Anthropic({
+        apiKey,
+        ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
+      });
       let rounds = 0;
 
       while (rounds < MAX_TOOL_ROUNDS) {
