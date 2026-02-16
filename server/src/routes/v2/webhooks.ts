@@ -13,11 +13,11 @@ router.post('/stripe', (req: Request, res: Response) => {
 // Twilio delivery status webhook
 router.post('/twilio', async (req: Request, res: Response) => {
   try {
-    // Validate signature in production
+    // Validate Twilio signature when auth token is configured
     const signature = req.headers['x-twilio-signature'] as string || '';
     const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
 
-    if (process.env.NODE_ENV === 'production' && !validateTwilioSignature(url, req.body, signature)) {
+    if (process.env.TWILIO_AUTH_TOKEN && !validateTwilioSignature(url, req.body, signature)) {
       logger.warn('Invalid Twilio signature on status webhook');
       res.status(403).send('Forbidden');
       return;

@@ -6,10 +6,9 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { WELCOME_BONUS_POINTS, REFERRAL_BONUS_POINTS, capPoints } from '../lib/points';
 import { sendNewSignupWelcomeEmail, sendPasswordResetEmail } from '../services/email';
+import { JWT_SECRET } from '../middleware/auth';
 
 const router = Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const SALT_ROUNDS = 10;
 
 // Zod schema for registration validation

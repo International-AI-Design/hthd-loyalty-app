@@ -7,10 +7,9 @@ import {
   verifyCode,
   completeClaim,
 } from '../services/claim';
+import { JWT_SECRET } from '../middleware/auth';
 
 const router = Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 // Schema for lookup request
 const lookupSchema = z.object({

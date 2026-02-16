@@ -2,10 +2,12 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { authenticateStaff } from '../../middleware/auth';
+import { requireRole } from '../../middleware/rbac';
 
 const router = Router();
 
 // Apply staff authentication to all routes
+// All staff can view customers; write operations should use requireRole where needed
 router.use(authenticateStaff);
 
 // GET /api/admin/customers

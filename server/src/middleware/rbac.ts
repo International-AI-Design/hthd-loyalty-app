@@ -13,6 +13,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'schedule.view', 'checkin.*', 'grooming.rate',
     'report-cards.create', 'customers.view',
   ],
+  groomer: [
+    'schedule.view', 'grooming.rate',
+    'report-cards.create', 'customers.view',
+  ],
 };
 
 /**

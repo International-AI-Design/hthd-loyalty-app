@@ -103,69 +103,70 @@ router.post('/complete', async (req: Request, res: Response): Promise<void> => {
 
     const { redemption_code } = validation.data;
 
-    // Find the redemption by code
-    const redemption = await prisma.redemption.findUnique({
-      where: { redemptionCode: redemption_code },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            pointsBalance: true,
+    // Use interactive transaction to prevent double-completion race condition
+    const result = await prisma.$transaction(async (tx) => {
+      // Find the redemption inside transaction for consistent read
+      const redemption = await tx.redemption.findUnique({
+        where: { redemptionCode: redemption_code },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              pointsBalance: true,
+            },
           },
         },
-      },
-    });
-
-    if (!redemption) {
-      res.status(404).json({ error: 'Redemption not found' });
-      return;
-    }
-
-    // Validate redemption status is 'pending'
-    if (redemption.status !== 'pending') {
-      res.status(400).json({
-        error: 'Invalid redemption status',
-        message: `Redemption is already ${redemption.status}`,
-        current_status: redemption.status,
       });
-      return;
-    }
 
-    // Validate customer has sufficient points (safety check)
-    if (redemption.customer.pointsBalance < redemption.rewardTier) {
-      res.status(400).json({
-        error: 'Insufficient points',
-        message: `Customer needs ${redemption.rewardTier} points but only has ${redemption.customer.pointsBalance}`,
-        required_points: redemption.rewardTier,
-        current_balance: redemption.customer.pointsBalance,
-      });
-      return;
-    }
+      if (!redemption) {
+        throw { statusCode: 404, message: 'Redemption not found' };
+      }
 
-    // Complete the redemption in a transaction
-    const [updatedRedemption, transaction, updatedCustomer] = await prisma.$transaction([
+      // Validate redemption status is 'pending' (inside transaction)
+      if (redemption.status !== 'pending') {
+        throw {
+          statusCode: 400,
+          message: `Redemption is already ${redemption.status}`,
+          details: { current_status: redemption.status },
+        };
+      }
+
+      // Validate customer has sufficient points (safety check)
+      if (redemption.customer.pointsBalance < redemption.rewardTier) {
+        throw {
+          statusCode: 400,
+          message: `Customer needs ${redemption.rewardTier} points but only has ${redemption.customer.pointsBalance}`,
+          details: {
+            required_points: redemption.rewardTier,
+            current_balance: redemption.customer.pointsBalance,
+          },
+        };
+      }
+
       // Update redemption status to 'completed'
-      prisma.redemption.update({
+      const updatedRedemption = await tx.redemption.update({
         where: { id: redemption.id },
         data: {
           status: 'completed',
           approvedBy: staffReq.staff.id,
           approvedAt: new Date(),
         },
-      }),
+      });
+
       // Create points transaction for the redemption (negative amount)
-      prisma.pointsTransaction.create({
+      await tx.pointsTransaction.create({
         data: {
           customerId: redemption.customerId,
           type: 'redemption',
           amount: -redemption.rewardTier,
           description: `Redeemed ${redemption.rewardTier} points for $${Number(redemption.discountValue)} discount`,
         },
-      }),
-      // Deduct points from customer balance
-      prisma.customer.update({
+      });
+
+      // Deduct points from customer balance (atomic decrement)
+      const updatedCustomer = await tx.customer.update({
         where: { id: redemption.customerId },
         data: {
           pointsBalance: {
@@ -173,9 +174,10 @@ router.post('/complete', async (req: Request, res: Response): Promise<void> => {
           },
         },
         select: { id: true, pointsBalance: true },
-      }),
+      });
+
       // Log to audit log
-      prisma.auditLog.create({
+      await tx.auditLog.create({
         data: {
           staffUserId: staffReq.staff.id,
           action: 'complete_redemption',
@@ -188,32 +190,46 @@ router.post('/complete', async (req: Request, res: Response): Promise<void> => {
             customer_id: redemption.customerId,
             customer_name: `${redemption.customer.firstName} ${redemption.customer.lastName}`,
             previous_balance: redemption.customer.pointsBalance,
-            new_balance: redemption.customer.pointsBalance - redemption.rewardTier,
+            new_balance: updatedCustomer.pointsBalance,
           },
         },
-      }),
-    ]);
+      });
+
+      return {
+        updatedRedemption,
+        updatedCustomer,
+        customer: redemption.customer,
+        discountValue: redemption.discountValue,
+      };
+    });
 
     res.status(200).json({
       success: true,
       message: 'Redemption completed successfully',
       redemption: {
-        id: updatedRedemption.id,
-        redemption_code: updatedRedemption.redemptionCode,
-        reward_tier: updatedRedemption.rewardTier,
-        discount_value: Number(updatedRedemption.discountValue),
-        status: updatedRedemption.status,
-        approved_at: updatedRedemption.approvedAt?.toISOString(),
+        id: result.updatedRedemption.id,
+        redemption_code: result.updatedRedemption.redemptionCode,
+        reward_tier: result.updatedRedemption.rewardTier,
+        discount_value: Number(result.updatedRedemption.discountValue),
+        status: result.updatedRedemption.status,
+        approved_at: result.updatedRedemption.approvedAt?.toISOString(),
       },
       customer: {
-        id: redemption.customer.id,
-        name: `${redemption.customer.firstName} ${redemption.customer.lastName}`,
-        previous_balance: redemption.customer.pointsBalance,
-        new_balance: updatedCustomer.pointsBalance,
+        id: result.customer.id,
+        name: `${result.customer.firstName} ${result.customer.lastName}`,
+        previous_balance: result.customer.pointsBalance,
+        new_balance: result.updatedCustomer.pointsBalance,
       },
-      discount_to_apply: Number(redemption.discountValue),
+      discount_to_apply: Number(result.discountValue),
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) {
+      res.status(error.statusCode).json({
+        error: error.message,
+        ...(error.details || {}),
+      });
+      return;
+    }
     console.error('Complete redemption error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

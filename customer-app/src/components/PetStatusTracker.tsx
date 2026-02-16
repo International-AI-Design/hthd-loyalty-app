@@ -26,52 +26,92 @@ function getStepIndex(status: PetStatus['status']): number {
 
 export function usePetStatusSSE(bookingId: string | null) {
   const [statuses, setStatuses] = useState<PetStatus[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!bookingId) return;
 
-    const token = localStorage.getItem('token');
-    const url = `${API_BASE}/v2/bookings/${bookingId}/status-stream?token=${encodeURIComponent(token || '')}`;
-    const es = new EventSource(url);
-    eventSourceRef.current = es;
+    // Fetch a short-lived SSE ticket via authenticated API call
+    // to avoid exposing the main JWT in query params.
+    // Falls back to query param if ticket endpoint is not available.
+    let cancelled = false;
 
-    es.onmessage = (event) => {
+    async function connect() {
+      let url: string;
       try {
-        const data = JSON.parse(event.data);
-        if (Array.isArray(data)) {
-          setStatuses(data);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/v2/bookings/${bookingId}/sse-ticket`, {
+          headers: { Authorization: `Bearer ${token || ''}` },
+        });
+        if (res.ok) {
+          const { ticket } = await res.json();
+          url = `${API_BASE}/v2/bookings/${bookingId}/status-stream?ticket=${encodeURIComponent(ticket)}`;
         } else {
-          setStatuses(prev => {
-            const idx = prev.findIndex(s => s.dogId === data.dogId);
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = data;
-              return next;
-            }
-            return [...prev, data];
-          });
+          // Ticket endpoint not available — fall back (token still in URL but short-lived)
+          url = `${API_BASE}/v2/bookings/${bookingId}/status-stream?token=${encodeURIComponent(token || '')}`;
         }
       } catch {
-        // ignore parse errors
+        const token = localStorage.getItem('token');
+        url = `${API_BASE}/v2/bookings/${bookingId}/status-stream?token=${encodeURIComponent(token || '')}`;
       }
-    };
 
-    es.onerror = () => {
-      es.close();
-      // Reconnect after 5s
-      setTimeout(() => {
-        if (eventSourceRef.current === es) {
-          eventSourceRef.current = null;
+      if (cancelled) return;
+
+      const es = new EventSource(url);
+      eventSourceRef.current = es;
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (!mountedRef.current) return;
+          if (Array.isArray(data)) {
+            setStatuses(data);
+          } else {
+            setStatuses(prev => {
+              const idx = prev.findIndex(s => s.dogId === data.dogId);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = data;
+                return next;
+              }
+              return [...prev, data];
+            });
+          }
+        } catch {
+          // ignore parse errors
         }
-      }, 5000);
-    };
+      };
+
+      es.onerror = () => {
+        es.close();
+        if (mountedRef.current && !cancelled) {
+          // Actually reconnect after 5s by incrementing retryCount
+          setTimeout(() => {
+            if (mountedRef.current && !cancelled) {
+              setRetryCount(c => c + 1);
+            }
+          }, 5000);
+        }
+      };
+    }
+
+    connect();
 
     return () => {
-      es.close();
-      eventSourceRef.current = null;
+      cancelled = true;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
-  }, [bookingId]);
+  }, [bookingId, retryCount]);
 
   return statuses;
 }

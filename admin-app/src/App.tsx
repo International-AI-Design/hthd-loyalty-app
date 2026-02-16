@@ -69,7 +69,7 @@ function App() {
           <Route
             path="/grooming-pricing"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['owner', 'admin', 'manager']}>
                 <Layout>
                   <GroomingPricingPage />
                 </Layout>
@@ -79,7 +79,7 @@ function App() {
           <Route
             path="/bundles"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['owner', 'admin', 'manager']}>
                 <Layout>
                   <BundleManagementPage />
                 </Layout>
@@ -89,7 +89,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['owner', 'admin']}>
                 <Layout>
                   <StaffPage />
                 </Layout>
@@ -119,7 +119,7 @@ function App() {
           <Route
             path="/gingr-sync"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['owner', 'admin', 'manager']}>
                 <Layout>
                   <GingrSyncPage />
                 </Layout>
@@ -139,7 +139,7 @@ function App() {
           <Route
             path="/ai-monitoring"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['owner', 'admin', 'manager']}>
                 <Layout>
                   <AIMonitoringPage />
                 </Layout>

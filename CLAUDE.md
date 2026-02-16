@@ -10,7 +10,7 @@ Pet business loyalty program - MVP complete with 25 user stories implemented. Ac
 | **Admin App** | https://hthd-admin.internationalaidesign.com | Vercel |
 | **API** | https://hthd-api.internationalaidesign.com | Railway |
 
-**Staff Login:** `admin` / `admin123`
+**Staff Login:** See Railway environment variables or ask Johnny for credentials. Never store passwords in git-tracked files.
 
 ## Deployment Workflow
 **Repository:** `https://github.com/International-AI-Design/hthd-loyalty-app.git`
@@ -119,6 +119,65 @@ Check `prd.json` for all user stories and acceptance criteria. Use this as sourc
 - React Hook Form for form state
 - Atomic Prisma transactions for multi-step operations
 - AuditLog entries for all staff actions
+
+## Real User Testing Protocol
+
+**WHY THIS EXISTS:** AI-written code tends to pass internal checks (TypeScript compiles, no lint errors, "looks correct") but fail when a real human taps a button on a real phone. This protocol exists to prevent shipping code that works for AI but breaks for users.
+
+### The Rule
+**Every user-facing change MUST be verified against real behavior, not just code correctness.** "It compiles" and "the types check out" are necessary but NOT sufficient.
+
+### Before Marking Any Frontend Work "Done"
+
+1. **Error Boundaries Required**: Every page-level component must have an error boundary. A white screen is NEVER acceptable. If data fails to load, show a friendly error with a retry button.
+
+2. **Loading States Required**: Every data-fetching component must show a loading state. A blank screen while waiting is NOT acceptable.
+
+3. **Null/Undefined Safety**: Never assume API data has the shape you expect. Always handle:
+   - API returns `null` or `undefined` for a field
+   - API returns an empty array when you expected items
+   - API returns an error or times out
+   - User has no pets, no bookings, no history yet
+
+4. **Navigation Must Survive**:
+   - Tap into a page → tap back → tap into it again. Must work every time.
+   - Pull-to-refresh must work if implemented.
+   - Deep-linking / direct URL access must not crash.
+   - Browser back button must work.
+
+5. **Mobile-First Verification**:
+   - Touch targets: minimum 44x44px
+   - Scrolling: long content must scroll, not overflow/clip
+   - Keyboard: forms must not be hidden behind mobile keyboard
+   - Orientation: portrait must work (landscape is bonus)
+
+### API Endpoint Verification
+
+Before writing frontend code that calls an API:
+1. **Actually call the endpoint** with curl or the test suite. Don't assume it returns what the types say.
+2. **Check the response shape** matches what the frontend expects. Mismatched field names (singular vs plural, camelCase vs snake_case, nested vs flat) are the #1 source of "works in code, fails for users" bugs.
+3. **Test with empty data** - new user, no pets, no bookings. The app must not crash.
+
+### Anti-Patterns to Avoid
+
+- **"It should work"** - If you can't prove it works by running it, it doesn't work.
+- **Optimistic rendering without fallback** - Don't render data you haven't confirmed exists.
+- **Catch-all error swallowing** - `catch(e) {}` hides bugs. Log errors, show user-friendly messages.
+- **Testing only the happy path** - The sad path (errors, empty states, timeouts) is where real users live.
+- **Assuming localStorage/state persists** - Test with cleared storage, expired tokens, logged-out states.
+
+### Sprint Verification Checklist
+
+At the end of each sprint, before declaring it done:
+- [ ] Every new/changed page loads without white screen
+- [ ] Every new/changed page handles empty data gracefully
+- [ ] Navigation to and from every changed page works (forward AND back)
+- [ ] API responses match what frontend expects (actually verified, not assumed)
+- [ ] Mobile viewport tested (at minimum, Chrome DevTools responsive mode)
+- [ ] Error states show friendly UI, not blank screens or raw error text
+
+## Active Sprint Plan
+**See `docs/SPRINT-PLAN.md`** for the full breakdown of Sprints 3-10, priorities, acceptance criteria, and screenshot references.
 
 ## Session Management
 - Archive sessions before shutdown to `archive/sessions/YYYY-MM-DD_HH-MM_session.md`

@@ -85,6 +85,11 @@ const REWARD_TIERS: Record<number, number> = {
 };
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('REFUSING to seed in production environment. Set NODE_ENV to something else to seed.');
+    process.exit(1);
+  }
+
   console.log('🌱 Starting seed...');
 
   // 1. Create staff users (upsert for idempotency)

@@ -1,7 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+
+// Centralized JWT secret — all routes should import from here
+if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable must be set in production');
+  }
+  console.warn('WARNING: JWT_SECRET not set — using development fallback. Never use this in production.');
+}
+export const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-prod';
 
 // Decoded JWT payload types
 export interface CustomerJwtPayload {
@@ -12,10 +20,12 @@ export interface CustomerJwtPayload {
   exp: number;
 }
 
+export type StaffRole = 'owner' | 'manager' | 'admin' | 'staff' | 'groomer';
+
 export interface StaffJwtPayload {
   id: string;
   username: string;
-  role: 'admin' | 'staff' | 'groomer';
+  role: StaffRole;
   type: 'staff';
   iat: number;
   exp: number;
@@ -33,7 +43,7 @@ export interface AuthenticatedStaffRequest extends Request {
   staff: {
     id: string;
     username: string;
-    role: 'admin' | 'staff' | 'groomer';
+    role: StaffRole;
   };
 }
 
@@ -148,7 +158,7 @@ export async function authenticateStaff(
   (req as AuthenticatedStaffRequest).staff = {
     id: staffUser.id,
     username: staffUser.username,
-    role: staffUser.role as 'admin' | 'staff' | 'groomer',
+    role: staffUser.role as StaffRole,
   };
 
   next();
@@ -159,7 +169,7 @@ export async function authenticateStaff(
  * Must be used after authenticateStaff middleware
  * Checks if the authenticated staff user has one of the allowed roles
  */
-export function requireRoles(...allowedRoles: Array<'admin' | 'staff' | 'groomer'>) {
+export function requireRoles(...allowedRoles: StaffRole[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const staffReq = req as AuthenticatedStaffRequest;
 
@@ -178,9 +188,9 @@ export function requireRoles(...allowedRoles: Array<'admin' | 'staff' | 'groomer
 }
 
 /**
- * Convenience middleware for admin-only routes
+ * Convenience middleware for admin-level routes (owner + legacy admin)
  * Must be used after authenticateStaff middleware
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  return requireRoles('admin')(req, res, next);
+  return requireRoles('owner', 'admin')(req, res, next);
 }

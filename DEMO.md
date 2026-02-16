@@ -11,7 +11,7 @@
 Before the meeting, verify everything works:
 
 - [ ] **API Health:** `curl https://hthd-api.internationalaidesign.com/api/health`
-- [ ] **Admin Login:** https://hthd-admin.internationalaidesign.com (admin / admin123)
+- [ ] **Admin Login:** https://hthd-admin.internationalaidesign.com (use staff credentials from secure storage)
 - [ ] **Customer App Loads:** https://hthd.internationalaidesign.com
 - [ ] **Phone has customer app bookmarked** (for live demo)
 - [ ] **Test customer ready** (use a real customer from their data)
@@ -26,7 +26,7 @@ Before the meeting, verify everything works:
 | Admin App | https://hthd-admin.internationalaidesign.com |
 | API | https://hthd-api.internationalaidesign.com |
 
-**Staff login:** `admin` / `admin123`
+**Staff login:** Use credentials from secure storage (never commit passwords to git)
 
 ---
 
@@ -82,7 +82,7 @@ Before the meeting, verify everything works:
 
 #### Step 1: Admin Login
 1. Navigate to admin URL
-2. Login: `admin` / `admin123`
+2. Login with staff credentials
 3. Dashboard loads
 
 **Talking Point:** *"Jorge or anyone on staff can use this. It's designed to be simple enough for anyone."*

@@ -4,10 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  /** If specified, only these roles can access the route */
+  allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, staff } = useAuth();
 
   if (isLoading) {
     return (
@@ -19,6 +21,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Role-based access control
+  if (allowedRoles && staff && !allowedRoles.includes(staff.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

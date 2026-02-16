@@ -589,7 +589,7 @@ Run `npx prisma migrate dev` to apply schema changes.
 - [x] API health verified
 - [x] 151 customers synced from Gingr
 - [x] Auto-sync running every 30 minutes
-- [x] Admin login working (admin / admin123)
+- [x] Admin login working (credentials rotated — see secure storage)
 - [x] Demo materials created
 - [x] Demo reset functionality for fresh walkthroughs
 
@@ -648,7 +648,7 @@ Run `npx prisma migrate dev` to apply schema changes.
 - Vercel: Customer app + Admin app (Hobby plan, public repo)
 - DNS: Namecheap CNAMEs configured
 
-**Staff Login:** `admin` / `admin123` (case-sensitive username)
+**Staff Login:** Credentials in secure storage (case-sensitive username)
 
 ### Fixed (2026-01-28)
 - **Gingr API integration** - Fixed 404 error on import. The `/invoices` endpoint doesn't exist in Gingr's API. Switched to `POST /reservations` which returns all needed data (owner info, pricing, services). Import now works correctly.

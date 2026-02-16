@@ -156,29 +156,29 @@ export class CheckoutService {
         },
       });
 
-      // Deduct wallet if applicable
+      // Deduct wallet if applicable (atomic decrement to prevent race conditions)
       if (walletDeductCents > 0) {
         const wallet = await tx.wallet.findUnique({ where: { customerId } });
         if (!wallet || wallet.balanceCents < walletDeductCents) {
           throw new CheckoutError('Insufficient wallet balance');
         }
-        await tx.wallet.update({
+        const updatedWallet = await tx.wallet.update({
           where: { customerId },
-          data: { balanceCents: wallet.balanceCents - walletDeductCents },
+          data: { balanceCents: { decrement: walletDeductCents } },
         });
         await tx.walletTransaction.create({
           data: {
             walletId: wallet.id,
             type: 'payment',
             amountCents: -walletDeductCents,
-            balanceAfterCents: wallet.balanceCents - walletDeductCents,
+            balanceAfterCents: updatedWallet.balanceCents,
             description: `Checkout payment for ${bookingIds.length} booking(s)`,
             bookingId: bookingIds.length === 1 ? bookingIds[0] : null,
           },
         });
       }
 
-      // Deduct points if applicable
+      // Deduct points if applicable (atomic decrement to prevent race conditions)
       if (pointsDeductAmount > 0) {
         const cust = await tx.customer.findUnique({ where: { id: customerId } });
         if (!cust || cust.pointsBalance < pointsDeductAmount) {
@@ -186,7 +186,7 @@ export class CheckoutService {
         }
         await tx.customer.update({
           where: { id: customerId },
-          data: { pointsBalance: cust.pointsBalance - pointsDeductAmount },
+          data: { pointsBalance: { decrement: pointsDeductAmount } },
         });
         await tx.pointsTransaction.create({
           data: {
@@ -197,6 +197,31 @@ export class CheckoutService {
             dollarAmount: pointsDeductCents / 100,
           },
         });
+      }
+
+      // Award loyalty points for card/cash payments (wallet payments earn via WalletService)
+      if (cardChargeCents > 0 && walletDeductCents === 0) {
+        // Card/cash-only: 1 point per dollar, 1.5x for grooming
+        const hasGrooming = bookings.some((b: any) => b.serviceType?.name === 'grooming');
+        const multiplier = hasGrooming ? 1.5 : 1;
+        const pointsEarned = Math.floor((cardChargeCents / 100) * multiplier);
+
+        if (pointsEarned > 0) {
+          await tx.customer.update({
+            where: { id: customerId },
+            data: { pointsBalance: { increment: pointsEarned } },
+          });
+          await tx.pointsTransaction.create({
+            data: {
+              customerId,
+              type: 'purchase',
+              amount: pointsEarned,
+              description: `Points earned on ${paymentMethod} payment`,
+              serviceType: hasGrooming ? 'grooming' : bookings[0]?.serviceType?.name || 'daycare',
+              dollarAmount: cardChargeCents / 100,
+            },
+          });
+        }
       }
 
       // Update all bookings to confirmed

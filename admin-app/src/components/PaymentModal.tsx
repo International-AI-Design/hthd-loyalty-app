@@ -58,7 +58,8 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
         if (result.data) {
           setWalletBalance(result.data.balanceCents);
         } else {
-          setWalletBalance(5000);
+          // Don't fabricate a balance — show wallet as unavailable
+          setWalletBalance(null);
         }
       });
     }

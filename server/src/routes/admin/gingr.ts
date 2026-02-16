@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
+import { requireRole } from '../../middleware/rbac';
 import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers } from '../../services/gingr';
 import { getAutoSyncStatus } from '../../jobs/gingrSync';
 
 const router = Router();
 
-// Apply staff authentication to all routes
+// Apply staff authentication + restrict Gingr admin to owner/manager/admin
 router.use(authenticateStaff);
+router.use(requireRole('owner', 'manager', 'admin'));
 
 // GET /api/admin/gingr/status
 // Check Gingr API connection status and auto-sync status

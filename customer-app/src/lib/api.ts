@@ -34,6 +34,17 @@ export interface RetryStatus {
 
 const retryStatusListeners = new Set<RetryStatusListener>();
 
+/**
+ * Global 401 handler — AuthContext subscribes to auto-logout on expired tokens.
+ */
+type UnauthorizedListener = () => void;
+let onUnauthorizedCallback: UnauthorizedListener | null = null;
+
+/** Called by AuthContext to register the auto-logout handler */
+export function setOnUnauthorized(callback: UnauthorizedListener | null): void {
+  onUnauthorizedCallback = callback;
+}
+
 /** Subscribe to retry status updates. Returns an unsubscribe function. */
 export function onRetryStatus(listener: RetryStatusListener): () => void {
   retryStatusListeners.add(listener);
@@ -101,6 +112,12 @@ async function request<T>(
       }
 
       lastWas503 = false;
+
+      // Auto-logout on 401 (expired/revoked token)
+      if (response.status === 401) {
+        onUnauthorizedCallback?.();
+        return { error: 'Session expired. Please log in again.' };
+      }
 
       let json: unknown;
       try {
@@ -677,7 +694,7 @@ export const multiDayBookingApi = {
       `/v2/bookings/availability?startDate=${startDate}&endDate=${endDate}&serviceType=${serviceType}`
     ),
   createMultiDayBooking: (data: { startDate: string; endDate: string; serviceTypeId: string; dogIds: string[] }) =>
-    api.post<MultiDayBookingResponse>('/v2/bookings', data),
+    api.post<MultiDayBookingResponse>('/v2/bookings/multi-day', data),
 };
 
 export const checkoutApi = {

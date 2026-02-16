@@ -430,7 +430,7 @@
       ],
       "priority": 25,
       "passes": true,
-      "notes": "Completed. Seed script at server/prisma/seed.ts. Run with `npm run seed` or `npx prisma db seed`. Creates 3 staff users (admin/staff/groomer), 12 customers with realistic data, 3-6 transactions per customer with varied service types, pending and completed redemptions. Idempotent via upsert and existence checks. Test credentials: admin/admin123, staff1/staff123, john.smith@email.com/password123."
+      "notes": "Completed. Seed script at server/prisma/seed.ts. Run with `npm run seed` or `npx prisma db seed`. Creates 3 staff users (admin/staff/groomer), 12 customers with realistic data, 3-6 transactions per customer with varied service types, pending and completed redemptions. Idempotent via upsert and existence checks. Production guard prevents running in prod. Test credentials in seed.ts (dev only)."
     },
     {
       "id": "US-026",

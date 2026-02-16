@@ -22,6 +22,18 @@ function generateRedemptionCode(): string {
   return code;
 }
 
+// Domain error for redemption operations (thrown inside transactions)
+class RedemptionError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'RedemptionError';
+  }
+}
+
 // Validation schema for redemption request
 const redemptionRequestSchema = z.object({
   reward_tier: z.enum(['100', '250', '500'], {
@@ -95,28 +107,6 @@ router.post('/request', authenticateCustomer, async (req, res: Response): Promis
       return;
     }
 
-    // Fetch customer to check points balance
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      select: { id: true, firstName: true, lastName: true, pointsBalance: true },
-    });
-
-    if (!customer) {
-      res.status(404).json({ error: 'Customer not found' });
-      return;
-    }
-
-    // Validate customer has sufficient points
-    if (customer.pointsBalance < reward_tier) {
-      res.status(400).json({
-        error: 'Insufficient points',
-        message: `You need ${reward_tier} points but only have ${customer.pointsBalance}`,
-        required_points: reward_tier,
-        current_balance: customer.pointsBalance,
-      });
-      return;
-    }
-
     // Generate unique redemption code with retry logic
     let redemptionCode = generateRedemptionCode();
     let attempts = 0;
@@ -131,16 +121,45 @@ router.post('/request', authenticateCustomer, async (req, res: Response): Promis
       attempts++;
     }
 
-    // Create redemption record with status 'pending'
-    // Points are NOT deducted yet - they will be deducted when the redemption is completed
-    const redemption = await prisma.redemption.create({
-      data: {
-        customerId,
-        redemptionCode,
-        rewardTier: reward_tier,
-        discountValue,
-        status: 'pending',
-      },
+    // Use interactive transaction to prevent race condition:
+    // Two concurrent requests could both pass the balance check without this
+    const redemption = await prisma.$transaction(async (tx) => {
+      // Re-fetch customer inside transaction for consistent read
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { id: true, firstName: true, lastName: true, pointsBalance: true },
+      });
+
+      if (!customer) {
+        throw new RedemptionError('Customer not found', 404);
+      }
+
+      // Check total pending redemptions to prevent over-commitment
+      const pendingRedemptions = await tx.redemption.findMany({
+        where: { customerId, status: 'pending' },
+        select: { rewardTier: true },
+      });
+      const pendingPoints = pendingRedemptions.reduce((sum, r) => sum + r.rewardTier, 0);
+      const availablePoints = customer.pointsBalance - pendingPoints;
+
+      if (availablePoints < reward_tier) {
+        throw new RedemptionError(
+          `You need ${reward_tier} points but only have ${availablePoints} available (${pendingPoints} reserved in pending redemptions)`,
+          400,
+          { required_points: reward_tier, current_balance: customer.pointsBalance, pending_points: pendingPoints }
+        );
+      }
+
+      // Create redemption record with status 'pending'
+      return tx.redemption.create({
+        data: {
+          customerId,
+          redemptionCode,
+          rewardTier: reward_tier,
+          discountValue,
+          status: 'pending',
+        },
+      });
     });
 
     res.status(201).json({
@@ -157,6 +176,13 @@ router.post('/request', authenticateCustomer, async (req, res: Response): Promis
       instructions: 'Show this code at checkout to redeem your discount',
     });
   } catch (error) {
+    if (error instanceof RedemptionError) {
+      res.status(error.statusCode).json({
+        error: error.message,
+        ...(error.details || {}),
+      });
+      return;
+    }
     console.error('Redemption request error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

@@ -16,7 +16,25 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { customer, refreshProfile } = useAuth();
-  const booking = (location.state as { booking?: Booking } | null)?.booking ?? null;
+  const stateBooking = (location.state as { booking?: Booking } | null)?.booking ?? null;
+  const [fetchedBooking, setFetchedBooking] = useState<Booking | null>(null);
+  const [isLoadingBooking, setIsLoadingBooking] = useState(!stateBooking);
+  const booking = stateBooking ?? fetchedBooking;
+
+  // Fetch booking from API if not passed via router state (deep link / refresh)
+  useEffect(() => {
+    if (stateBooking || !bookingId) return;
+    setIsLoadingBooking(true);
+    import('../lib/api').then(({ bookingApi }) => {
+      bookingApi.getBookings().then(({ data }) => {
+        if (data) {
+          const found = (data as Booking[]).find(b => b.id === bookingId) ?? null;
+          setFetchedBooking(found);
+        }
+        setIsLoadingBooking(false);
+      });
+    });
+  }, [stateBooking, bookingId]);
 
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);
@@ -168,6 +186,14 @@ export function CheckoutPage() {
     }
     setIsProcessing(false);
   };
+
+  if (isLoadingBooking) {
+    return (
+      <div className="min-h-screen bg-brand-cream flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary" />
+      </div>
+    );
+  }
 
   if (!booking) {
     return (

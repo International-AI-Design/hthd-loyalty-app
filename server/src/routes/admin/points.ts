@@ -12,7 +12,7 @@ router.use(authenticateStaff);
 // Validation schema for adding points
 const addPointsSchema = z.object({
   customer_id: z.string().uuid('Invalid customer ID'),
-  dollar_amount: z.number().positive('Dollar amount must be positive'),
+  dollar_amount: z.number().positive('Dollar amount must be positive').max(10000, 'Dollar amount cannot exceed $10,000'),
   service_type: z.enum(['daycare', 'boarding', 'grooming'], {
     message: 'Service type must be daycare, boarding, or grooming',
   }),

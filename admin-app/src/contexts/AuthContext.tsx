@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { StaffUser } from '../lib/api';
+import { setOnUnauthorized } from '../lib/api';
 
 interface AuthContextType {
   staff: StaffUser | null;
@@ -37,11 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStaff(staffData);
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_staff');
     setStaff(null);
-  };
+  }, []);
+
+  // Register global 401 auto-logout handler
+  useEffect(() => {
+    setOnUnauthorized(logout);
+    return () => setOnUnauthorized(null);
+  }, [logout]);
 
   return (
     <AuthContext.Provider

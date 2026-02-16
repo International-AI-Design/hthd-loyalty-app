@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { authApi } from '../lib/api';
+import { authApi, setOnUnauthorized } from '../lib/api';
 import type { CustomerProfile } from '../lib/api';
 
 interface AuthContextType {
@@ -31,10 +31,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await authApi.getProfile();
     if (data && !error) {
       setCustomer(data);
-    } else {
+    } else if (error === 'Session expired. Please log in again.') {
+      // Only clear auth on actual 401 — not transient network/server errors
       localStorage.removeItem('token');
       setCustomer(null);
     }
+    // For transient errors (500, network, timeout), keep existing customer state
   };
 
   const login = (token: string, customerData: CustomerProfile) => {
@@ -42,11 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCustomer(customerData);
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('hthd_has_visited');
     setCustomer(null);
-  };
+  }, []);
+
+  // Register global 401 auto-logout handler
+  useEffect(() => {
+    setOnUnauthorized(logout);
+    return () => setOnUnauthorized(null);
+  }, [logout]);
 
   return (
     <AuthContext.Provider

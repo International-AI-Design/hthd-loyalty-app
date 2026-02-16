@@ -172,7 +172,7 @@ export class BookingService {
   async createBooking(input: CreateBookingInput) {
     const { customerId, serviceTypeId, dogIds, date, startTime, notes } = input;
 
-    // Validate service type exists and is active
+    // Validate service type exists and is active (safe outside transaction)
     const serviceType = await (prisma as any).serviceType.findUnique({
       where: { id: serviceTypeId },
     });
@@ -183,7 +183,7 @@ export class BookingService {
       throw new BookingError('Service type is not currently available', 400);
     }
 
-    // Validate all dogs belong to the customer
+    // Validate all dogs belong to the customer (safe outside transaction)
     const dogs = await prisma.dog.findMany({
       where: { id: { in: dogIds }, customerId },
     });
@@ -191,51 +191,83 @@ export class BookingService {
       throw new BookingError('One or more dogs not found or do not belong to you', 400);
     }
 
-    // Check availability
     const bookingDate = new Date(date + 'T00:00:00Z');
-    const availability = await this.checkAvailability(serviceTypeId, bookingDate, bookingDate);
-    if (!availability.length || !availability[0].available) {
-      throw new BookingError('No availability for the selected date', 409);
-    }
 
-    // Check for duplicate bookings (same dog, same day, same service)
-    const duplicates = await (prisma as any).booking.findMany({
-      where: {
-        serviceTypeId,
-        date: bookingDate,
-        status: { in: ACTIVE_STATUSES },
-        dogs: {
-          some: { dogId: { in: dogIds } },
-        },
-      },
-      include: { dogs: true },
-    });
-    if (duplicates.length > 0) {
-      throw new BookingError('One or more dogs already have a booking for this service on this date', 409);
-    }
-
-    // Calculate price
+    // Calculate price outside transaction (read-only, no race risk)
     const totalCents = await this.calculatePrice(serviceType, dogIds.length, bookingDate);
 
-    // Create booking + booking dogs in a transaction
-    const booking = await (prisma as any).booking.create({
-      data: {
-        customerId,
-        serviceTypeId,
-        date: bookingDate,
-        startTime: startTime ?? null,
-        status: 'pending',
-        totalCents,
-        notes: notes ?? null,
-        dogs: {
-          create: dogIds.map((dogId) => ({ dogId })),
+    // Interactive transaction: availability check + duplicate check + create are atomic
+    const booking = await prisma.$transaction(async (tx: any) => {
+      // Check availability inside transaction to prevent overbooking
+      const existingCount = await tx.booking.count({
+        where: {
+          serviceTypeId,
+          date: bookingDate,
+          status: { in: ACTIVE_STATUSES },
         },
-      },
-      include: {
-        serviceType: true,
-        dogs: { include: { dog: true } },
-        customer: { select: { id: true, firstName: true, lastName: true, email: true } },
-      },
+      });
+
+      // Get capacity for this date
+      const dayOfWeek = bookingDate.getDay();
+      const capacityRules = await tx.capacityRule.findMany({
+        where: { serviceTypeId },
+      });
+      const dayRule = capacityRules.find((r: CapacityRuleRow) => r.dayOfWeek === dayOfWeek);
+      const defaultRule = capacityRules.find((r: CapacityRuleRow) => r.dayOfWeek === null);
+      const capacity = (dayRule || defaultRule)?.maxCapacity ?? 0;
+
+      if (existingCount >= capacity) {
+        throw new BookingError('No availability for the selected date', 409);
+      }
+
+      // Check global 40 dogs/day limit inside transaction
+      const globalDogCount = await tx.bookingDog.count({
+        where: {
+          booking: {
+            date: bookingDate,
+            status: { in: ACTIVE_STATUSES },
+          },
+        },
+      });
+      if (globalDogCount + dogIds.length > MAX_DOGS_PER_DAY) {
+        throw new BookingError('No availability for the selected date', 409);
+      }
+
+      // Check for duplicate bookings inside transaction
+      const duplicates = await tx.booking.findMany({
+        where: {
+          serviceTypeId,
+          date: bookingDate,
+          status: { in: ACTIVE_STATUSES },
+          dogs: {
+            some: { dogId: { in: dogIds } },
+          },
+        },
+        include: { dogs: true },
+      });
+      if (duplicates.length > 0) {
+        throw new BookingError('One or more dogs already have a booking for this service on this date', 409);
+      }
+
+      return tx.booking.create({
+        data: {
+          customerId,
+          serviceTypeId,
+          date: bookingDate,
+          startTime: startTime ?? null,
+          status: 'pending',
+          totalCents,
+          notes: notes ?? null,
+          dogs: {
+            create: dogIds.map((dogId: string) => ({ dogId })),
+          },
+        },
+        include: {
+          serviceType: true,
+          dogs: { include: { dog: true } },
+          customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      });
     });
 
     return booking;
@@ -248,7 +280,7 @@ export class BookingService {
   async createMultiDayBooking(input: CreateMultiDayBookingInput) {
     const { customerId, serviceTypeId, dogIds, startDate, endDate, notes } = input;
 
-    // Validate service type exists and is active
+    // Validate service type exists and is active (safe outside transaction)
     const serviceType = await (prisma as any).serviceType.findUnique({
       where: { id: serviceTypeId },
     });
@@ -259,7 +291,7 @@ export class BookingService {
       throw new BookingError('Service type is not currently available', 400);
     }
 
-    // Validate all dogs belong to the customer
+    // Validate all dogs belong to the customer (safe outside transaction)
     const dogs = await prisma.dog.findMany({
       where: { id: { in: dogIds }, customerId },
     });
@@ -279,63 +311,175 @@ export class BookingService {
       throw new BookingError('End date must be on or after start date', 400);
     }
 
-    // Check availability for every day in the range
-    const availability = await this.checkAvailability(serviceTypeId, start, end);
-    const unavailableDates = availability.filter((a) => !a.available);
-    if (unavailableDates.length > 0) {
-      const dates = unavailableDates.map((a) => a.date).join(', ');
-      throw new BookingError(`No availability on: ${dates}`, 409);
-    }
-
-    // Check for duplicate bookings across the date range
-    const duplicates = await (prisma as any).booking.findMany({
-      where: {
-        serviceTypeId,
-        status: { in: ACTIVE_STATUSES },
-        dogs: {
-          some: { dogId: { in: dogIds } },
-        },
-        OR: [
-          // Single-day bookings in our range
-          { startDate: null, date: { gte: start, lte: end } },
-          // Multi-day bookings overlapping our range
-          { AND: [{ startDate: { not: null } }, { startDate: { lte: end } }, { endDate: { gte: start } }] },
-        ],
-      },
-      include: { dogs: true },
-    });
-    if (duplicates.length > 0) {
-      throw new BookingError('One or more dogs already have an overlapping booking for this service', 409);
-    }
-
-    // Calculate price: per-day price * number of days
+    // Calculate price outside transaction (read-only, no race risk)
     const numDays = daysDiff + 1; // inclusive
     const dailyPrice = await this.calculatePrice(serviceType, dogIds.length, start);
     const totalCents = dailyPrice * numDays;
 
-    // Create the booking with startDate/endDate; set date = startDate for backward compat
-    const booking = await (prisma as any).booking.create({
-      data: {
-        customerId,
-        serviceTypeId,
-        date: start,       // backward compat: date = startDate
-        startDate: start,
-        endDate: end,
-        status: 'pending',
-        totalCents,
-        notes: notes ?? null,
-        dogs: {
-          create: dogIds.map((dogId) => ({ dogId })),
+    // Interactive transaction: availability + duplicate check + create are atomic
+    const booking = await prisma.$transaction(async (tx: any) => {
+      // Check availability for every day inside the transaction
+      const availability = await this.checkAvailabilityTx(tx, serviceTypeId, start, end);
+      const unavailableDates = availability.filter((a: AvailabilityResult) => !a.available);
+      if (unavailableDates.length > 0) {
+        const dates = unavailableDates.map((a: AvailabilityResult) => a.date).join(', ');
+        throw new BookingError(`No availability on: ${dates}`, 409);
+      }
+
+      // Check for duplicate bookings inside transaction
+      const duplicates = await tx.booking.findMany({
+        where: {
+          serviceTypeId,
+          status: { in: ACTIVE_STATUSES },
+          dogs: {
+            some: { dogId: { in: dogIds } },
+          },
+          OR: [
+            { startDate: null, date: { gte: start, lte: end } },
+            { AND: [{ startDate: { not: null } }, { startDate: { lte: end } }, { endDate: { gte: start } }] },
+          ],
         },
-      },
-      include: {
-        serviceType: true,
-        dogs: { include: { dog: true } },
-        customer: { select: { id: true, firstName: true, lastName: true, email: true } },
-      },
+        include: { dogs: true },
+      });
+      if (duplicates.length > 0) {
+        throw new BookingError('One or more dogs already have an overlapping booking for this service', 409);
+      }
+
+      return tx.booking.create({
+        data: {
+          customerId,
+          serviceTypeId,
+          date: start,
+          startDate: start,
+          endDate: end,
+          status: 'pending',
+          totalCents,
+          notes: notes ?? null,
+          dogs: {
+            create: dogIds.map((dogId: string) => ({ dogId })),
+          },
+        },
+        include: {
+          serviceType: true,
+          dogs: { include: { dog: true } },
+          customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      });
     });
 
     return booking;
+  }
+
+  /**
+   * Check availability within a transaction context (for atomic booking creation).
+   */
+  private async checkAvailabilityTx(
+    tx: any,
+    serviceTypeId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<AvailabilityResult[]> {
+    const capacityRules: CapacityRuleRow[] = await tx.capacityRule.findMany({
+      where: { serviceTypeId },
+    });
+
+    const overrides = await tx.capacityOverride.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        OR: [{ serviceTypeId }, { serviceTypeId: null }],
+      },
+    });
+
+    const existingBookings = await tx.booking.groupBy({
+      by: ['date'],
+      where: {
+        serviceTypeId,
+        date: { gte: startDate, lte: endDate },
+        status: { in: ACTIVE_STATUSES },
+      },
+      _count: { id: true },
+    });
+
+    const allBookingsInRange = await tx.booking.findMany({
+      where: {
+        status: { in: ACTIVE_STATUSES },
+        OR: [
+          { startDate: null, date: { gte: startDate, lte: endDate } },
+          { AND: [{ startDate: { not: null } }, { startDate: { lte: endDate } }, { endDate: { gte: startDate } }] },
+        ],
+      },
+      include: { _count: { select: { dogs: true } } },
+    });
+
+    const globalDogCountByDate = new Map<string, number>();
+    for (const b of allBookingsInRange) {
+      const dogCount = b._count.dogs;
+      if (b.startDate && b.endDate) {
+        const cur = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        while (cur <= end) {
+          const dk = cur.toISOString().split('T')[0];
+          globalDogCountByDate.set(dk, (globalDogCountByDate.get(dk) ?? 0) + dogCount);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        const dk = b.date.toISOString().split('T')[0];
+        globalDogCountByDate.set(dk, (globalDogCountByDate.get(dk) ?? 0) + dogCount);
+      }
+    }
+
+    const bookingCountByDate = new Map<string, number>();
+    for (const b of existingBookings) {
+      const dateKey = b.date.toISOString().split('T')[0];
+      bookingCountByDate.set(dateKey, b._count.id);
+    }
+
+    const overrideByDate = new Map<string, typeof overrides[number]>();
+    for (const o of overrides) {
+      const dateKey = o.date.toISOString().split('T')[0];
+      overrideByDate.set(dateKey, o);
+    }
+
+    const results: AvailabilityResult[] = [];
+    const current = new Date(startDate);
+
+    while (current <= endDate) {
+      const dateKey = current.toISOString().split('T')[0];
+      const dayOfWeek = current.getDay();
+
+      const override = overrideByDate.get(dateKey);
+      if (override && override.maxCapacity === null) {
+        results.push({ date: dateKey, available: false, spotsRemaining: 0, totalCapacity: 0 });
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+
+      let totalCapacity = 0;
+      if (override && override.maxCapacity !== null) {
+        totalCapacity = override.maxCapacity;
+      } else {
+        const dayRule = capacityRules.find((r) => r.dayOfWeek === dayOfWeek);
+        const defaultRule = capacityRules.find((r) => r.dayOfWeek === null);
+        totalCapacity = (dayRule || defaultRule)?.maxCapacity ?? 0;
+      }
+
+      const booked = bookingCountByDate.get(dateKey) ?? 0;
+      const spotsRemaining = Math.max(0, totalCapacity - booked);
+      const globalDogs = globalDogCountByDate.get(dateKey) ?? 0;
+      const globalSpotsLeft = Math.max(0, MAX_DOGS_PER_DAY - globalDogs);
+      const effectiveSpots = Math.min(spotsRemaining, globalSpotsLeft);
+
+      results.push({
+        date: dateKey,
+        available: effectiveSpots > 0,
+        spotsRemaining: effectiveSpots,
+        totalCapacity,
+      });
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return results;
   }
 
   /**

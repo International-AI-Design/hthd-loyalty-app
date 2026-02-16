@@ -53,14 +53,17 @@ export function RegisterPage() {
       setValue('referral_code', refCode);
 
       // Validate the referral code
-      referralApi.validate(refCode).then(({ data }) => {
+      referralApi.validate(refCode).then(({ data, error }) => {
         if (data?.valid && data.referrer_first_name) {
           setReferrerName(data.referrer_first_name);
-        } else {
-          // Invalid code - clear it silently
+        } else if (error || !data?.valid) {
+          // Invalid code or API error — clear it silently, let user enter manually
           setReferralCode(null);
           setValue('referral_code', '');
         }
+      }).catch(() => {
+        // Network error — keep the code in the field but don't show referrer name
+        // User can still submit; server will validate at registration time
       });
     }
   }, [searchParams, setValue]);

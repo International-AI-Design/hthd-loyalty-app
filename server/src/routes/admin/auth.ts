@@ -3,10 +3,9 @@ import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { JWT_SECRET } from '../../middleware/auth';
 
 const router = Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 // Zod schema for staff login validation
 const staffLoginSchema = z.object({

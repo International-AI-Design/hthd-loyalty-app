@@ -31,6 +31,7 @@ export class WalletService {
   /**
    * Load funds into a customer's wallet.
    * Enforces min/max per transaction and a daily load limit.
+   * Uses interactive transaction to prevent race conditions.
    */
   async loadFunds(
     customerId: string,
@@ -40,69 +41,64 @@ export class WalletService {
       throw new WalletError('Load amount must be between $5.00 and $500.00', 400);
     }
 
-    // Check daily load limit
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
     const wallet = await this.getOrCreateWallet(customerId);
 
-    const todayLoads = await (prisma as any).walletTransaction.aggregate({
-      where: {
-        walletId: wallet.id,
-        type: 'load',
-        createdAt: { gte: startOfDay },
-      },
-      _sum: { amountCents: true },
-    });
+    // Use interactive transaction for atomic balance update
+    const result = await prisma.$transaction(async (tx) => {
+      // Check daily load limit inside transaction
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const loadedToday = todayLoads._sum.amountCents ?? 0;
-    if (loadedToday + amountCents > DAILY_LOAD_LIMIT_CENTS) {
-      throw new WalletError(
-        `Daily load limit is $${(DAILY_LOAD_LIMIT_CENTS / 100).toFixed(2)}. You have loaded $${(loadedToday / 100).toFixed(2)} today.`,
-        400
-      );
-    }
+      const todayLoads = await (tx as any).walletTransaction.aggregate({
+        where: {
+          walletId: wallet.id,
+          type: 'load',
+          createdAt: { gte: startOfDay },
+        },
+        _sum: { amountCents: true },
+      });
 
-    const newBalance = wallet.balanceCents + amountCents;
+      const loadedToday = todayLoads._sum.amountCents ?? 0;
+      if (loadedToday + amountCents > DAILY_LOAD_LIMIT_CENTS) {
+        throw new WalletError(
+          `Daily load limit is $${(DAILY_LOAD_LIMIT_CENTS / 100).toFixed(2)}. You have loaded $${(loadedToday / 100).toFixed(2)} today.`,
+          400
+        );
+      }
 
-    const [updatedWallet, transaction] = await prisma.$transaction([
-      (prisma as any).wallet.update({
+      // Atomic increment instead of read-then-set
+      const updatedWallet = await (tx as any).wallet.update({
         where: { id: wallet.id },
-        data: { balanceCents: newBalance },
-      }),
-      (prisma as any).walletTransaction.create({
+        data: { balanceCents: { increment: amountCents } },
+      });
+
+      const transaction = await (tx as any).walletTransaction.create({
         data: {
           walletId: wallet.id,
           type: 'load',
           amountCents,
-          balanceAfterCents: newBalance,
+          balanceAfterCents: updatedWallet.balanceCents,
           description: `Loaded $${(amountCents / 100).toFixed(2)}`,
         },
-      }),
-    ]);
+      });
 
-    return { wallet: updatedWallet, transaction };
+      return { wallet: updatedWallet, transaction };
+    });
+
+    return result;
   }
 
   /**
    * Deduct funds from wallet for a payment. Awards 2x loyalty points.
+   * Uses interactive transaction to prevent race conditions.
    */
   async deductFunds(
     customerId: string,
     input: { amountCents: number; bookingId?: string; description: string }
   ): Promise<{ wallet: Wallet; transaction: WalletTransaction; pointsAwarded: number }> {
-    const wallet = await this.getOrCreateWallet(customerId);
-
-    if (wallet.balanceCents < input.amountCents) {
-      throw new WalletError('Insufficient wallet balance', 400);
-    }
-
-    const newBalance = wallet.balanceCents - input.amountCents;
-
-    // Calculate 2x base points for wallet payments
+    // Calculate base points outside transaction (read-only lookup)
     let basePoints = Math.floor(input.amountCents / 100) * 2;
 
-    // Check for grooming multiplier if bookingId provided
     if (input.bookingId) {
       const booking = await (prisma as any).booking.findUnique({
         where: { id: input.bookingId },
@@ -113,55 +109,71 @@ export class WalletService {
       }
     }
 
-    // Get current points balance and apply cap
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      select: { pointsBalance: true },
-    });
-    if (!customer) {
-      throw new WalletError('Customer not found', 404);
-    }
+    // Interactive transaction for atomic balance checks and updates
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-read wallet inside transaction for consistent balance
+      const wallet = await (tx as any).wallet.findUnique({
+        where: { customerId },
+      });
 
-    const { pointsAwarded, newBalance: newPointsBalance } = capPoints(
-      customer.pointsBalance,
-      basePoints
-    );
+      if (!wallet) {
+        throw new WalletError('Wallet not found', 404);
+      }
 
-    const [updatedWallet, transaction] = await prisma.$transaction([
-      (prisma as any).wallet.update({
+      if (wallet.balanceCents < input.amountCents) {
+        throw new WalletError('Insufficient wallet balance', 400);
+      }
+
+      // Atomic decrement
+      const updatedWallet = await (tx as any).wallet.update({
         where: { id: wallet.id },
-        data: { balanceCents: newBalance },
-      }),
-      (prisma as any).walletTransaction.create({
+        data: { balanceCents: { decrement: input.amountCents } },
+      });
+
+      const transaction = await (tx as any).walletTransaction.create({
         data: {
           walletId: wallet.id,
           type: 'payment',
           amountCents: -input.amountCents,
-          balanceAfterCents: newBalance,
+          balanceAfterCents: updatedWallet.balanceCents,
           description: input.description,
           bookingId: input.bookingId,
         },
-      }),
-      // Award loyalty points (only if any can be awarded under the cap)
-      ...(pointsAwarded > 0
-        ? [
-            prisma.pointsTransaction.create({
-              data: {
-                customerId,
-                type: 'purchase',
-                amount: pointsAwarded,
-                description: `Wallet payment - 2x points ($${(input.amountCents / 100).toFixed(2)})`,
-              },
-            }),
-            prisma.customer.update({
-              where: { id: customerId },
-              data: { pointsBalance: newPointsBalance },
-            }),
-          ]
-        : []),
-    ]);
+      });
 
-    return { wallet: updatedWallet, transaction, pointsAwarded };
+      // Award loyalty points (read customer inside transaction too)
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { pointsBalance: true },
+      });
+      if (!customer) {
+        throw new WalletError('Customer not found', 404);
+      }
+
+      const { pointsAwarded, newBalance: newPointsBalance } = capPoints(
+        customer.pointsBalance,
+        basePoints
+      );
+
+      if (pointsAwarded > 0) {
+        await tx.pointsTransaction.create({
+          data: {
+            customerId,
+            type: 'purchase',
+            amount: pointsAwarded,
+            description: `Wallet payment - 2x points ($${(input.amountCents / 100).toFixed(2)})`,
+          },
+        });
+        await tx.customer.update({
+          where: { id: customerId },
+          data: { pointsBalance: newPointsBalance },
+        });
+      }
+
+      return { wallet: updatedWallet, transaction, pointsAwarded };
+    });
+
+    return result;
   }
 
   /**

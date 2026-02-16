@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma';
 import { authenticateStaff } from '../../middleware/auth';
+import { requireRole } from '../../middleware/rbac';
 import { logger } from '../../middleware/security';
 
 const router = Router();
@@ -10,8 +11,8 @@ router.use(authenticateStaff);
 
 // POST /api/admin/demo/reset
 // Full demo reset - clears all customer data for fresh demo
-// Used for demo purposes
-router.post('/reset', async (req: Request, res: Response): Promise<void> => {
+// RESTRICTED: owner/admin only — this is a destructive operation
+router.post('/reset', requireRole('owner', 'admin'), async (req: Request, res: Response): Promise<void> => {
   try {
     logger.info('Demo reset initiated');
 

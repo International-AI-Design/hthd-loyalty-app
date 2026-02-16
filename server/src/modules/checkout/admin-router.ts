@@ -8,9 +8,9 @@ import { ZodError } from 'zod';
 const router = Router();
 const walletService = new WalletService();
 
-// All admin checkout routes require staff auth + owner/manager role
+// All admin checkout routes require staff auth + owner/manager/admin role
 router.use(authenticateStaff as any);
-router.use(requireRoles('admin') as any);
+router.use(requireRoles('owner', 'manager', 'admin') as any);
 
 /**
  * GET /wallet-balance/:customerId

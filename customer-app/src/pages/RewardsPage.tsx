@@ -26,6 +26,7 @@ function formatDate(dateString: string): string {
 function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0);
   const prevRef = useRef(0);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     const start = prevRef.current;
@@ -42,13 +43,14 @@ function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?:
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplay(Math.round(start + diff * eased));
       if (progress < 1) {
-        requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(tick);
       } else {
         prevRef.current = end;
       }
     }
 
-    requestAnimationFrame(tick);
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
   }, [value, duration]);
 
   return <>{display.toLocaleString()}</>;

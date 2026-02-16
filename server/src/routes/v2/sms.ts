@@ -36,10 +36,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
     const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol;
     const url = `${proto}://${req.get('host')}${req.originalUrl}`;
 
-    if (process.env.NODE_ENV === 'production' && !validateTwilioSignature(url, req.body, signature)) {
+    if (process.env.TWILIO_AUTH_TOKEN && !validateTwilioSignature(url, req.body, signature)) {
       logger.warn('Invalid Twilio signature on SMS webhook', { ip: req.ip, url, hasSignature: !!signature });
       // Don't block — log and continue. Signature validation can fail behind proxies.
-      // TODO: Re-enable strict validation once URL matching is confirmed
+      // TODO: Re-enable strict blocking once URL matching is confirmed with Railway proxy
     }
 
     // Extract message data from Twilio POST
