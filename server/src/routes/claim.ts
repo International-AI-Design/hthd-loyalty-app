@@ -8,6 +8,7 @@ import {
   completeClaim,
 } from '../services/claim';
 import { JWT_SECRET } from '../middleware/auth';
+import { loginLimiter, verificationCodeLimiter } from '../middleware/security';
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.post('/lookup', async (req: Request, res: Response): Promise<void> => {
  * POST /api/claim/send-code
  * Send verification code to customer's email
  */
-router.post('/send-code', async (req: Request, res: Response): Promise<void> => {
+router.post('/send-code', verificationCodeLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const validationResult = sendCodeSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -127,7 +128,7 @@ router.post('/send-code', async (req: Request, res: Response): Promise<void> => 
  * POST /api/claim/verify
  * Verify code and set password to complete claim
  */
-router.post('/verify', async (req: Request, res: Response): Promise<void> => {
+router.post('/verify', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const validationResult = verifySchema.safeParse(req.body);
     if (!validationResult.success) {

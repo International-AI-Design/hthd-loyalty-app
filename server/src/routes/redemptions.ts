@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { authenticateCustomer, AuthenticatedCustomerRequest } from '../middleware/auth';
 
@@ -12,12 +13,13 @@ const REWARD_TIERS: Record<number, number> = {
   500: 50,  // 500 points = $50 discount
 };
 
-// Generate unique redemption code (RD-XXXXXX format)
+// Generate unique redemption code (RD-XXXXXX format) using cryptographic randomness
 function generateRedemptionCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoiding confusing characters
   let code = 'RD-';
+  const bytes = randomBytes(6);
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(bytes[i] % chars.length);
   }
   return code;
 }

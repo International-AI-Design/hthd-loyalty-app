@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
 import { JWT_SECRET } from '../../middleware/auth';
+import { loginLimiter } from '../../middleware/security';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const staffLoginSchema = z.object({
 });
 
 // POST /api/admin/auth/login
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     // Validate request body
     const validationResult = staffLoginSchema.safeParse(req.body);

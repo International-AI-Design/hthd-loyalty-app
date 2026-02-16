@@ -139,6 +139,7 @@ export function SchedulePage() {
   };
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [noShowConfirm, setNoShowConfirm] = useState<AdminBooking | null>(null);
 
   const handleAction = async (
     bookingId: string,
@@ -367,7 +368,7 @@ export function SchedulePage() {
                         Payment
                       </button>
                       <button
-                        onClick={() => handleAction(booking.id, 'noShow')}
+                        onClick={() => setNoShowConfirm(booking)}
                         className="min-h-[44px] px-4 py-2.5 bg-white border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors"
                       >
                         No-Show
@@ -392,7 +393,7 @@ export function SchedulePage() {
                         Payment
                       </button>
                       <button
-                        onClick={() => handleAction(booking.id, 'noShow')}
+                        onClick={() => setNoShowConfirm(booking)}
                         className="min-h-[44px] px-4 py-2.5 bg-white border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors"
                       >
                         No-Show
@@ -411,6 +412,39 @@ export function SchedulePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* No-Show Confirmation */}
+      {noShowConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="font-heading text-lg font-bold text-brand-navy mb-2">Mark as No-Show?</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              {noShowConfirm.customer.firstName} {noShowConfirm.customer.lastName}
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              {noShowConfirm.dogs.map(d => d.dog.name).join(', ')} &mdash; {noShowConfirm.serviceType}
+            </p>
+            <p className="text-xs text-orange-600 mb-5">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setNoShowConfirm(null)}
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await handleAction(noShowConfirm.id, 'noShow');
+                  setNoShowConfirm(null);
+                }}
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors"
+              >
+                Confirm No-Show
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

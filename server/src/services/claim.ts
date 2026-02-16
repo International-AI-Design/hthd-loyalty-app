@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { sendVerificationEmail, sendWelcomeEmail } from './email';
 import { logger } from '../middleware/security';
@@ -115,10 +116,10 @@ export async function findUnclaimedCustomer(
 }
 
 /**
- * Generate a random 6-digit verification code
+ * Generate a random 6-digit verification code using cryptographic randomness
  */
 export function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 999999).toString();
 }
 
 /**

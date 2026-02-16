@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminDashboardApi } from '../lib/api';
+import { adminDashboardApi, adminBookingApi } from '../lib/api';
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
@@ -165,6 +165,19 @@ export function DashboardPage() {
   useEffect(() => {
     fetchCompliance();
   }, [fetchCompliance]);
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleQuickAction = async (bookingId: string, action: 'checkIn' | 'checkOut') => {
+    setActionLoading(bookingId);
+    const apiFn = action === 'checkIn' ? adminBookingApi.checkIn : adminBookingApi.checkOut;
+    const result = await apiFn(bookingId);
+    setActionLoading(null);
+    if (result.data) {
+      fetchArrivals();
+      fetchFacility();
+    }
+  };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
@@ -452,9 +465,11 @@ export function DashboardPage() {
                     )}
                   </div>
                   <button
-                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[36px] whitespace-nowrap"
+                    onClick={() => handleQuickAction(item.id, 'checkIn')}
+                    disabled={actionLoading === item.id}
+                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[36px] whitespace-nowrap disabled:opacity-50"
                   >
-                    Check In
+                    {actionLoading === item.id ? '...' : 'Check In'}
                   </button>
                 </div>
               ))}
@@ -493,9 +508,11 @@ export function DashboardPage() {
                     )}
                   </div>
                   <button
-                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[36px] whitespace-nowrap"
+                    onClick={() => handleQuickAction(item.id, 'checkOut')}
+                    disabled={actionLoading === item.id}
+                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[36px] whitespace-nowrap disabled:opacity-50"
                   >
-                    Check Out
+                    {actionLoading === item.id ? '...' : 'Check Out'}
                   </button>
                 </div>
               ))}
@@ -525,9 +542,11 @@ export function DashboardPage() {
                     )}
                   </div>
                   <button
-                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[44px] whitespace-nowrap"
+                    onClick={() => handleQuickAction(item.id, 'checkIn')}
+                    disabled={actionLoading === item.id}
+                    className="ml-3 px-3 py-2 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors min-h-[44px] whitespace-nowrap disabled:opacity-50"
                   >
-                    Check In
+                    {actionLoading === item.id ? '...' : 'Check In'}
                   </button>
                 </div>
               ))}
@@ -554,9 +573,11 @@ export function DashboardPage() {
                     )}
                   </div>
                   <button
-                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[44px] whitespace-nowrap"
+                    onClick={() => handleQuickAction(item.id, 'checkOut')}
+                    disabled={actionLoading === item.id}
+                    className="ml-3 px-3 py-2 bg-[#62A2C3] text-white text-xs font-medium rounded-lg hover:bg-[#5191b0] transition-colors min-h-[44px] whitespace-nowrap disabled:opacity-50"
                   >
-                    Check Out
+                    {actionLoading === item.id ? '...' : 'Check Out'}
                   </button>
                 </div>
               ))}

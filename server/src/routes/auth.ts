@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { randomInt, randomBytes } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { WELCOME_BONUS_POINTS, REFERRAL_BONUS_POINTS, capPoints } from '../lib/points';
 import { sendNewSignupWelcomeEmail, sendPasswordResetEmail } from '../services/email';
 import { JWT_SECRET } from '../middleware/auth';
+import { loginLimiter, registrationLimiter, verificationCodeLimiter } from '../middleware/security';
 
 const router = Router();
 const SALT_ROUNDS = 10;
@@ -21,18 +23,19 @@ const registerSchema = z.object({
   referral_code: z.string().regex(/^HT-[A-Z0-9]{6}$/i, 'Invalid referral code format').optional().or(z.literal('')),
 });
 
-// Generate unique referral code
+// Generate unique referral code using cryptographic randomness
 function generateReferralCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoiding confusing characters
   let code = 'HT-';
+  const bytes = randomBytes(6);
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(bytes[i] % chars.length);
   }
   return code;
 }
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+router.post('/register', registrationLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     // Validate request body
     const validationResult = registerSchema.safeParse(req.body);
@@ -223,7 +226,7 @@ const loginSchema = z.object({
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     // Validate request body
     const validationResult = loginSchema.safeParse(req.body);
@@ -310,9 +313,9 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 const RESET_CODE_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
-// Generate a random 6-digit verification code
+// Generate a random 6-digit verification code using cryptographic randomness
 function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 999999).toString();
 }
 
 // Zod schema for forgot password
@@ -321,7 +324,7 @@ const forgotPasswordSchema = z.object({
 });
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+router.post('/forgot-password', verificationCodeLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const validationResult = forgotPasswordSchema.safeParse(req.body);
     if (!validationResult.success) {

@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { capPoints } from '../lib/points';
 import { logger } from '../middleware/security';
@@ -760,13 +761,14 @@ interface CustomerImportResult {
 }
 
 /**
- * Generate unique referral code
+ * Generate unique referral code using cryptographic randomness
  */
 function generateReferralCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'HT-';
+  const bytes = randomBytes(6);
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(bytes[i] % chars.length);
   }
   return code;
 }

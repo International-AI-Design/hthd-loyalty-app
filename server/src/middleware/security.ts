@@ -82,6 +82,45 @@ export const rateLimiter = rateLimit({
   }
 });
 
+// Strict rate limiter for login endpoints: 5 attempts per 15 minutes per IP
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn('Login rate limit exceeded', { ip: req.ip, url: req.originalUrl });
+    res.status(429).json({ error: 'Too many login attempts. Please try again in 15 minutes.' });
+  },
+});
+
+// Rate limiter for registration/account creation: 3 per hour per IP
+export const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many accounts created. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn('Registration rate limit exceeded', { ip: req.ip, url: req.originalUrl });
+    res.status(429).json({ error: 'Too many accounts created. Please try again later.' });
+  },
+});
+
+// Rate limiter for verification code sending (SMS/email): 3 per 15 minutes per IP
+export const verificationCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many verification code requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn('Verification code rate limit exceeded', { ip: req.ip, url: req.originalUrl });
+    res.status(429).json({ error: 'Too many verification code requests. Please try again later.' });
+  },
+});
+
 // CORS configuration for customer-app and admin-app origins
 export function getCorsOptions() {
   const allowedOrigins = [
