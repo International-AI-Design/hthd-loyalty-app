@@ -424,7 +424,7 @@ export function SchedulePage() {
               {noShowConfirm.customer.firstName} {noShowConfirm.customer.lastName}
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              {noShowConfirm.dogs.map(d => d.dog.name).join(', ')} &mdash; {noShowConfirm.serviceType}
+              {noShowConfirm.dogs.map(d => d.dog.name).join(', ')} &mdash; {noShowConfirm.serviceType.displayName}
             </p>
             <p className="text-xs text-orange-600 mb-5">This action cannot be undone.</p>
             <div className="flex gap-3">
