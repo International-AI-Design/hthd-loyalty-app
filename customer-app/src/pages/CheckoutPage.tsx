@@ -28,7 +28,7 @@ export function CheckoutPage() {
     import('../lib/api').then(({ bookingApi }) => {
       bookingApi.getBookings().then(({ data }) => {
         if (data) {
-          const found = (data as Booking[]).find(b => b.id === bookingId) ?? null;
+          const found = data.bookings.find(b => b.id === bookingId) ?? null;
           setFetchedBooking(found);
         }
         setIsLoadingBooking(false);
