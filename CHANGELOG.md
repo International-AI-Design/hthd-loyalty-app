@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.11] - Security Hardening + Full Gingr Import - 2026-02-18
+
+### Security
+- **Staff password change endpoint** — `PUT /api/v2/admin/staff/:id/password`. Admin/owner can change any password; staff can change their own (requires current password). 8-char minimum.
+- **Production password rotation** — All 3 staff accounts rotated from default passwords. Env-driven reset script (`prisma/reset-passwords.ts`) for future use.
+- **Seed script hardened** — Replaced hardcoded passwords with `crypto.randomBytes()`. Replaced `Math.random()` with `crypto.randomInt()` (4 locations). Added env var overrides.
+
+### Features
+- **Full Gingr import** — `POST /api/admin/gingr/full-import` pulls ALL data from Gingr:
+  - Paginates through `/owners` to get all customers
+  - Fetches 730 days (2 years) of reservations in 30-day batches
+  - Applies real loyalty points (no artificial cap)
+  - Creates visit history for each customer
+  - Imports dogs via `/animals` endpoint
+- **Configurable points cap** — `importCustomers()` now accepts `pointsCap` parameter (default 50, full import uses Infinity)
+
+### Infrastructure
+- **Timezone fix** — `TZ=America/Denver` set on Railway (resolves business hours bug)
+- **Password reset on deploy** — `start.sh` runs `reset-passwords.ts` if `RESET_*_PASSWORD` env vars are set
+
+### Import Results (Production)
+- 427 Gingr owners found → 268 customer accounts created
+- 4,682 invoices processed → 4,277 visits imported
+- 391,632 loyalty points applied from real transaction history
+
 ## [2.0.0-alpha.9] - QA Bug Sprint + iOS Mobile Fixes - 2026-02-10
 
 ### Bug Fixes (15 bugs from QA walkthrough)
