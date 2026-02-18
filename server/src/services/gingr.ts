@@ -851,7 +851,7 @@ async function fetchInvoicesForImport(daysBack: number = 90): Promise<GingrInvoi
  * Import customers from Gingr invoices
  * Creates unclaimed accounts for customers not already in the system
  */
-export async function importCustomers(staffId: string, daysBack: number = 90): Promise<CustomerImportResult> {
+export async function importCustomers(staffId: string, daysBack: number = 90, pointsCap: number = 50): Promise<CustomerImportResult> {
   const importedCustomers: ImportedCustomer[] = [];
   const skippedCustomers: CustomerImportResult['skippedCustomers'] = [];
 
@@ -971,11 +971,9 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
           customerPoints += points;
         }
 
-        // Cap imported points to prevent immediate large redemptions
-        // This gives new imports a head start without breaking the bank
-        const IMPORT_POINTS_CAP = 50;
+        // Cap imported points (configurable — full import uses Infinity for real balances)
         const uncappedPoints = customerPoints;
-        customerPoints = Math.min(customerPoints, IMPORT_POINTS_CAP);
+        customerPoints = Math.min(customerPoints, pointsCap);
 
         // Generate unique referral code
         let referralCode = generateReferralCode();
@@ -1008,7 +1006,7 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
 
           // Create points transaction for the initial import
           if (customerPoints > 0) {
-            const cappedNote = uncappedPoints > IMPORT_POINTS_CAP
+            const cappedNote = uncappedPoints > pointsCap
               ? ` (capped from ${uncappedPoints})`
               : '';
             await tx.pointsTransaction.create({
@@ -1113,6 +1111,382 @@ export async function importCustomers(staffId: string, daysBack: number = 90): P
       importedCustomers: [],
       skippedCustomers: [],
       error: error instanceof Error ? error.message : 'Unknown error during import',
+    };
+  }
+}
+
+// ============================================
+// Full Import (All Owners + All History)
+// ============================================
+
+interface GingrOwner {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  cell_phone?: string;
+  home_phone?: string;
+}
+
+interface FullImportResult {
+  success: boolean;
+  ownersFound: number;
+  customersCreated: number;
+  customersSkipped: number;
+  invoicesProcessed: number;
+  dogsImported: number;
+  visitsImported: number;
+  totalPointsApplied: number;
+  errors: string[];
+}
+
+/**
+ * Fetch ALL owners from Gingr via paginated GET /owners
+ */
+async function fetchAllOwners(): Promise<GingrOwner[]> {
+  if (!workingAuthFormat) {
+    const test = await testConnection();
+    if (!test.connected) throw new Error(test.error || 'Unable to connect to Gingr');
+  }
+
+  const allOwners: GingrOwner[] = [];
+  const seenIds = new Set<string>();
+  const perPage = 50;
+  let page = 1;
+
+  while (true) {
+    const url = workingAuthFormat?.useQueryParam
+      ? `${GINGR_BASE_URL}/owners?key=${GINGR_API_KEY}&per_page=${perPage}&page=${page}`
+      : `${GINGR_BASE_URL}/owners?per_page=${perPage}&page=${page}`;
+
+    logger.info(`Fetching Gingr owners page ${page}...`);
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(workingAuthFormat?.getHeaders() || {}),
+      },
+    });
+
+    if (!response.ok) {
+      logger.warn(`Gingr owners page ${page} returned ${response.status}`);
+      break;
+    }
+
+    const data = await response.json() as {
+      error?: boolean;
+      data?: Record<string, GingrOwner> | GingrOwner[];
+    };
+
+    if (data.error) break;
+
+    const owners = Array.isArray(data.data)
+      ? data.data
+      : Object.values(data.data || {});
+
+    if (owners.length === 0) break;
+
+    let newCount = 0;
+    for (const owner of owners) {
+      if (!seenIds.has(owner.id)) {
+        seenIds.add(owner.id);
+        allOwners.push(owner);
+        newCount++;
+      }
+    }
+
+    // If we got fewer new owners than page size, we've reached the end
+    if (newCount < perPage) break;
+
+    // Gingr uses offset-style pagination: page 1, page 51, page 101...
+    page += perPage;
+
+    // Safety valve
+    if (allOwners.length > 10000) {
+      logger.warn('Owner fetch capped at 10000 — stopping pagination');
+      break;
+    }
+  }
+
+  logger.info(`Fetched ${allOwners.length} total owners from Gingr`);
+  return allOwners;
+}
+
+/**
+ * Full import: pull ALL data from Gingr to make the app feel live.
+ * 1. Fetches all owners → creates customer accounts
+ * 2. Fetches 2 years of reservations → applies real points
+ * 3. Imports dogs for each customer
+ * 4. Creates visit history
+ */
+export async function fullImport(staffId: string): Promise<FullImportResult> {
+  const errors: string[] = [];
+  let customersCreated = 0;
+  let customersSkipped = 0;
+  let dogsImported = 0;
+  let visitsImported = 0;
+  let totalPointsApplied = 0;
+
+  try {
+    // Step 1: Fetch all owners from Gingr
+    logger.info('Full import: Fetching all owners...');
+    const owners = await fetchAllOwners();
+
+    // Step 2: Create customer accounts for owners not already in DB
+    logger.info(`Full import: Processing ${owners.length} owners...`);
+
+    for (const owner of owners) {
+      try {
+        const email = owner.email?.toLowerCase().trim();
+        const phone = (owner.cell_phone || owner.home_phone)?.replace(/\D/g, '');
+
+        if (!email && !phone) {
+          customersSkipped++;
+          continue;
+        }
+
+        // Check if already exists
+        let existing = null;
+        if (email) {
+          existing = await prisma.customer.findUnique({
+            where: { email },
+            select: { id: true, gingrOwnerId: true },
+          });
+        }
+        if (!existing && phone && phone.length >= 10) {
+          existing = await prisma.customer.findFirst({
+            where: { phone: { contains: phone.slice(-10) } },
+            select: { id: true, gingrOwnerId: true },
+          });
+        }
+
+        if (existing) {
+          // Update gingrOwnerId if not set (so we can import dogs later)
+          if (!existing.gingrOwnerId) {
+            await prisma.customer.update({
+              where: { id: existing.id },
+              data: { gingrOwnerId: owner.id },
+            });
+          }
+          customersSkipped++;
+          continue;
+        }
+
+        // Need both email and phone for account creation
+        if (!email || !phone || phone.length < 10) {
+          customersSkipped++;
+          continue;
+        }
+
+        // Generate unique referral code
+        let referralCode = generateReferralCode();
+        let attempts = 0;
+        while (attempts < 5) {
+          const codeExists = await prisma.customer.findUnique({ where: { referralCode } });
+          if (!codeExists) break;
+          referralCode = generateReferralCode();
+          attempts++;
+        }
+
+        await prisma.customer.create({
+          data: {
+            email,
+            phone,
+            firstName: owner.first_name || 'Customer',
+            lastName: owner.last_name || 'Unknown',
+            referralCode,
+            pointsBalance: 0, // Points applied from invoices below
+            accountStatus: 'unclaimed',
+            source: 'gingr_import',
+            gingrOwnerId: owner.id,
+          },
+        });
+
+        customersCreated++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!msg.includes('Unique constraint')) {
+          errors.push(`Owner ${owner.id}: ${msg}`);
+        }
+        customersSkipped++;
+      }
+    }
+
+    logger.info(`Full import: ${customersCreated} created, ${customersSkipped} skipped`);
+
+    // Step 3: Fetch 2 years of reservations and apply points + visits
+    logger.info('Full import: Fetching reservation history (730 days)...');
+    const invoices = await fetchInvoicesForImport(730);
+    logger.info(`Full import: Processing ${invoices.length} invoices...`);
+
+    // Group invoices by customer (using owner email/phone for matching)
+    for (const invoice of invoices) {
+      try {
+        // Check if already processed
+        const existingRow = await prisma.gingrImportRow.findUnique({
+          where: { gingrInvoiceId: invoice.id },
+        });
+        if (existingRow) continue;
+
+        // Match to customer
+        const customerId = await matchCustomer(
+          invoice.owner_name,
+          invoice.owner_email,
+          invoice.owner_phone
+        );
+
+        if (!customerId) continue;
+
+        const { points, hasGrooming } = calculatePoints(invoice);
+        if (points <= 0) continue;
+
+        await prisma.$transaction(async (tx) => {
+          // Record the import row
+          const gingrImport = await tx.gingrImport.upsert({
+            where: { id: 'full-import' },
+            update: {
+              invoicesProcessed: { increment: 1 },
+              totalPointsApplied: { increment: points },
+            },
+            create: {
+              id: 'full-import',
+              uploadedBy: staffId,
+              invoicesProcessed: 1,
+              customersMatched: 0,
+              customersNotFound: 0,
+              totalPointsApplied: points,
+            },
+          });
+
+          await tx.gingrImportRow.create({
+            data: {
+              importId: gingrImport.id,
+              gingrInvoiceId: invoice.id,
+              ownerName: invoice.owner_name,
+              invoiceTotal: new Prisma.Decimal(invoice.total),
+              customerId,
+              status: 'matched',
+              pointsApplied: points,
+            },
+          });
+
+          // Apply points (no cap for full import)
+          await tx.customer.update({
+            where: { id: customerId },
+            data: { pointsBalance: { increment: points } },
+          });
+
+          await tx.pointsTransaction.create({
+            data: {
+              customerId,
+              type: 'purchase',
+              amount: points,
+              description: `Gingr: ${invoice.invoice_number}${hasGrooming ? ' (1.5x grooming)' : ''}`,
+              serviceType: hasGrooming ? 'grooming' : 'daycare',
+              dollarAmount: new Prisma.Decimal(invoice.total),
+            },
+          });
+
+          // Create visit record
+          const existingVisit = await tx.gingrVisit.findUnique({
+            where: { gingrReservationId: invoice.id },
+          });
+
+          if (!existingVisit) {
+            const hasBoarding = invoice.line_items?.some(item =>
+              item.service_type?.toLowerCase().includes('board') ||
+              item.description?.toLowerCase().includes('board')
+            );
+            let serviceType = 'daycare';
+            if (hasGrooming) serviceType = 'grooming';
+            else if (hasBoarding) serviceType = 'boarding';
+
+            await tx.gingrVisit.create({
+              data: {
+                customerId,
+                gingrReservationId: invoice.id,
+                visitDate: new Date(invoice.completed_at || invoice.created_at),
+                serviceType,
+                description: invoice.line_items?.map(i => i.description).filter(Boolean).join(', ') || null,
+                amount: new Prisma.Decimal(invoice.total),
+                pointsEarned: points,
+              },
+            });
+            visitsImported++;
+          }
+        });
+
+        totalPointsApplied += points;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!msg.includes('Unique constraint')) {
+          errors.push(`Invoice ${invoice.id}: ${msg}`);
+        }
+      }
+    }
+
+    // Step 4: Import dogs for all customers with gingrOwnerId
+    logger.info('Full import: Importing dogs...');
+    const customersWithGingr = await prisma.customer.findMany({
+      where: { gingrOwnerId: { not: null } },
+      select: { id: true, gingrOwnerId: true },
+    });
+
+    for (const customer of customersWithGingr) {
+      if (!customer.gingrOwnerId) continue;
+      try {
+        const result = await importDogsForCustomer(customer.id, customer.gingrOwnerId);
+        dogsImported += result.imported;
+      } catch (error) {
+        // Non-fatal — some owners may not have animals endpoint access
+      }
+    }
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        staffUserId: staffId,
+        action: 'gingr_full_import',
+        entityType: 'system',
+        entityId: 'full-import',
+        details: {
+          ownersFound: owners.length,
+          customersCreated,
+          customersSkipped,
+          invoicesProcessed: invoices.length,
+          dogsImported,
+          visitsImported,
+          totalPointsApplied,
+          errorCount: errors.length,
+        },
+      },
+    });
+
+    logger.info(`Full import complete: ${customersCreated} customers, ${invoices.length} invoices, ${dogsImported} dogs, ${visitsImported} visits`);
+
+    return {
+      success: true,
+      ownersFound: owners.length,
+      customersCreated,
+      customersSkipped,
+      invoicesProcessed: invoices.length,
+      dogsImported,
+      visitsImported,
+      totalPointsApplied,
+      errors: errors.slice(0, 20), // Limit error list
+    };
+  } catch (error) {
+    logger.error('Full import failed:', error);
+    return {
+      success: false,
+      ownersFound: 0,
+      customersCreated: 0,
+      customersSkipped: 0,
+      invoicesProcessed: 0,
+      dogsImported: 0,
+      visitsImported: 0,
+      totalPointsApplied: 0,
+      errors: [error instanceof Error ? error.message : 'Unknown error'],
     };
   }
 }

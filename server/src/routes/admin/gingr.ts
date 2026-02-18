@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers } from '../../services/gingr';
+import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers, fullImport } from '../../services/gingr';
 import { getAutoSyncStatus } from '../../jobs/gingrSync';
 
 const router = Router();
@@ -151,6 +151,36 @@ router.post('/import-customers', async (req: Request, res: Response): Promise<vo
     res.status(500).json({
       success: false,
       error: 'Internal server error during import',
+    });
+  }
+});
+
+// POST /api/admin/gingr/full-import
+// Pull ALL data from Gingr: owners, reservations (2yr), dogs, visits, points
+// Makes the app feel live with real business data
+router.post('/full-import', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const staffReq = req as AuthenticatedStaffRequest;
+    const staffId = staffReq.staff.id;
+
+    const result = await fullImport(staffId);
+
+    res.status(200).json({
+      success: result.success,
+      owners_found: result.ownersFound,
+      customers_created: result.customersCreated,
+      customers_skipped: result.customersSkipped,
+      invoices_processed: result.invoicesProcessed,
+      dogs_imported: result.dogsImported,
+      visits_imported: result.visitsImported,
+      total_points_applied: result.totalPointsApplied,
+      errors: result.errors,
+    });
+  } catch (error) {
+    console.error('Gingr full import error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during full import',
     });
   }
 });
