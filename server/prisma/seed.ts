@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -6,12 +7,17 @@ import { prisma } from '../src/lib/prisma';
 
 const SALT_ROUNDS = 10;
 
+// Generate a random password (16 chars, alphanumeric + symbols)
+function generatePassword(): string {
+  return crypto.randomBytes(12).toString('base64url').slice(0, 16);
+}
+
 // Generate unique codes
 function generateReferralCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'HT-';
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
@@ -20,30 +26,30 @@ function generateRedemptionCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'RD-';
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
 
-// Sample staff data
+// Staff data — passwords generated at runtime, never hardcoded
 const staffUsers = [
   {
     username: 'admin',
-    password: 'admin123',
+    password: process.env.SEED_ADMIN_PASSWORD || generatePassword(),
     role: 'admin',
     firstName: 'Sarah',
     lastName: 'Manager',
   },
   {
     username: 'staff1',
-    password: 'staff123',
+    password: process.env.SEED_STAFF_PASSWORD || generatePassword(),
     role: 'staff',
     firstName: 'Mike',
     lastName: 'Receptionist',
   },
   {
     username: 'groomer1',
-    password: 'groomer123',
+    password: process.env.SEED_GROOMER_PASSWORD || generatePassword(),
     role: 'groomer',
     firstName: 'Emma',
     lastName: 'Groomer',
@@ -124,8 +130,9 @@ async function main() {
   console.log('Creating customers...');
   const createdCustomers: { id: string; email: string; pointsBalance: number }[] = [];
 
+  const customerDefaultPassword = process.env.SEED_CUSTOMER_PASSWORD || generatePassword();
   for (const customer of customers) {
-    const passwordHash = await bcrypt.hash('password123', SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(customerDefaultPassword, SALT_ROUNDS);
 
     // Check if customer exists
     const existing = await prisma.customer.findUnique({
@@ -181,17 +188,17 @@ async function main() {
 
     if (existingTxns === 0) {
       // Give each customer 3-6 random transactions
-      const numTransactions = Math.floor(Math.random() * 4) + 3;
+      const numTransactions = crypto.randomInt(4) + 3;
       let totalPoints = 0;
 
       for (let i = 0; i < numTransactions; i++) {
-        const template = transactionTemplates[Math.floor(Math.random() * transactionTemplates.length)];
+        const template = transactionTemplates[crypto.randomInt(transactionTemplates.length)];
         const multiplier = template.serviceType === 'grooming' ? 1.5 : 1;
         const points = Math.floor(template.dollarAmount * multiplier);
         totalPoints += points;
 
         // Create transaction with backdated created_at
-        const daysAgo = Math.floor(Math.random() * 60) + 1;
+        const daysAgo = crypto.randomInt(60) + 1;
         const createdAt = new Date();
         createdAt.setDate(createdAt.getDate() - daysAgo);
 
@@ -306,7 +313,7 @@ async function main() {
       }
 
       // Backdate the redemption
-      const daysAgo = Math.floor(Math.random() * 30) + 1;
+      const daysAgo = crypto.randomInt(30) + 1;
       const createdAt = new Date();
       createdAt.setDate(createdAt.getDate() - daysAgo);
       const approvedAt = new Date(createdAt);
@@ -354,10 +361,11 @@ async function main() {
   console.log(`   Customers: ${createdCustomers.length}`);
   console.log(`   Pending redemptions: ${pendingCount}`);
   console.log(`   Completed redemptions: ${completedCount}`);
-  console.log(`\n📝 Test credentials:`);
-  console.log(`   Admin: admin / admin123`);
-  console.log(`   Staff: staff1 / staff123`);
-  console.log(`   Customer: john.smith@email.com / password123`);
+  console.log(`\n📝 Generated credentials (save these — not stored anywhere):`);
+  for (const staff of staffUsers) {
+    console.log(`   ${staff.role}: ${staff.username} / ${staff.password}`);
+  }
+  console.log(`   Customer (all): ${customerDefaultPassword}`);
 }
 
 main()

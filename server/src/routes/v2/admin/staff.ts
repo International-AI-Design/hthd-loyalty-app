@@ -150,4 +150,63 @@ router.post('/', requireRole('owner', 'admin'), async (req: Request, res: Respon
   }
 });
 
+// PUT /:id/password — change a staff user's password
+// Admin/owner can change any staff password; others can only change their own (requires current password)
+router.put('/:id/password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const staffReq = req as AuthenticatedStaffRequest;
+    const targetId = req.params.id as string;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+      return;
+    }
+
+    const isAdmin = staffReq.staff.role === 'owner' || staffReq.staff.role === 'admin';
+    const isSelf = staffReq.staff.id === targetId;
+
+    // Non-admin can only change their own password
+    if (!isAdmin && !isSelf) {
+      res.status(403).json({ error: 'Insufficient permissions' });
+      return;
+    }
+
+    // Non-admin must provide current password
+    if (!isAdmin && isSelf) {
+      if (!currentPassword) {
+        res.status(400).json({ error: 'currentPassword is required' });
+        return;
+      }
+      const self = await prisma.staffUser.findUnique({ where: { id: targetId } });
+      if (!self) {
+        res.status(404).json({ error: 'Staff user not found' });
+        return;
+      }
+      const valid = await bcrypt.compare(currentPassword, self.passwordHash);
+      if (!valid) {
+        res.status(401).json({ error: 'Current password is incorrect' });
+        return;
+      }
+    }
+
+    const target = await prisma.staffUser.findUnique({ where: { id: targetId } });
+    if (!target) {
+      res.status(404).json({ error: 'Staff user not found' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.staffUser.update({
+      where: { id: targetId },
+      data: { passwordHash },
+    });
+
+    res.json({ message: 'Password updated successfully', username: target.username });
+  } catch (error) {
+    console.error('Change staff password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
