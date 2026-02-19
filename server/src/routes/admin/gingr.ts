@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers, fullImport } from '../../services/gingr';
+import { testConnection, syncInvoices, getSyncHistory, importCustomers, getUnclaimedCustomers, fullImport, populateDashboard } from '../../services/gingr';
 import { getAutoSyncStatus } from '../../jobs/gingrSync';
 
 const router = Router();
@@ -181,6 +181,31 @@ router.post('/full-import', async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       error: 'Internal server error during full import',
+    });
+  }
+});
+
+// POST /api/admin/gingr/populate-dashboard
+// Populate admin dashboard: import dogs, create bookings from upcoming reservations, generate staff schedules
+router.post('/populate-dashboard', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const staffReq = req as AuthenticatedStaffRequest;
+    const staffId = staffReq.staff.id;
+
+    const result = await populateDashboard(staffId);
+
+    res.status(200).json({
+      success: result.success,
+      dogs_imported: result.dogsImported,
+      bookings_created: result.bookingsCreated,
+      staff_schedules_created: result.staffSchedulesCreated,
+      errors: result.errors,
+    });
+  } catch (error) {
+    console.error('Populate dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during dashboard population',
     });
   }
 });

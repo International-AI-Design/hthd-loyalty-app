@@ -1491,6 +1491,352 @@ export async function fullImport(staffId: string): Promise<FullImportResult> {
   }
 }
 
+// ============================================
+// Dashboard Population (Bookings + Dogs + Staff Schedules)
+// ============================================
+
+interface DashboardPopulateResult {
+  success: boolean;
+  dogsImported: number;
+  bookingsCreated: number;
+  staffSchedulesCreated: number;
+  errors: string[];
+}
+
+/**
+ * Fetch ALL animals from Gingr without owner filter.
+ * The per-owner /animals?owner_id=X endpoint returned 0 for all owners,
+ * so this tries the bulk endpoint instead.
+ */
+async function fetchAllAnimals(): Promise<GingrAnimal[]> {
+  if (!workingAuthFormat) {
+    const test = await testConnection();
+    if (!test.connected) return [];
+  }
+
+  try {
+    const url = workingAuthFormat?.useQueryParam
+      ? `${GINGR_BASE_URL}/animals?key=${GINGR_API_KEY}`
+      : `${GINGR_BASE_URL}/animals`;
+
+    logger.info('Fetching all animals from Gingr (bulk)...');
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(workingAuthFormat?.getHeaders() || {}),
+      },
+    });
+
+    if (!response.ok) {
+      logger.warn(`Gingr /animals bulk fetch returned ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json() as {
+      error?: boolean;
+      data?: Record<string, GingrAnimal> | GingrAnimal[];
+    };
+
+    if (data.error) return [];
+
+    const animals = Array.isArray(data.data)
+      ? data.data
+      : Object.values(data.data || {});
+
+    logger.info(`Fetched ${animals.length} animals from Gingr`);
+
+    return animals.filter(a =>
+      !a.species ||
+      a.species.toLowerCase() === 'dog' ||
+      a.species.toLowerCase() === 'canine'
+    );
+  } catch (error) {
+    logger.warn('Failed to fetch all animals from Gingr:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch upcoming reservations from Gingr (past 7 days through next 30 days).
+ * Captures currently active multi-day bookings and upcoming ones.
+ */
+async function fetchUpcomingReservations(): Promise<GingrReservation[]> {
+  if (!workingAuthFormat) {
+    const test = await testConnection();
+    if (!test.connected) throw new Error(test.error || 'Unable to connect to Gingr');
+  }
+
+  const now = new Date();
+  const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  logger.info(`Fetching reservations from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}...`);
+
+  const formData = new URLSearchParams();
+  formData.append('start_date', startDate.toISOString().split('T')[0]);
+  formData.append('end_date', endDate.toISOString().split('T')[0]);
+  if (workingAuthFormat?.useQueryParam) {
+    formData.append('key', GINGR_API_KEY);
+  }
+
+  const response = await fetch(`${GINGR_BASE_URL}/reservations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...(workingAuthFormat?.getHeaders() || {}),
+    },
+    body: formData.toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gingr API returned ${response.status}: ${response.statusText}`);
+  }
+
+  const data = await response.json() as { error: boolean; data?: Record<string, GingrReservation>; message?: string };
+
+  if (data.error) {
+    logger.warn(`Gingr upcoming reservations error: ${data.message}`);
+    return [];
+  }
+
+  const reservations = Object.values(data.data || {});
+  logger.info(`Found ${reservations.length} upcoming/recent reservations`);
+  return reservations;
+}
+
+/**
+ * Populate admin dashboard with real data:
+ * 1. Import dogs from Gingr (bulk fetch without owner filter)
+ * 2. Create Booking records from upcoming Gingr reservations
+ * 3. Generate StaffSchedule records for next 30 days
+ */
+export async function populateDashboard(staffId: string): Promise<DashboardPopulateResult> {
+  const errors: string[] = [];
+  let dogsImported = 0;
+  let bookingsCreated = 0;
+  let staffSchedulesCreated = 0;
+
+  try {
+    // ---- Step 1: Import dogs from Gingr ----
+    logger.info('Dashboard populate: Fetching animals...');
+    const animals = await fetchAllAnimals();
+
+    for (const animal of animals) {
+      try {
+        if (!animal.owner_id) continue;
+
+        const customer = await prisma.customer.findFirst({
+          where: { gingrOwnerId: animal.owner_id },
+          select: { id: true },
+        });
+        if (!customer) continue;
+
+        const existing = await prisma.dog.findUnique({
+          where: { gingrAnimalId: animal.animal_id },
+        });
+        if (existing) continue;
+
+        await prisma.dog.create({
+          data: {
+            customerId: customer.id,
+            name: animal.name || 'Unknown',
+            breed: animal.breed,
+            birthDate: animal.birth_date ? new Date(animal.birth_date) : null,
+            gingrAnimalId: animal.animal_id,
+          },
+        });
+        dogsImported++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!msg.includes('Unique constraint')) {
+          errors.push(`Animal ${animal.animal_id}: ${msg}`);
+        }
+      }
+    }
+    logger.info(`Dashboard populate: ${dogsImported} dogs imported`);
+
+    // ---- Step 2: Create bookings from upcoming reservations ----
+    logger.info('Dashboard populate: Fetching upcoming reservations...');
+    let reservations: GingrReservation[] = [];
+    try {
+      reservations = await fetchUpcomingReservations();
+    } catch (error) {
+      errors.push(`Failed to fetch upcoming reservations: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Look up service types
+    const serviceTypes = await (prisma as any).serviceType.findMany({
+      where: { isActive: true },
+    });
+    const serviceTypeMap = new Map<string, any>();
+    for (const st of serviceTypes) {
+      serviceTypeMap.set(st.name, st);
+    }
+    const defaultServiceType = serviceTypeMap.get('daycare') || serviceTypes[0];
+
+    for (const reservation of reservations) {
+      try {
+        const ownerName = `${reservation.owner.first_name} ${reservation.owner.last_name}`.trim();
+        const customerId = await matchCustomer(
+          ownerName,
+          reservation.owner.email,
+          reservation.owner.cell_phone || reservation.owner.home_phone
+        );
+        if (!customerId) continue;
+
+        // Determine service type from reservation type and service names
+        let serviceType = defaultServiceType;
+        const resType = (reservation.reservation_type?.type || '').toLowerCase();
+        const serviceNames = (reservation.services || []).map(s => s.name.toLowerCase()).join(' ');
+
+        if (resType.includes('groom') || serviceNames.includes('groom')) {
+          serviceType = serviceTypeMap.get('grooming') || defaultServiceType;
+        } else if (resType.includes('board') || serviceNames.includes('board') || serviceNames.includes('overnight')) {
+          serviceType = serviceTypeMap.get('boarding') || defaultServiceType;
+        }
+
+        if (!serviceType) continue;
+
+        const bookingDate = new Date(reservation.start_date + 'T00:00:00Z');
+        const endDateRaw = reservation.end_date ? new Date(reservation.end_date + 'T00:00:00Z') : null;
+        const isMultiDay = endDateRaw && endDateRaw.getTime() > bookingDate.getTime();
+
+        // Skip if booking already exists for this customer/service/date
+        const existingBooking = await (prisma as any).booking.findFirst({
+          where: {
+            customerId,
+            serviceTypeId: serviceType.id,
+            date: bookingDate,
+            status: { not: 'cancelled' },
+          },
+        });
+        if (existingBooking) continue;
+
+        // Price: Gingr transaction price is in dollars → convert to cents
+        const totalCents = reservation.transaction?.price
+          ? Math.round(reservation.transaction.price * 100)
+          : serviceType.basePriceCents;
+
+        // Get dogs for this customer to link via BookingDog
+        const customerDogs = await prisma.dog.findMany({
+          where: { customerId },
+          select: { id: true },
+          take: 3,
+        });
+
+        await (prisma as any).booking.create({
+          data: {
+            customerId,
+            serviceTypeId: serviceType.id,
+            date: bookingDate,
+            startDate: isMultiDay ? bookingDate : null,
+            endDate: isMultiDay ? endDateRaw : null,
+            startTime: serviceType.name === 'grooming' ? '09:00' : '07:00',
+            status: 'confirmed',
+            totalCents,
+            notes: `Imported from Gingr reservation ${reservation.reservation_id}`,
+            ...(customerDogs.length > 0 ? {
+              dogs: {
+                create: customerDogs.map((d: { id: string }) => ({ dogId: d.id })),
+              },
+            } : {}),
+          },
+        });
+
+        bookingsCreated++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!msg.includes('Unique constraint')) {
+          errors.push(`Reservation ${reservation.reservation_id}: ${msg}`);
+        }
+      }
+    }
+    logger.info(`Dashboard populate: ${bookingsCreated} bookings created`);
+
+    // ---- Step 3: Create staff schedules for next 30 days ----
+    logger.info('Dashboard populate: Creating staff schedules...');
+    const staffUsers = await (prisma as any).staffUser.findMany({
+      select: { id: true, role: true, firstName: true, lastName: true },
+    });
+
+    const scheduleConfig: Record<string, { scheduleRole: string; startTime: string; endTime: string }> = {
+      owner: { scheduleRole: 'manager', startTime: '07:00', endTime: '17:00' },
+      admin: { scheduleRole: 'manager', startTime: '07:00', endTime: '17:00' },
+      manager: { scheduleRole: 'manager', startTime: '07:00', endTime: '17:00' },
+      staff: { scheduleRole: 'general', startTime: '07:00', endTime: '15:00' },
+      groomer: { scheduleRole: 'groomer', startTime: '08:00', endTime: '16:00' },
+    };
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    for (const staff of staffUsers) {
+      const config = scheduleConfig[staff.role] || scheduleConfig.staff;
+
+      for (let i = 0; i < 30; i++) {
+        const scheduleDate = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+
+        try {
+          await (prisma as any).staffSchedule.upsert({
+            where: {
+              staffUserId_date: {
+                staffUserId: staff.id,
+                date: scheduleDate,
+              },
+            },
+            update: {}, // Don't overwrite existing schedules
+            create: {
+              staffUserId: staff.id,
+              date: scheduleDate,
+              role: config.scheduleRole,
+              startTime: config.startTime,
+              endTime: config.endTime,
+            },
+          });
+          staffSchedulesCreated++;
+        } catch (error) {
+          // Silently skip duplicates
+        }
+      }
+    }
+    logger.info(`Dashboard populate: ${staffSchedulesCreated} staff schedules created`);
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        staffUserId: staffId,
+        action: 'populate_dashboard',
+        entityType: 'system',
+        entityId: 'dashboard',
+        details: {
+          dogsImported,
+          bookingsCreated,
+          staffSchedulesCreated,
+          errorCount: errors.length,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      dogsImported,
+      bookingsCreated,
+      staffSchedulesCreated,
+      errors: errors.slice(0, 20),
+    };
+  } catch (error) {
+    logger.error('Dashboard populate failed:', error);
+    return {
+      success: false,
+      dogsImported: 0,
+      bookingsCreated: 0,
+      staffSchedulesCreated: 0,
+      errors: [error instanceof Error ? error.message : 'Unknown error'],
+    };
+  }
+}
+
 /**
  * Get list of unclaimed customers (imported but not yet claimed)
  */
