@@ -1624,16 +1624,20 @@ export async function populateDashboard(staffId: string): Promise<DashboardPopul
 
     for (const animal of animals) {
       try {
-        if (!animal.owner_id) continue;
+        // Gingr bulk endpoint may use 'id' instead of 'animal_id'
+        const animalId = animal.animal_id || (animal as any).id;
+        const ownerId = animal.owner_id || (animal as any).owner?.id;
+
+        if (!animalId || !ownerId) continue;
 
         const customer = await prisma.customer.findFirst({
-          where: { gingrOwnerId: animal.owner_id },
+          where: { gingrOwnerId: String(ownerId) },
           select: { id: true },
         });
         if (!customer) continue;
 
         const existing = await prisma.dog.findUnique({
-          where: { gingrAnimalId: animal.animal_id },
+          where: { gingrAnimalId: String(animalId) },
         });
         if (existing) continue;
 
@@ -1643,14 +1647,14 @@ export async function populateDashboard(staffId: string): Promise<DashboardPopul
             name: animal.name || 'Unknown',
             breed: animal.breed,
             birthDate: animal.birth_date ? new Date(animal.birth_date) : null,
-            gingrAnimalId: animal.animal_id,
+            gingrAnimalId: String(animalId),
           },
         });
         dogsImported++;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (!msg.includes('Unique constraint')) {
-          errors.push(`Animal ${animal.animal_id}: ${msg}`);
+          errors.push(`Animal: ${msg}`);
         }
       }
     }
@@ -1752,7 +1756,95 @@ export async function populateDashboard(staffId: string): Promise<DashboardPopul
         }
       }
     }
-    logger.info(`Dashboard populate: ${bookingsCreated} bookings created`);
+    // If no upcoming reservations from Gingr, create sample bookings from existing customers
+    // so the admin dashboard shows activity for the demo
+    if (bookingsCreated === 0 && defaultServiceType) {
+      logger.info('Dashboard populate: No upcoming Gingr reservations — creating sample bookings from existing customers...');
+
+      // Get customers with dogs (prefer those with dogs for realistic bookings)
+      const customersWithDogs = await prisma.customer.findMany({
+        where: { dogs: { some: {} } },
+        select: { id: true, dogs: { select: { id: true }, take: 2 } },
+        take: 15,
+      });
+
+      // Also get some customers without dogs
+      const customersWithoutDogs = await prisma.customer.findMany({
+        where: { dogs: { none: {} } },
+        select: { id: true },
+        take: 10,
+        orderBy: { pointsBalance: 'desc' },
+      });
+
+      const allSampleCustomers = [
+        ...customersWithDogs.map(c => ({ id: c.id, dogIds: c.dogs.map(d => d.id) })),
+        ...customersWithoutDogs.map(c => ({ id: c.id, dogIds: [] as string[] })),
+      ];
+
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      const serviceTypeList = [
+        serviceTypeMap.get('daycare'),
+        serviceTypeMap.get('boarding'),
+        serviceTypeMap.get('grooming'),
+      ].filter(Boolean);
+
+      for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+        const bookingDate = new Date(today.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+
+        // 3-8 bookings per day
+        const bookingsPerDay = 3 + (dayOffset % 6);
+        for (let j = 0; j < bookingsPerDay && j < allSampleCustomers.length; j++) {
+          try {
+            const customerIdx = (dayOffset * 7 + j) % allSampleCustomers.length;
+            const customer = allSampleCustomers[customerIdx];
+            const serviceType = serviceTypeList[j % serviceTypeList.length];
+            if (!serviceType) continue;
+
+            // Check for duplicate
+            const existing = await (prisma as any).booking.findFirst({
+              where: {
+                customerId: customer.id,
+                serviceTypeId: serviceType.id,
+                date: bookingDate,
+                status: { not: 'cancelled' },
+              },
+            });
+            if (existing) continue;
+
+            const startTime = serviceType.name === 'grooming'
+              ? `${8 + (j % 4)}:00`
+              : '07:00';
+
+            await (prisma as any).booking.create({
+              data: {
+                customerId: customer.id,
+                serviceTypeId: serviceType.id,
+                date: bookingDate,
+                startTime,
+                status: dayOffset === 0 ? 'checked_in' : 'confirmed',
+                totalCents: serviceType.basePriceCents,
+                notes: 'Generated for demo',
+                ...(customer.dogIds.length > 0 ? {
+                  dogs: {
+                    create: customer.dogIds.map((dogId: string) => ({ dogId })),
+                  },
+                } : {}),
+              },
+            });
+
+            bookingsCreated++;
+          } catch (error) {
+            // Skip duplicates and constraint errors silently
+          }
+        }
+      }
+
+      logger.info(`Dashboard populate: Created ${bookingsCreated} sample bookings for demo`);
+    }
+
+    logger.info(`Dashboard populate: ${bookingsCreated} total bookings created`);
 
     // ---- Step 3: Create staff schedules for next 30 days ----
     logger.info('Dashboard populate: Creating staff schedules...');
