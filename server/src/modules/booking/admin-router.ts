@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { BookingService, BookingError } from './service';
-import { checkOutSchema, adminDateRangeSchema } from './types';
+import { checkOutSchema, adminDateRangeSchema, createBookingSchema, availabilityQuerySchema } from './types';
 import { prisma } from '../../lib/prisma';
 
 const router = Router();
@@ -17,6 +17,65 @@ router.get('/service-types', async (req: Request, res: Response): Promise<void> 
     res.json({ serviceTypes });
   } catch (error) {
     console.error('Get service types error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST / — create a booking (admin-side)
+router.post('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validation = createBookingSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation error', details: validation.error.issues });
+      return;
+    }
+
+    const { serviceTypeId, dogIds, date, startTime, notes } = validation.data;
+    const customerId = req.body.customerId as string;
+    if (!customerId) {
+      res.status(400).json({ error: 'customerId is required' });
+      return;
+    }
+
+    const booking = await bookingService.createBooking({
+      customerId,
+      serviceTypeId,
+      dogIds,
+      date,
+      startTime,
+      notes,
+    });
+
+    res.status(201).json({ booking });
+  } catch (error) {
+    if (error instanceof BookingError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('Create booking error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /availability — check availability for a service
+router.get('/availability', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validation = availabilityQuerySchema.safeParse(req.query);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation error', details: validation.error.issues });
+      return;
+    }
+
+    const { serviceTypeId, startDate, endDate } = validation.data;
+    const results = await bookingService.checkAvailability(
+      serviceTypeId,
+      new Date(startDate + 'T00:00:00Z'),
+      new Date(endDate + 'T00:00:00Z')
+    );
+
+    res.json({ availability: results });
+  } catch (error) {
+    console.error('Availability check error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

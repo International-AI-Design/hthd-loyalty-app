@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminDashboardApi, adminBookingApi } from '../lib/api';
+import { ServiceDrilldownModal } from '../components/dashboard/ServiceDrilldownModal';
+import { WeatherWidget } from '../components/dashboard/WeatherWidget';
+import { QuickBookModal } from '../components/booking/QuickBookModal';
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
@@ -100,6 +103,12 @@ export function DashboardPage() {
 
   // Mobile tab for arrivals/departures
   const [activeTab, setActiveTab] = useState<'arrivals' | 'departures'>('arrivals');
+
+  // Drilldown modal state
+  const [drilldownService, setDrilldownService] = useState<'daycare' | 'boarding' | 'grooming' | null>(null);
+
+  // QuickBook modal state
+  const [isQuickBookOpen, setIsQuickBookOpen] = useState(false);
 
   const isToday = selectedDate === formatDate(new Date());
 
@@ -218,6 +227,7 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <WeatherWidget />
           <input
             type="date"
             value={selectedDate}
@@ -279,20 +289,29 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Service breakdown */}
+              {/* Service breakdown — clickable for drilldown */}
               <div className={`grid grid-cols-3 gap-3 p-3 rounded-lg ${capacityBgColor(capacityPct)}`}>
-                <div className="text-center">
+                <button
+                  onClick={() => setDrilldownService('daycare')}
+                  className="text-center cursor-pointer hover:bg-white/60 rounded-lg p-2 transition-colors"
+                >
                   <div className="text-lg font-bold text-[#1B365D]">{facility.daycare}</div>
                   <div className="text-xs text-gray-500">Daycare</div>
-                </div>
-                <div className="text-center border-x border-gray-200">
+                </button>
+                <button
+                  onClick={() => setDrilldownService('boarding')}
+                  className="text-center border-x border-gray-200 cursor-pointer hover:bg-white/60 rounded-lg p-2 transition-colors"
+                >
                   <div className="text-lg font-bold text-[#1B365D]">{facility.boarding}</div>
                   <div className="text-xs text-gray-500">Boarding</div>
-                </div>
-                <div className="text-center">
+                </button>
+                <button
+                  onClick={() => setDrilldownService('grooming')}
+                  className="text-center cursor-pointer hover:bg-white/60 rounded-lg p-2 transition-colors"
+                >
                   <div className="text-lg font-bold text-[#1B365D]">{facility.grooming}</div>
                   <div className="text-xs text-gray-500">Grooming</div>
-                </div>
+                </button>
               </div>
             </>
           )}
@@ -637,7 +656,19 @@ export function DashboardPage() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+        <button
+          onClick={() => setIsQuickBookOpen(true)}
+          className="flex flex-col items-center justify-center p-4 sm:p-5 bg-[#62A2C3] rounded-xl shadow-sm border border-[#62A2C3] hover:bg-[#4F8BA8] hover:shadow-md transition-all min-h-[100px] group"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-2 group-hover:bg-white/30 transition-colors">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-white">New Booking</span>
+        </button>
+
         <button
           onClick={() => navigate('/staff-schedule')}
           className="flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[#62A2C3]/30 hover:shadow-md transition-all min-h-[100px] group"
@@ -686,6 +717,26 @@ export function DashboardPage() {
           <span className="text-sm font-medium text-[#1B365D]">Report Cards</span>
         </button>
       </div>
+
+      {/* Drilldown Modal */}
+      {drilldownService && (
+        <ServiceDrilldownModal
+          isOpen={!!drilldownService}
+          onClose={() => setDrilldownService(null)}
+          service={drilldownService}
+          date={selectedDate}
+        />
+      )}
+
+      {/* QuickBook Modal */}
+      <QuickBookModal
+        isOpen={isQuickBookOpen}
+        onClose={() => setIsQuickBookOpen(false)}
+        onBookingCreated={() => {
+          fetchFacility();
+          fetchArrivals();
+        }}
+      />
     </div>
   );
 }

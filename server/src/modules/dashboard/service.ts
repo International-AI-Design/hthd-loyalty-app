@@ -251,6 +251,69 @@ export class DashboardService {
   }
 
   /**
+   * Facility details: dog-level breakdown for a specific service on a specific date.
+   * Used by the drilldown modal when clicking on a service count.
+   */
+  async getFacilityDetails(date: string, serviceType: 'daycare' | 'boarding' | 'grooming') {
+    const dateObj = new Date(date + 'T00:00:00Z');
+
+    // Look up the service type by name
+    const svc = await (prisma as any).serviceType.findUnique({
+      where: { name: serviceType },
+    });
+    if (!svc) {
+      return { dogs: [] };
+    }
+
+    // Find all bookings for this date + service that are confirmed or checked in
+    const bookings = await (prisma as any).booking.findMany({
+      where: {
+        serviceTypeId: svc.id,
+        status: { in: FACILITY_STATUSES },
+        OR: [
+          { startDate: null, date: dateObj },
+          { AND: [{ startDate: { not: null } }, { startDate: { lte: dateObj } }, { endDate: { gte: dateObj } }] },
+        ],
+      },
+      include: {
+        customer: { select: { id: true, firstName: true, lastName: true } },
+        dogs: {
+          include: {
+            dog: {
+              select: {
+                id: true,
+                name: true,
+                breed: true,
+                sizeCategory: true,
+                photoUrl: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    // Flatten to dog-level detail
+    const dogs = bookings.flatMap((booking: any) =>
+      booking.dogs.map((bd: any) => ({
+        dogName: bd.dog.name,
+        dogId: bd.dog.id,
+        breed: bd.dog.breed,
+        sizeCategory: bd.dog.sizeCategory,
+        photoUrl: bd.dog.photoUrl,
+        ownerName: `${booking.customer.firstName} ${booking.customer.lastName}`,
+        ownerId: booking.customer.id,
+        checkInTime: booking.startTime,
+        status: booking.status,
+        notes: bd.notes,
+      }))
+    );
+
+    return { dogs, count: dogs.length };
+  }
+
+  /**
    * Full dashboard summary combining all data for a given date.
    */
   async getDashboardSummary(date: string) {

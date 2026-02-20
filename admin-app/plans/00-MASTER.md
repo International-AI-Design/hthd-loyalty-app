@@ -85,8 +85,8 @@ production/happy-tail/
 ## Completion Tracker
 
 - [x] Segment 1: Design System + Button Fix
-- [ ] Segment 2: Legacy Page Migration
-- [ ] Segment 3: Interactive Dashboard
+- [x] Segment 2: Legacy Page Migration
+- [x] Segment 3: Interactive Dashboard
 - [ ] Segment 4: AIM Backend
 - [ ] Segment 5: AIM Frontend
 - [ ] Segment 6: Staff Enhancements + Polish

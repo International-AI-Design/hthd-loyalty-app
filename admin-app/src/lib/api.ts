@@ -711,6 +711,26 @@ export interface ServiceTypesResponse {
   serviceTypes: ServiceType[];
 }
 
+export interface AvailabilityDay {
+  date: string;
+  available: boolean;
+  spotsRemaining: number;
+  totalCapacity: number;
+}
+
+export interface AvailabilityResponse {
+  availability: AvailabilityDay[];
+}
+
+export interface CreateBookingRequest {
+  customerId: string;
+  serviceTypeId: string;
+  dogIds: string[];
+  date: string;
+  startTime?: string;
+  notes?: string;
+}
+
 export const adminBookingApi = {
   getServiceTypes: () =>
     api.get<ServiceTypesResponse>('/v2/admin/bookings/service-types'),
@@ -727,6 +747,12 @@ export const adminBookingApi = {
     api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/check-out`, {}),
   markNoShow: (bookingId: string) =>
     api.post<{ booking: AdminBooking }>(`/v2/admin/bookings/${bookingId}/no-show`, {}),
+  create: (data: CreateBookingRequest) =>
+    api.post<{ booking: AdminBooking }>('/v2/admin/bookings', data),
+  checkAvailability: (serviceTypeId: string, startDate: string, endDate: string) =>
+    api.get<AvailabilityResponse>(
+      `/v2/admin/bookings/availability?serviceTypeId=${serviceTypeId}&startDate=${startDate}&endDate=${endDate}`
+    ),
 };
 
 export const adminGroomingApi = {
@@ -787,6 +813,25 @@ export const adminCheckoutApi = {
     api.post<CheckoutResponse>('/v2/admin/checkout/process', data),
 };
 
+// Facility detail types
+export interface FacilityDetailDog {
+  dogName: string;
+  dogId: string;
+  breed: string | null;
+  sizeCategory: string | null;
+  photoUrl: string | null;
+  ownerName: string;
+  ownerId: string;
+  checkInTime: string | null;
+  status: string;
+  notes: string | null;
+}
+
+export interface FacilityDetailsResponse {
+  dogs: FacilityDetailDog[];
+  count: number;
+}
+
 // Dashboard APIs
 export const adminDashboardApi = {
   getSummary: (date?: string) => api.get<any>(`/v2/admin/dashboard${date ? `?date=${date}` : ''}`),
@@ -795,6 +840,8 @@ export const adminDashboardApi = {
   getStaff: (date?: string) => api.get<any>(`/v2/admin/dashboard/staff${date ? `?date=${date}` : ''}`),
   getCompliance: () => api.get<any>('/v2/admin/dashboard/compliance'),
   getWeekly: (startDate: string) => api.get<any>(`/v2/admin/dashboard/weekly?startDate=${startDate}`),
+  getFacilityDetails: (date: string, service: string) =>
+    api.get<FacilityDetailsResponse>(`/v2/admin/dashboard/facility-details?date=${date}&service=${service}`),
 };
 
 // Staff Schedule APIs

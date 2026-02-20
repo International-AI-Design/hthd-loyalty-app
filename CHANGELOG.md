@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.13] - Interactive Dashboard (Segment 3) - 2026-02-19
+
+### Backend
+- **Facility details endpoint** — `GET /v2/admin/dashboard/facility-details?date=&service=` returns dog-level breakdown (name, breed, owner, check-in time) for daycare/boarding/grooming on a given date
+- **Admin booking creation** — `POST /v2/admin/bookings` allows staff to create bookings directly (was previously missing; BookingService methods existed but had no route)
+- **Availability check endpoint** — `GET /v2/admin/bookings/availability` for live capacity checking in the QuickBook modal
+
+### Frontend — 6 New Components
+- **ServiceDrilldownModal** — Click any service count on dashboard to see every dog in that service, with breed, owner, check-in time; each row navigates to customer detail
+- **DogProfileCard** — Compact card with avatar/initials, breed, size, owner name, vaccination status dot (green/amber/red), clickable to customer profile
+- **CustomerQuickCard** — Customer summary with points badge, quick actions (Call via `tel:`, Message, View Profile)
+- **StaffProfileCard** — Staff card with role badge, shift times, optional dog count
+- **QuickBookModal** — 5-step booking flow: search customer → select dogs → choose service → pick date (live availability) → confirm & create
+- **WeatherWidget** — Compact Denver weather in dashboard header; 30-min sessionStorage cache; hidden if no `VITE_OPENWEATHER_API_KEY`
+
+### Dashboard Integration
+- Service counts (Daycare/Boarding/Grooming) are now clickable buttons that open drilldown modals
+- "New Booking" primary quick action button added (blue, prominent)
+- WeatherWidget renders in header next to date picker
+- QuickBook triggers facility/arrivals refresh on booking creation
+- Grid updated from 4-col to 5-col quick actions to accommodate New Booking
+
+### TypeScript
+- Both `admin-app` and `server` pass `npx tsc --noEmit` clean
+
+## [2.0.0-alpha.12] - Admin Design System Segments 1 & 2 - 2026-02-19
+
+### Design System (Segment 1)
+- **8 shared UI components** — PageHeader, Card, Spinner, Skeleton, Badge, DataTable, EmptyState added to `admin-app/src/components/ui/`
+- **Button brand fix** — Primary button color updated from green to brand-blue (#62A2C3)
+- **Brand tokens** — All components use HTHD brand colors (blue, navy, cream, coral, golden-yellow, soft-green)
+
+### Legacy Page Migration (Segment 2)
+- **LoginPage** — Navy gradient background, Playfair Display heading, "Staff Portal" subtitle, brand-blue accents
+- **CustomersPage** — PageHeader, Card, Spinner, EmptyState, Badge; removed duplicate header/logout; green → brand-blue
+- **GingrSyncPage** — PageHeader, Card, Spinner, Badge, EmptyState; all sections wrapped in Cards; green → brand-blue/soft-green
+- **LoyaltyPage** — PageHeader, Card, EmptyState; green gradient → brand-blue gradient; removed standalone sign-out footer
+- **CustomerDetailPage refactor** — 1,190 lines → 197 lines + 7 sub-components:
+  - `CustomerHeader.tsx` — Name, contact, points balance, action buttons
+  - `CustomerDogs.tsx` — Dog cards with vaccination badges, behavior note modal
+  - `CustomerBookings.tsx` — Upcoming/history with status badges, pagination
+  - `CustomerTransactions.tsx` — Points transaction log with load more
+  - `CustomerRedemptions.tsx` — Pending (golden-yellow) and completed redemptions
+  - `AddPointsModal.tsx` — Dollar input, service type, points preview with grooming bonus
+  - `RedeemModal.tsx` — Tier selection, confirmation, processing flow
+- **Zero green color classes** remaining in any migrated page
+- **All pages use PageHeader** — no custom `<h1>` headers
+- **TypeScript clean** — `npx tsc --noEmit` passes with zero errors
+
 ## [2.0.0-alpha.11] - Security Hardening + Full Gingr Import - 2026-02-18
 
 ### Security

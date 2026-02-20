@@ -63,6 +63,25 @@ router.get('/staff', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// GET /facility-details — dog-level breakdown for a specific service
+router.get('/facility-details', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const dateStr = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const service = req.query.service as string;
+
+    if (!service || !['daycare', 'boarding', 'grooming'].includes(service)) {
+      res.status(400).json({ error: 'service must be one of: daycare, boarding, grooming' });
+      return;
+    }
+
+    const data = await dashboardService.getFacilityDetails(dateStr, service as 'daycare' | 'boarding' | 'grooming');
+    res.json(data);
+  } catch (error) {
+    console.error('Facility details error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /compliance — compliance flags
 router.get('/compliance', async (req: Request, res: Response): Promise<void> => {
   try {
