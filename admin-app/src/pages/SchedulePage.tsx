@@ -4,12 +4,12 @@ import type { AdminBooking, BookingDog } from '../lib/api';
 import { PaymentModal } from '../components/PaymentModal';
 
 const STATUS_COLORS: Record<AdminBooking['status'], { bg: string; text: string; label: string }> = {
-  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  confirmed: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Confirmed' },
-  checked_in: { bg: 'bg-green-100', text: 'text-green-800', label: 'Checked In' },
+  pending: { bg: 'bg-[#F5C65D]/20', text: 'text-[#B8941F]', label: 'Pending' },
+  confirmed: { bg: 'bg-[#62A2C3]/15', text: 'text-[#4F8BA8]', label: 'Confirmed' },
+  checked_in: { bg: 'bg-[#7FB685]/15', text: 'text-[#5A9A62]', label: 'Checked In' },
   checked_out: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Checked Out' },
-  cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' },
-  no_show: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'No Show' },
+  cancelled: { bg: 'bg-[#E8837B]/15', text: 'text-[#E8837B]', label: 'Cancelled' },
+  no_show: { bg: 'bg-[#F5C65D]/20', text: 'text-[#B8941F]', label: 'No Show' },
 };
 
 const SERVICE_FILTERS = [
@@ -354,7 +354,7 @@ export function SchedulePage() {
                     <>
                       <button
                         onClick={() => handleAction(booking.id, 'confirm')}
-                        className="flex-1 min-w-[120px] min-h-[44px] px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        className="flex-1 min-w-[120px] min-h-[44px] px-4 py-2.5 bg-[#62A2C3] text-white rounded-lg font-medium hover:bg-[#4F8BA8] transition-colors"
                       >
                         Confirm
                       </button>
@@ -369,7 +369,7 @@ export function SchedulePage() {
                       </button>
                       <button
                         onClick={() => setNoShowConfirm(booking)}
-                        className="min-h-[44px] px-4 py-2.5 bg-white border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors"
+                        className="min-h-[44px] px-4 py-2.5 bg-white border border-[#E8837B]/30 text-[#E8837B] rounded-lg font-medium hover:bg-[#E8837B]/5 transition-colors"
                       >
                         No-Show
                       </button>
@@ -379,7 +379,7 @@ export function SchedulePage() {
                     <>
                       <button
                         onClick={() => handleAction(booking.id, 'checkIn')}
-                        className="flex-1 min-w-[120px] min-h-[44px] px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                        className="flex-1 min-w-[120px] min-h-[44px] px-4 py-2.5 bg-[#7FB685] text-white rounded-lg font-medium hover:bg-[#6B9E71] transition-colors"
                       >
                         Check In
                       </button>
@@ -394,7 +394,7 @@ export function SchedulePage() {
                       </button>
                       <button
                         onClick={() => setNoShowConfirm(booking)}
-                        className="min-h-[44px] px-4 py-2.5 bg-white border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors"
+                        className="min-h-[44px] px-4 py-2.5 bg-white border border-[#E8837B]/30 text-[#E8837B] rounded-lg font-medium hover:bg-[#E8837B]/5 transition-colors"
                       >
                         No-Show
                       </button>
@@ -426,7 +426,7 @@ export function SchedulePage() {
             <p className="text-sm text-gray-500 mb-4">
               {noShowConfirm.dogs.map(d => d.dog.name).join(', ')} &mdash; {noShowConfirm.serviceType.displayName}
             </p>
-            <p className="text-xs text-orange-600 mb-5">This action cannot be undone.</p>
+            <p className="text-xs text-[#E8837B] mb-5">This action cannot be undone.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setNoShowConfirm(null)}
@@ -439,7 +439,7 @@ export function SchedulePage() {
                   await handleAction(noShowConfirm.id, 'noShow');
                   setNoShowConfirm(null);
                 }}
-                className="flex-1 min-h-[44px] px-4 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors"
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-[#E8837B] text-white rounded-lg font-medium hover:bg-[#D6706A] transition-colors"
               >
                 Confirm No-Show
               </button>

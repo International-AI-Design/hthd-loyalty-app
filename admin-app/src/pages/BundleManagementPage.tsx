@@ -205,7 +205,7 @@ export function BundleManagementPage() {
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         bundle.isActive
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-[#7FB685]/15 text-[#5A9A62]'
                           : 'bg-gray-100 text-gray-500'
                       }`}
                     >

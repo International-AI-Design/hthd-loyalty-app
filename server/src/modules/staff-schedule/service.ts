@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { ScheduleCreate, ScheduleUpdate } from './types';
+import { ScheduleCreate, ScheduleUpdate, BreakCreate } from './types';
 
 // Active booking statuses that count toward dog capacity
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'checked_in'];
@@ -18,6 +18,7 @@ export class StaffScheduleService {
         staffUser: {
           select: { id: true, firstName: true, lastName: true, role: true, isActive: true },
         },
+        breaks: { orderBy: { startTime: 'asc' } },
       },
       orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }],
     });
@@ -38,6 +39,7 @@ export class StaffScheduleService {
         staffUser: {
           select: { id: true, firstName: true, lastName: true, role: true, isActive: true },
         },
+        breaks: { orderBy: { startTime: 'asc' } },
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -183,6 +185,7 @@ export class StaffScheduleService {
         staffUser: {
           select: { id: true, firstName: true, lastName: true, role: true, isActive: true },
         },
+        breaks: { orderBy: { startTime: 'asc' } },
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -210,6 +213,12 @@ export class StaffScheduleService {
           startTime: schedule.startTime,
           endTime: schedule.endTime,
           notes: schedule.notes,
+          breaks: (schedule.breaks ?? []).map((b: any) => ({
+            id: b.id,
+            startTime: b.startTime,
+            endTime: b.endTime,
+            type: b.type,
+          })),
         });
       }
     }
@@ -253,6 +262,49 @@ export class StaffScheduleService {
       dogsBooked,
       ratio: Math.round(ratio * 10) / 10,
     };
+  }
+
+  // ── Staff Break Methods ──
+
+  /**
+   * Add a break to a schedule entry.
+   */
+  async addBreak(staffScheduleId: string, data: BreakCreate) {
+    const schedule = await (prisma as any).staffSchedule.findUnique({ where: { id: staffScheduleId } });
+    if (!schedule) {
+      throw new ScheduleError('Schedule entry not found', 404);
+    }
+
+    return (prisma as any).staffBreak.create({
+      data: {
+        staffScheduleId,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        type: data.type,
+      },
+    });
+  }
+
+  /**
+   * Remove a break by ID.
+   */
+  async removeBreak(breakId: string) {
+    const existing = await (prisma as any).staffBreak.findUnique({ where: { id: breakId } });
+    if (!existing) {
+      throw new ScheduleError('Break not found', 404);
+    }
+
+    return (prisma as any).staffBreak.delete({ where: { id: breakId } });
+  }
+
+  /**
+   * List breaks for a schedule entry.
+   */
+  async getBreaks(staffScheduleId: string) {
+    return (prisma as any).staffBreak.findMany({
+      where: { staffScheduleId },
+      orderBy: { startTime: 'asc' },
+    });
   }
 
   /**

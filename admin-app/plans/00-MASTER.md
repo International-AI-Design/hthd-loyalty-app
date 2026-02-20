@@ -88,5 +88,5 @@ production/happy-tail/
 - [x] Segment 2: Legacy Page Migration
 - [x] Segment 3: Interactive Dashboard
 - [x] Segment 4: AIM Backend
-- [ ] Segment 5: AIM Frontend
-- [ ] Segment 6: Staff Enhancements + Polish
+- [x] Segment 5: AIM Frontend
+- [x] Segment 6: Staff Enhancements + Polish

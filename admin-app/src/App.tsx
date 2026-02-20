@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { AimProvider } from './contexts/AimContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
+import { NotificationToast } from './components/notifications/NotificationToast';
 import {
   LoginPage,
   DashboardPage,
@@ -23,7 +26,10 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <AimProvider>
+        <NotificationProvider>
         <ErrorBoundary>
+        <NotificationToast />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -151,6 +157,8 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
         </ErrorBoundary>
+        </NotificationProvider>
+        </AimProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -258,7 +258,7 @@ export function GroomingPricingPage() {
                           onClick={() => handleStartEdit(tier.id, 'price', tier.priceCents)}
                           className={`w-full text-center rounded-lg p-2 transition-colors ${
                             justSaved
-                              ? 'bg-green-50 ring-2 ring-green-400'
+                              ? 'bg-[#7FB685]/10 ring-2 ring-[#7FB685]'
                               : 'hover:bg-brand-cream'
                           }`}
                         >
@@ -297,7 +297,7 @@ export function GroomingPricingPage() {
                 return (
                   <div
                     key={condition}
-                    className={`px-4 py-3 ${justSaved ? 'bg-green-50' : ''}`}
+                    className={`px-4 py-3 ${justSaved ? 'bg-[#7FB685]/10' : ''}`}
                   >
                     <div className="flex items-center justify-between">
                       <div>

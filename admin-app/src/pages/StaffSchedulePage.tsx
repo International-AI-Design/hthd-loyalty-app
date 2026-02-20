@@ -43,6 +43,13 @@ function formatTime(time: string): string {
   return time;
 }
 
+interface StaffBreak {
+  id: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+}
+
 interface ScheduleShift {
   id: string;
   staffUserId: string;
@@ -51,6 +58,7 @@ interface ScheduleShift {
   startTime: string;
   endTime: string;
   role: string;
+  breaks: StaffBreak[];
 }
 
 interface CoverageData {
@@ -87,6 +95,13 @@ export function StaffSchedulePage() {
   const [formRole, setFormRole] = useState('staff');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Break form state
+  const [showBreakForm, setShowBreakForm] = useState<string | null>(null); // scheduleId
+  const [breakStartTime, setBreakStartTime] = useState('12:00');
+  const [breakEndTime, setBreakEndTime] = useState('13:00');
+  const [breakType, setBreakType] = useState('lunch');
+  const [isBreakSubmitting, setIsBreakSubmitting] = useState(false);
 
   // Mobile day view
   const [mobileSelectedDay, setMobileSelectedDay] = useState(0); // 0-6 for Mon-Sun
@@ -201,6 +216,32 @@ export function StaffSchedulePage() {
   const handleDeleteShift = async (shiftId: string) => {
     if (!confirm('Delete this shift?')) return;
     const result = await adminScheduleApi.delete(shiftId);
+    if (!result.error) {
+      fetchWeekData();
+    }
+  };
+
+  const handleAddBreak = async (scheduleId: string) => {
+    if (!breakStartTime || !breakEndTime) return;
+    setIsBreakSubmitting(true);
+    const result = await adminScheduleApi.addBreak(scheduleId, {
+      startTime: breakStartTime,
+      endTime: breakEndTime,
+      type: breakType,
+    });
+    setIsBreakSubmitting(false);
+    if (!result.error) {
+      setShowBreakForm(null);
+      setBreakStartTime('12:00');
+      setBreakEndTime('13:00');
+      setBreakType('lunch');
+      fetchWeekData();
+    }
+  };
+
+  const handleRemoveBreak = async (breakId: string) => {
+    if (!confirm('Remove this break?')) return;
+    const result = await adminScheduleApi.removeBreak(breakId);
     if (!result.error) {
       fetchWeekData();
     }
@@ -374,18 +415,29 @@ export function StaffSchedulePage() {
                             {cellShifts.length > 0 ? (
                               <div className="space-y-1">
                                 {cellShifts.map((shift) => (
-                                  <button
-                                    key={shift.id}
-                                    onClick={() => openEditModal(shift)}
-                                    className="w-full text-left px-2 py-1.5 rounded-md bg-[#1B365D]/8 hover:bg-[#1B365D]/15 transition-colors group"
-                                  >
-                                    <div className="text-xs font-medium text-[#1B365D]">
-                                      {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
-                                    </div>
-                                    <div className="text-xs text-gray-400 capitalize">
-                                      {shift.role}
-                                    </div>
-                                  </button>
+                                  <div key={shift.id}>
+                                    <button
+                                      onClick={() => openEditModal(shift)}
+                                      className="w-full text-left px-2 py-1.5 rounded-md bg-[#1B365D]/8 hover:bg-[#1B365D]/15 transition-colors group"
+                                    >
+                                      <div className="text-xs font-medium text-[#1B365D]">
+                                        {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                                      </div>
+                                      <div className="text-xs text-gray-400 capitalize">
+                                        {shift.role}
+                                      </div>
+                                    </button>
+                                    {shift.breaks?.length > 0 && (
+                                      <div className="mt-0.5 space-y-0.5">
+                                        {shift.breaks.map((b) => (
+                                          <div key={b.id} className="flex items-center gap-1 px-2 text-[10px] text-gray-400">
+                                            <span className="capitalize">{b.type}</span>
+                                            <span>{formatTime(b.startTime)}-{formatTime(b.endTime)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 ))}
                               </div>
                             ) : (
@@ -492,53 +544,138 @@ export function StaffSchedulePage() {
                     {dayShifts.map((shift) => (
                       <div
                         key={shift.id}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100"
+                        className="p-3 rounded-lg border border-gray-100"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-[#62A2C3]/15 flex items-center justify-center">
-                            <span className="text-xs font-semibold text-[#1B365D]">
-                              {shift.staffName
-                                .split(' ')
-                                .map((n) => n[0])
-                                .join('')
-                                .toUpperCase()}
-                            </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[#62A2C3]/15 flex items-center justify-center">
+                              <span className="text-xs font-semibold text-[#1B365D]">
+                                {shift.staffName
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{shift.staffName}</p>
+                              <p className="text-xs text-gray-500 capitalize">{shift.role}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{shift.staffName}</p>
-                            <p className="text-xs text-gray-500 capitalize">{shift.role}</p>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-[#1B365D]">
+                                {formatTime(shift.startTime)}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {formatTime(shift.endTime)}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => openEditModal(shift)}
+                                className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                                title="Edit shift"
+                              >
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteShift(shift.id)}
+                                className="p-1.5 rounded hover:bg-red-50 transition-colors"
+                                title="Delete shift"
+                              >
+                                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-[#1B365D]">
-                              {formatTime(shift.startTime)}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {formatTime(shift.endTime)}
-                            </p>
+
+                        {/* Breaks */}
+                        {shift.breaks?.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-50 space-y-1">
+                            {shift.breaks.map((b) => (
+                              <div key={b.id} className="flex items-center justify-between text-xs text-gray-500 pl-12">
+                                <span>
+                                  <span className="capitalize font-medium">{b.type}</span>
+                                  {' '}{formatTime(b.startTime)} - {formatTime(b.endTime)}
+                                </span>
+                                <button
+                                  onClick={() => handleRemoveBreak(b.id)}
+                                  className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Remove break"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex flex-col gap-1">
+                        )}
+
+                        {/* Add break inline form */}
+                        {showBreakForm === shift.id ? (
+                          <div className="mt-2 pt-2 border-t border-gray-50 pl-12">
+                            <div className="flex items-end gap-2 flex-wrap">
+                              <div>
+                                <label className="block text-[10px] text-gray-400 mb-0.5">Type</label>
+                                <select
+                                  value={breakType}
+                                  onChange={(e) => setBreakType(e.target.value)}
+                                  className="px-2 py-1.5 border border-gray-200 rounded text-xs min-h-[36px]"
+                                >
+                                  <option value="lunch">Lunch</option>
+                                  <option value="short">Short</option>
+                                  <option value="personal">Personal</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-gray-400 mb-0.5">Start</label>
+                                <input
+                                  type="time"
+                                  value={breakStartTime}
+                                  onChange={(e) => setBreakStartTime(e.target.value)}
+                                  className="px-2 py-1.5 border border-gray-200 rounded text-xs min-h-[36px]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-gray-400 mb-0.5">End</label>
+                                <input
+                                  type="time"
+                                  value={breakEndTime}
+                                  onChange={(e) => setBreakEndTime(e.target.value)}
+                                  className="px-2 py-1.5 border border-gray-200 rounded text-xs min-h-[36px]"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleAddBreak(shift.id)}
+                                disabled={isBreakSubmitting}
+                                className="px-3 py-1.5 bg-[#62A2C3] text-white rounded text-xs font-medium hover:bg-[#5191b0] disabled:opacity-50 min-h-[36px]"
+                              >
+                                {isBreakSubmitting ? '...' : 'Add'}
+                              </button>
+                              <button
+                                onClick={() => setShowBreakForm(null)}
+                                className="px-2 py-1.5 text-gray-500 text-xs min-h-[36px]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 pt-2 border-t border-gray-50">
                             <button
-                              onClick={() => openEditModal(shift)}
-                              className="p-1.5 rounded hover:bg-gray-100 transition-colors"
-                              title="Edit shift"
+                              onClick={() => setShowBreakForm(shift.id)}
+                              className="text-xs text-[#62A2C3] hover:text-[#4F8BA8] font-medium ml-12 min-h-[32px]"
                             >
-                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteShift(shift.id)}
-                              className="p-1.5 rounded hover:bg-red-50 transition-colors"
-                              title="Delete shift"
-                            >
-                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              + Add Break
                             </button>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>

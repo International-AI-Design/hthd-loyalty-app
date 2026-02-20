@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminMessagingApi } from '../lib/api';
+import { AimButton } from './aim/AimButton';
+import { AimDrawer } from './aim/AimDrawer';
 
 const NAV_ITEMS = [
   {
@@ -267,6 +269,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* AIM floating button + drawer */}
+      <AimButton />
+      <AimDrawer />
     </div>
   );
 }

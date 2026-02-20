@@ -1,6 +1,6 @@
 # Segment 5: AIM Frontend
 
-> **Status:** Not started
+> **Status:** Complete
 > **Dependencies:** Segment 4 (AIM backend must be deployed)
 > **Blocks:** Segment 6
 

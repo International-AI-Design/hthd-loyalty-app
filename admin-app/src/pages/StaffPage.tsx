@@ -12,8 +12,8 @@ const ROLE_OPTIONS = [
 ];
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  owner: { bg: 'bg-purple-100', text: 'text-purple-800' },
-  admin: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  owner: { bg: 'bg-[#1B365D]/10', text: 'text-[#1B365D]' },
+  admin: { bg: 'bg-[#62A2C3]/15', text: 'text-[#4F8BA8]' },
   manager: { bg: 'bg-brand-cream', text: 'text-brand-navy' },
   staff: { bg: 'bg-gray-100', text: 'text-gray-700' },
 };
@@ -196,7 +196,7 @@ export function StaffPage() {
                   <td className="px-4 py-3">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                       member.is_active
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-[#7FB685]/15 text-[#5A9A62]'
                         : 'bg-red-100 text-red-800'
                     }`}>
                       {member.is_active ? 'Active' : 'Inactive'}
@@ -230,7 +230,7 @@ export function StaffPage() {
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                   member.is_active
-                    ? 'bg-green-100 text-green-800'
+                    ? 'bg-[#7FB685]/15 text-[#5A9A62]'
                     : 'bg-red-100 text-red-800'
                 }`}>
                   {member.is_active ? 'Active' : 'Inactive'}

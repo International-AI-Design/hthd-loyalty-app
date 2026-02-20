@@ -5,8 +5,10 @@ import { AimAlertData } from './types';
 
 const dashboardService = new DashboardService();
 
-const STAFF_TO_DOG_RATIO_THRESHOLD = 8;
-const CAPACITY_WARNING_PERCENT = 80;
+const STAFF_TO_DOG_WARNING_RATIO = 8;
+const STAFF_TO_DOG_CRITICAL_RATIO = 12;
+const CAPACITY_INFO_PERCENT = 80;
+const CAPACITY_WARNING_PERCENT = 90;
 const CAPACITY_CRITICAL_PERCENT = 95;
 
 /**
@@ -75,12 +77,20 @@ export async function checkStaffingGaps(
       });
     } else if (staffData.count > 0 && facility.totalDogs > 0) {
       const ratio = facility.totalDogs / staffData.count;
-      if (ratio > STAFF_TO_DOG_RATIO_THRESHOLD) {
+      if (ratio > STAFF_TO_DOG_CRITICAL_RATIO) {
+        alerts.push({
+          type: 'staffing_gap',
+          severity: 'critical',
+          title: 'Critical dog-to-staff ratio',
+          description: `Ratio is 1:${Math.round(ratio)} (${facility.totalDogs} dogs, ${staffData.count} staff). Maximum safe ratio is 1:${STAFF_TO_DOG_CRITICAL_RATIO}.`,
+          data: { date, totalDogs: facility.totalDogs, staffCount: staffData.count, ratio },
+        });
+      } else if (ratio > STAFF_TO_DOG_WARNING_RATIO) {
         alerts.push({
           type: 'staffing_gap',
           severity: 'warning',
           title: 'High dog-to-staff ratio',
-          description: `Ratio is 1:${Math.round(ratio)} (${facility.totalDogs} dogs, ${staffData.count} staff). Target is 1:${STAFF_TO_DOG_RATIO_THRESHOLD} or better.`,
+          description: `Ratio is 1:${Math.round(ratio)} (${facility.totalDogs} dogs, ${staffData.count} staff). Target is 1:${STAFF_TO_DOG_WARNING_RATIO} or better.`,
           data: { date, totalDogs: facility.totalDogs, staffCount: staffData.count, ratio },
         });
       }
@@ -94,29 +104,50 @@ export async function checkStaffingGaps(
 
 /**
  * Check for capacity warnings: facility at or near max.
+ * Checks the given date plus the next 6 days (7-day forecast).
  */
 export async function checkCapacity(date: string): Promise<AimAlertData[]> {
   const alerts: AimAlertData[] = [];
 
   try {
-    const facility = await dashboardService.getFacilityStatus(date);
+    // Check today + next 6 days
+    const startDate = new Date(date + 'T00:00:00Z');
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(startDate);
+      checkDate.setDate(checkDate.getDate() + i);
+      const dateStr = checkDate.toISOString().split('T')[0];
 
-    if (facility.capacityPercent >= CAPACITY_CRITICAL_PERCENT) {
-      alerts.push({
-        type: 'capacity_warning',
-        severity: 'critical',
-        title: 'At or near full capacity',
-        description: `Facility is at ${facility.capacityPercent}% capacity (${facility.totalDogs}/${facility.maxCapacity} dogs) on ${date}.`,
-        data: { date, ...facility },
-      });
-    } else if (facility.capacityPercent >= CAPACITY_WARNING_PERCENT) {
-      alerts.push({
-        type: 'capacity_warning',
-        severity: 'warning',
-        title: 'Approaching capacity limit',
-        description: `Facility is at ${facility.capacityPercent}% capacity (${facility.totalDogs}/${facility.maxCapacity} dogs) on ${date}.`,
-        data: { date, ...facility },
-      });
+      try {
+        const facility = await dashboardService.getFacilityStatus(dateStr);
+
+        if (facility.capacityPercent >= CAPACITY_CRITICAL_PERCENT) {
+          alerts.push({
+            type: 'capacity_warning',
+            severity: 'critical',
+            title: `At or near full capacity (${dateStr})`,
+            description: `Facility is at ${facility.capacityPercent}% capacity (${facility.totalDogs}/${facility.maxCapacity} dogs) on ${dateStr}.`,
+            data: { date: dateStr, ...facility },
+          });
+        } else if (facility.capacityPercent >= CAPACITY_WARNING_PERCENT) {
+          alerts.push({
+            type: 'capacity_warning',
+            severity: 'warning',
+            title: `High capacity forecast (${dateStr})`,
+            description: `Facility is at ${facility.capacityPercent}% capacity (${facility.totalDogs}/${facility.maxCapacity} dogs) on ${dateStr}.`,
+            data: { date: dateStr, ...facility },
+          });
+        } else if (facility.capacityPercent >= CAPACITY_INFO_PERCENT) {
+          alerts.push({
+            type: 'capacity_warning',
+            severity: 'info',
+            title: `Capacity trending up (${dateStr})`,
+            description: `Facility is at ${facility.capacityPercent}% capacity (${facility.totalDogs}/${facility.maxCapacity} dogs) on ${dateStr}.`,
+            data: { date: dateStr, ...facility },
+          });
+        }
+      } catch {
+        // Skip dates that fail (e.g., no capacity data)
+      }
     }
   } catch (err) {
     logger.error('AIM alert check failed: capacity', { error: err });

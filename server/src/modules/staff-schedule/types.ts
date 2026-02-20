@@ -26,7 +26,14 @@ export const WeekViewParamsSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+export const BreakCreateSchema = z.object({
+  startTime: z.string().regex(timeRegex),
+  endTime: z.string().regex(timeRegex),
+  type: z.enum(['lunch', 'short', 'personal']).default('lunch'),
+});
+
 export type ScheduleCreate = z.infer<typeof ScheduleCreateSchema>;
 export type ScheduleUpdate = z.infer<typeof ScheduleUpdateSchema>;
 export type ScheduleBulkCreate = z.infer<typeof ScheduleBulkCreateSchema>;
 export type WeekViewParams = z.infer<typeof WeekViewParamsSchema>;
+export type BreakCreate = z.infer<typeof BreakCreateSchema>;

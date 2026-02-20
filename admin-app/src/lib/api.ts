@@ -858,6 +858,10 @@ export const adminScheduleApi = {
   bulkCreate: (schedules: any[]) => api.post<any>('/v2/admin/schedules/bulk', { schedules }),
   update: (id: string, data: any) => api.put<any>(`/v2/admin/schedules/${id}`, data),
   delete: (id: string) => api.delete<any>(`/v2/admin/schedules/${id}`),
+  addBreak: (scheduleId: string, data: { startTime: string; endTime: string; type: string }) =>
+    api.post<any>(`/v2/admin/schedules/${scheduleId}/breaks`, data),
+  removeBreak: (breakId: string) =>
+    api.delete<any>(`/v2/admin/schedules/breaks/${breakId}`),
 };
 
 // Dog Profile Admin APIs

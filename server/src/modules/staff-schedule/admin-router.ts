@@ -7,6 +7,7 @@ import {
   ScheduleUpdateSchema,
   ScheduleBulkCreateSchema,
   WeekViewParamsSchema,
+  BreakCreateSchema,
 } from './types';
 
 const router = Router();
@@ -184,6 +185,46 @@ router.delete('/:id', requireRole('owner', 'admin', 'manager'), async (req: Requ
       return;
     }
     console.error('Delete schedule error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Staff Break Routes ──
+
+// POST /:scheduleId/breaks — add a break to a schedule entry
+router.post('/:scheduleId/breaks', requireRole('owner', 'admin', 'manager'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const scheduleId = req.params.scheduleId as string;
+    const validation = BreakCreateSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation error', details: validation.error.issues });
+      return;
+    }
+
+    const breakEntry = await scheduleService.addBreak(scheduleId, validation.data);
+    res.status(201).json({ break: breakEntry });
+  } catch (error) {
+    if (error instanceof ScheduleError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('Add break error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /breaks/:breakId — remove a break
+router.delete('/breaks/:breakId', requireRole('owner', 'admin', 'manager'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const breakId = req.params.breakId as string;
+    await scheduleService.removeBreak(breakId);
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof ScheduleError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('Remove break error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
