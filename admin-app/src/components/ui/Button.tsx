@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -13,9 +13,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
-      primary: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
+      primary: 'bg-[#62A2C3] text-white hover:bg-[#4F8BA8] focus:ring-[#62A2C3]',
       secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
-      outline: 'border-2 border-green-600 text-green-600 hover:bg-green-50 focus:ring-green-500',
+      outline: 'border-2 border-[#62A2C3] text-[#62A2C3] hover:bg-[#62A2C3]/5 focus:ring-[#62A2C3]',
+      danger: 'bg-[#E8837B] text-white hover:bg-[#d96e66] focus:ring-[#E8837B]',
     };
 
     const sizes = {
