@@ -125,6 +125,7 @@ model StaffUser {
   verifiedVaccinations  Vaccination[]   @relation("VaccinationVerifier")
   behaviorNotes         BehaviorNote[]  @relation("BehaviorNoteReporter")
   assignedConversations Conversation[]  @relation("AssignedStaff")
+  aimConversations      AimConversation[]
 
   @@map("staff_users")
 }
@@ -500,6 +501,7 @@ model StaffSchedule {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   staffUser StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+  breaks    StaffBreak[]
 
   @@unique([staffUserId, date])
   @@map("staff_schedules")
@@ -664,4 +666,67 @@ model VaccinationRequirement {
 
   @@unique([vaccinationName, serviceTypeId])
   @@map("vaccination_requirements")
+}
+
+// ============================================================
+// AIM (AI Manager) — Staff-Facing AI Assistant
+// ============================================================
+
+model AimConversation {
+  id          String       @id @default(uuid())
+  staffUserId String       @map("staff_user_id")
+  title       String?
+  status      String       @default("active") // active, archived
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  staffUser   StaffUser    @relation(fields: [staffUserId], references: [id])
+  messages    AimMessage[]
+
+  @@index([staffUserId, updatedAt])
+  @@map("aim_conversations")
+}
+
+model AimMessage {
+  id             String          @id @default(uuid())
+  conversationId String          @map("conversation_id")
+  role           String          // 'user' (staff), 'assistant' (AI)
+  content        String
+  toolCalls      Json?           @map("tool_calls")
+  modelUsed      String?         @map("model_used")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  conversation   AimConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("aim_messages")
+}
+
+model AimAlert {
+  id          String    @id @default(uuid())
+  type        String    // 'staffing_gap', 'capacity_warning', 'compliance', 'weather', 'booking_spike'
+  severity    String    @default("info") // info, warning, critical
+  title       String
+  description String
+  data        Json?
+  readAt      DateTime? @map("read_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([type, createdAt])
+  @@index([readAt])
+  @@map("aim_alerts")
+}
+
+model StaffBreak {
+  id              String        @id @default(uuid())
+  staffScheduleId String        @map("staff_schedule_id")
+  startTime       String        @map("start_time") // HH:MM
+  endTime         String        @map("end_time")
+  type            String        @default("lunch") // lunch, short, personal
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  staffSchedule   StaffSchedule @relation(fields: [staffScheduleId], references: [id], onDelete: Cascade)
+
+  @@map("staff_breaks")
 }

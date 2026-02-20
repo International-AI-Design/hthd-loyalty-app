@@ -171,6 +171,8 @@ export const api = {
     request<T>(endpoint, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(endpoint: string, body: unknown) =>
     request<T>(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T>(endpoint: string, body?: unknown) =>
+    request<T>(endpoint, { method: 'PATCH', ...(body !== undefined && { body: JSON.stringify(body) }) }),
   delete: <T>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
 };
 
@@ -887,4 +889,67 @@ export const adminMessagingApi = {
   sendMessage: (id: string, content: string) =>
     api.post<any>(`/v2/admin/messaging/conversations/${id}/messages`, { content }),
   escalate: (id: string) => api.post<any>(`/v2/admin/messaging/conversations/${id}/escalate`, {}),
+};
+
+// === AIM (AI Manager) Types ===
+export interface AimChatResponse {
+  responseText: string;
+  conversationId: string;
+  toolsUsed: string[];
+  modelUsed: string;
+}
+
+export interface AimConversationSummary {
+  id: string;
+  title: string | null;
+  status: string;
+  lastMessage: { content: string; role: string; createdAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AimConversationDetail {
+  id: string;
+  title: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: {
+    id: string;
+    role: string;
+    content: string;
+    toolCalls: unknown;
+    modelUsed: string | null;
+    createdAt: string;
+  }[];
+}
+
+export interface AimAlert {
+  id: string;
+  type: string;
+  severity: string;
+  title: string;
+  description: string;
+  data: unknown;
+  readAt: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+// AIM Admin APIs
+export const adminAimApi = {
+  chat: (message: string, conversationId?: string) =>
+    api.post<AimChatResponse>('/v2/admin/aim/chat', { message, conversationId }),
+  getConversations: () =>
+    api.get<{ conversations: AimConversationSummary[] }>('/v2/admin/aim/conversations'),
+  getConversation: (id: string) =>
+    api.get<AimConversationDetail>(`/v2/admin/aim/conversations/${id}`),
+  archiveConversation: (id: string) =>
+    api.delete<{ success: boolean }>(`/v2/admin/aim/conversations/${id}`),
+  getAlerts: (unread?: boolean) =>
+    api.get<{ alerts: AimAlert[] }>(`/v2/admin/aim/alerts${unread ? '?unread=true' : ''}`),
+  markAlertRead: (id: string) =>
+    api.patch<AimAlert>(`/v2/admin/aim/alerts/${id}/read`),
+  resolveAlert: (id: string) =>
+    api.patch<AimAlert>(`/v2/admin/aim/alerts/${id}/resolve`),
 };
