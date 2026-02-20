@@ -1,0 +1,16 @@
+Hthd customer app:
+
+Testing with the fam:
+
+Pets profile... I tap the pet, screen goes white, can't refresh, have to go back then refresh to get back to the your pups screen.... Persistent problem.. need a real fix not some patch that you come back to me with.  
+
+Acceptance criteria:  user should be able to tap on their pets name
+User should be able to enter specific pet details... research gingr app fields for relevant pet info.  Also spot to upload records...
+
+--- look at Otto the pet scheduler and let me know how this compares to what we're building.  
+
+
+- not getting the choice to book specific grooming services... Acceptance Criteria:  user must be able to select various grooming services, not just one for a quoted range:
+
+
+
