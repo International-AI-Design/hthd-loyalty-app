@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.14] - AIM Backend (Segment 4) - 2026-02-19
+
+### Schema — 4 New Tables
+- **aim_conversations** — Staff-to-AIM chat sessions with title, status, staff ownership
+- **aim_messages** — Individual messages (user/assistant roles) with tool call logging
+- **aim_alerts** — Proactive operational alerts (staffing gaps, capacity warnings, compliance)
+- **staff_breaks** — Break periods within staff schedules (lunch, short, personal)
+- Added `aimConversations` relation to `StaffUser`, `breaks` relation to `StaffSchedule`
+
+### AIM Module (`server/src/modules/aim/`) — 6 Files
+- **types.ts** — `AimChatInput`, `AimChatOutput`, `AimAlertData` interfaces
+- **prompts.ts** — System prompt builder injecting live facility status, staff on duty, compliance flags
+- **tools.ts** — 8 Claude tool definitions: `get_today_summary`, `search_customer`, `search_dog`, `check_schedule`, `get_staff_schedule`, `create_booking`, `check_compliance`, `get_revenue_summary`
+- **service.ts** — Orchestrator (same Claude tool-loop as SMS AI, adapted for staff context)
+- **alerts.ts** — Alert generator: staffing gaps (>8:1 dog:staff), capacity (>80%/95%), compliance issues; deduplication per day
+- **router.ts** — 7 endpoints behind `authenticateStaff` middleware
+
+### API Endpoints — `/api/v2/admin/aim/`
+- `POST /chat` — Send message to AIM, get AI response with tool usage
+- `GET /conversations` — List staff's AIM conversations (paginated, most recent first)
+- `GET /conversations/:id` — Full conversation with message history
+- `DELETE /conversations/:id` — Archive conversation (soft delete)
+- `GET /alerts` — Get alerts with optional `?unread=true` filter; auto-generates fresh alerts
+- `PATCH /alerts/:id/read` — Mark alert as read
+- `PATCH /alerts/:id/resolve` — Mark alert as resolved
+
+### Admin App API Client
+- Added `adminAimApi` with typed interfaces (`AimChatResponse`, `AimConversationSummary`, `AimConversationDetail`, `AimAlert`)
+- Added `api.patch()` method to base API client
+
+### TypeScript
+- Both `admin-app` and `server` pass `npx tsc --noEmit` clean
+
 ## [2.0.0-alpha.13] - Interactive Dashboard (Segment 3) - 2026-02-19
 
 ### Backend
