@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Alert, PageHeader, Card, Spinner, Badge, EmptyState } from '../components/ui';
+import { Button, Alert, PageHeader, Card, Spinner, EmptyState } from '../components/ui';
 import { adminGingrApi } from '../lib/api';
 import type {
   GingrStatusResponse,

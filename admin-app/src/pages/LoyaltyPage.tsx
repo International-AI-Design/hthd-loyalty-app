@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, Alert, Modal, PageHeader, Card, Spinner, EmptyState } from '../components/ui';
 import { adminCustomersApi, adminPointsApi, adminRedemptionsApi, adminDemoApi } from '../lib/api';
 import type { CustomerSearchResult, AddPointsResponse, RedemptionLookupResponse, CompleteRedemptionResponse, CreateRedemptionResponse, DemoResetResponse } from '../lib/api';
@@ -17,8 +16,6 @@ const REWARD_TIERS = [
 ];
 
 export function LoyaltyPage() {
-  const navigate = useNavigate();
-
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
