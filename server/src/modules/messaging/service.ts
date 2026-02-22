@@ -4,6 +4,7 @@ import { ConversationFilter, MessageListParams } from './types';
 import { TOOL_DEFINITIONS, executeTool } from '../ai/tools';
 import { buildContextForCustomerId } from '../ai/context';
 import { buildWebChatSystemPrompt } from '../ai/prompts';
+import { logger } from '../../middleware/security';
 
 export class MessagingService {
   /**
@@ -94,8 +95,10 @@ export class MessagingService {
     conversationId: string,
     customerId: string
   ): Promise<void> {
+    logger.info('[AI Background] Starting', { conversationId, customerId });
     try {
       const aiContent = await this.getAIResponse(conversationId, customerId);
+      logger.info('[AI Background] Got AI response, saving to DB', { conversationId, contentLength: aiContent.length });
       await (prisma as any).message.create({
         data: {
           conversationId,
@@ -109,8 +112,9 @@ export class MessagingService {
         where: { id: conversationId },
         data: { lastMessageAt: new Date() },
       });
+      logger.info('[AI Background] Saved successfully', { conversationId });
     } catch (err) {
-      console.error('[Background AI save error]', err instanceof Error ? err.message : err);
+      logger.error('[AI Background] Save error', { conversationId, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -411,8 +415,10 @@ export class MessagingService {
 
       const client = new Anthropic({
         apiKey,
+        timeout: 30_000, // 30 second max per API call
         ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
       });
+      logger.info('[AI getAIResponse] Calling Claude Haiku', { conversationId, messageCount: messages.length });
       let rounds = 0;
 
       while (rounds < MAX_TOOL_ROUNDS) {
@@ -470,7 +476,7 @@ export class MessagingService {
       // Exceeded max rounds
       return "I'm working on that but it's taking a bit longer than expected. Let me connect you with our team for help.";
     } catch (err) {
-      console.error('[WebChat AI Error]', err instanceof Error ? err.message : err);
+      logger.error('[WebChat AI Error]', { conversationId, error: err instanceof Error ? err.message : String(err) });
       return "Thanks for your message! A team member will be with you shortly.";
     }
   }
