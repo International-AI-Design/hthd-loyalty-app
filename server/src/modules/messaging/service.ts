@@ -76,8 +76,23 @@ export class MessagingService {
       data: { lastMessageAt: new Date() },
     });
 
-    // If staff is assigned and conversation is escalated, skip AI response
+    // If staff is assigned and conversation is escalated, skip AI — staff handles it.
+    // Save a brief acknowledgment so the client animation resolves cleanly.
     if (conversation.assignedStaffId && conversation.status === 'escalated') {
+      void (async () => {
+        await (prisma as any).message.create({
+          data: {
+            conversationId,
+            role: 'assistant',
+            content: "✋ You're connected with our team. A staff member will respond shortly.",
+            channel: 'web_chat',
+          },
+        });
+        await (prisma as any).conversation.update({
+          where: { id: conversationId },
+          data: { lastMessageAt: new Date() },
+        });
+      })();
       return { customerMessage, aiMessage: null };
     }
 

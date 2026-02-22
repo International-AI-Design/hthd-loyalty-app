@@ -206,6 +206,8 @@ export function MessagingPage() {
   const [sendFlair, setSendFlair]                   = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Safety net: clear typing indicator after 45s if poll never clears it */
+  const aiTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -280,7 +282,12 @@ export function MessagingPage() {
         if (msgs.length > stableCount) {
           // Keep typing indicator until the last message is from the AI
           const lastMsg = msgs[msgs.length - 1];
-          setIsAiTyping(lastMsg?.senderType !== 'ai');
+          const aiArrived = lastMsg?.senderType === 'ai';
+          if (aiArrived && aiTypingTimerRef.current) {
+            clearTimeout(aiTypingTimerRef.current);
+            aiTypingTimerRef.current = null;
+          }
+          setIsAiTyping(!aiArrived);
           return msgs;
         }
         return prev;
@@ -317,6 +324,10 @@ export function MessagingPage() {
     setIsSending(true);
     setIsAiTyping(true);
     setShowQuickReplies(false);
+
+    // Safety net: clear typing indicator after 45s if poll never clears it
+    if (aiTypingTimerRef.current) clearTimeout(aiTypingTimerRef.current);
+    aiTypingTimerRef.current = setTimeout(() => setIsAiTyping(false), 45_000);
 
     // Trigger float-away paw flair
     setSendFlair(true);
