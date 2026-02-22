@@ -76,10 +76,18 @@ export class MessagingService {
       data: { lastMessageAt: new Date() },
     });
 
+    // Log conversation state so we can see what branch is taken
+    logger.info('[sendMessage] conversation state', {
+      conversationId,
+      status: conversation.status,
+      assignedStaffId: conversation.assignedStaffId ?? null,
+    });
+
     // If staff is assigned and conversation is escalated, skip AI — staff handles it.
     // Save a brief acknowledgment so the client animation resolves cleanly.
     if (conversation.assignedStaffId && conversation.status === 'escalated') {
-      void (async () => {
+      logger.info('[sendMessage] escalated+staff — saving acknowledgment', { conversationId });
+      try {
         await (prisma as any).message.create({
           data: {
             conversationId,
@@ -92,7 +100,10 @@ export class MessagingService {
           where: { id: conversationId },
           data: { lastMessageAt: new Date() },
         });
-      })();
+        logger.info('[sendMessage] acknowledgment saved', { conversationId });
+      } catch (err) {
+        logger.error('[sendMessage] acknowledgment save failed', { conversationId, error: err instanceof Error ? err.message : String(err) });
+      }
       return { customerMessage, aiMessage: null };
     }
 
