@@ -80,26 +80,38 @@ export class MessagingService {
       return { customerMessage, aiMessage: null };
     }
 
-    // Generate AI response with tool access
-    const aiContent = await this.getAIResponse(conversationId, customerId);
+    // Fire AI generation in background — client gets instant 201, polls for AI reply
+    void this.generateAndSaveAIResponse(conversationId, customerId);
 
-    const aiMessage = await (prisma as any).message.create({
-      data: {
-        conversationId,
-        role: 'assistant',
-        content: aiContent,
-        channel: 'web_chat',
-        modelUsed: 'haiku',
-      },
-    });
+    return { customerMessage, aiMessage: null };
+  }
 
-    // Update lastMessageAt again after AI response
-    await (prisma as any).conversation.update({
-      where: { id: conversationId },
-      data: { lastMessageAt: new Date() },
-    });
-
-    return { customerMessage, aiMessage };
+  /**
+   * Background AI generation — runs after sendMessage returns.
+   * Always resolves (never throws): worst case saves the fallback message.
+   */
+  private async generateAndSaveAIResponse(
+    conversationId: string,
+    customerId: string
+  ): Promise<void> {
+    try {
+      const aiContent = await this.getAIResponse(conversationId, customerId);
+      await (prisma as any).message.create({
+        data: {
+          conversationId,
+          role: 'assistant',
+          content: aiContent,
+          channel: 'web_chat',
+          modelUsed: 'haiku',
+        },
+      });
+      await (prisma as any).conversation.update({
+        where: { id: conversationId },
+        data: { lastMessageAt: new Date() },
+      });
+    } catch (err) {
+      console.error('[Background AI save error]', err instanceof Error ? err.message : err);
+    }
   }
 
   /**

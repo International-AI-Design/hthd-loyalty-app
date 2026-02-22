@@ -5,7 +5,127 @@ import type { Dog } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui';
 
+// ─── Inject puppy keyframes once ──────────────────────────────────────────────
+const ANIM_CSS = `
+  @keyframes messagePop {
+    0%   { transform: scale(0.8) translateY(12px); opacity: 0; }
+    60%  { transform: scale(1.04) translateY(-2px); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  @keyframes pawBounce {
+    0%, 100% { transform: translateY(0) scale(1) rotate(-6deg); opacity: .5; }
+    50%      { transform: translateY(-9px) scale(1.25) rotate(10deg); opacity: 1; }
+  }
+  @keyframes dogWiggle {
+    0%, 100% { transform: rotate(-12deg); }
+    50%      { transform: rotate(12deg); }
+  }
+  @keyframes floatAway {
+    0%   { transform: translateY(0) scale(1);    opacity: 1; }
+    100% { transform: translateY(-40px) scale(.4); opacity: 0; }
+  }
+  @keyframes boneFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-6px) rotate(180deg); }
+  }
+  @keyframes softPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .6; transform: scale(.85); }
+  }
+  @keyframes slideInRight {
+    0%   { transform: translateX(16px); opacity: 0; }
+    100% { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes slideInLeft {
+    0%   { transform: translateX(-16px); opacity: 0; }
+    100% { transform: translateX(0);     opacity: 1; }
+  }
+`;
 
+if (typeof document !== 'undefined' && !document.getElementById('hthd-anim')) {
+  const el = document.createElement('style');
+  el.id = 'hthd-anim';
+  el.textContent = ANIM_CSS;
+  document.head.appendChild(el);
+}
+
+// ─── Puppy thinking messages ───────────────────────────────────────────────────
+const THINKING_MESSAGES = [
+  'Sniffing for answers…',
+  'Chasing that thought!',
+  'Fetching it now…',
+  'Tail is wagging…',
+  'Hot on the scent!',
+  'Almost got it…',
+  'Digging it up!',
+  'Woof, just a sec!',
+];
+
+// ─── Animated thinking indicator ──────────────────────────────────────────────
+function PuppyThinking() {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % THINKING_MESSAGES.length);
+        setVisible(true);
+      }, 340);
+    }, 2700);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div
+      className="flex justify-start gap-2 items-end"
+      style={{ animation: 'messagePop .4s cubic-bezier(.34,1.56,.64,1)' }}
+    >
+      {/* Wiggling dog avatar */}
+      <div
+        className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center flex-shrink-0 text-base border border-amber-200/70 shadow-sm select-none"
+        style={{ animation: 'dogWiggle 2s ease-in-out infinite' }}
+        title="HTHD AI is thinking"
+      >
+        🐕
+      </div>
+
+      {/* Bubble */}
+      <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-warm-sm border border-brand-sand/30 min-w-[160px]">
+        {/* Bouncing paw prints */}
+        <div className="flex gap-2 mb-2">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              style={{
+                display: 'inline-block',
+                fontSize: 14,
+                animation: `pawBounce 1.15s ease-in-out ${i * 0.22}s infinite`,
+              }}
+            >
+              🐾
+            </span>
+          ))}
+        </div>
+
+        {/* Cycling thought text */}
+        <p
+          className="text-xs text-brand-forest-muted leading-snug font-medium"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(3px)',
+            transition: 'opacity .28s ease, transform .28s ease',
+          }}
+        >
+          {THINKING_MESSAGES[idx]}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 interface Message {
   id: string;
   conversationId: string;
@@ -18,26 +138,16 @@ interface Message {
 }
 
 /**
- * The server returns messages with a `role` field ('customer' | 'assistant' | 'system')
- * but the UI expects `senderType` ('customer' | 'ai' | 'staff').
- * This function normalizes the server response to match the component's interface.
+ * Normalize server `role` field to component `senderType`.
  */
 function normalizeMessage(raw: Record<string, any>): Message {
-  // If already normalized (e.g. optimistic messages), pass through
   if (raw.senderType) return raw as Message;
-
   const role: string = raw.role ?? '';
   let senderType: Message['senderType'];
   let senderName: string | null = raw.senderName ?? raw.sender_name ?? null;
 
   if (role === 'customer') {
     senderType = 'customer';
-  } else if (role === 'assistant') {
-    // The customer API doesn't distinguish AI from staff in the response.
-    // Default to 'ai' since the AI concierge handles most web chat messages.
-    // When senderName is explicitly set to a human name, treat as staff.
-    senderType = 'ai';
-    senderName = senderName || 'HTHD Assistant';
   } else {
     senderType = 'ai';
     senderName = senderName || 'HTHD Assistant';
@@ -66,31 +176,34 @@ interface Conversation {
 }
 
 const QUICK_REPLIES = [
-  { id: 'hours', text: 'What are your hours?', icon: '🕐' },
-  { id: 'booking', text: 'I need to reschedule', icon: '📅' },
-  { id: 'pickup', text: 'When can I pick up?', icon: '🏠' },
-  { id: 'update', text: "How's my dog doing?", icon: '🐾' },
-  { id: 'pricing', text: 'Grooming pricing?', icon: '✂️' },
+  { id: 'hours',   text: 'What are your hours?',  icon: '🕐' },
+  { id: 'booking', text: 'I need to reschedule',   icon: '📅' },
+  { id: 'pickup',  text: 'When can I pick up?',    icon: '🏠' },
+  { id: 'update',  text: "How's my dog doing?",    icon: '🐾' },
+  { id: 'pricing', text: 'Grooming pricing?',      icon: '✂️' },
 ];
 
+// ─── Main component ────────────────────────────────────────────────────────────
 export function MessagingPage() {
   const navigate = useNavigate();
   const { customer } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations]           = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [messages, setMessages]                     = useState<Message[]>([]);
+  const [dogs, setDogs]                             = useState<Dog[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [messageInput, setMessageInput] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isAiTyping, setIsAiTyping] = useState(false);
-  const [showQuickReplies, setShowQuickReplies] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages]   = useState(false);
+  const [isSending, setIsSending]                   = useState(false);
+  const [isCreating, setIsCreating]                 = useState(false);
+  const [messageInput, setMessageInput]             = useState('');
+  const [error, setError]                           = useState<string | null>(null);
+  const [isAiTyping, setIsAiTyping]                 = useState(false);
+  const [showQuickReplies, setShowQuickReplies]     = useState(true);
+  /** Float-away paw flair on send */
+  const [sendFlair, setSendFlair]                   = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -98,6 +211,7 @@ export function MessagingPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // ── Data fetching ────────────────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
     const { data, error: fetchErr } = await messagingApi.getConversations();
     if (fetchErr) {
@@ -127,6 +241,7 @@ export function MessagingPage() {
     setIsLoadingMessages(false);
   }, []);
 
+  // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchConversations();
     customerApi.getDogs().then(({ data }) => {
@@ -144,28 +259,34 @@ export function MessagingPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // ── Polling: detect new messages, clear AI typing when response arrives ───────
   useEffect(() => {
-    if (activeConversationId) {
-      pollRef.current = setInterval(async () => {
-        const { data } = await messagingApi.getMessages(activeConversationId);
-        if (data) {
-          const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
-          const msgs = rawMsgs.map(normalizeMessage);
-          setMessages((prev) => {
-            if (msgs.length !== prev.length) {
-              setIsAiTyping(false);
-              return msgs;
-            }
-            return prev;
-          });
+    if (!activeConversationId) return;
+
+    pollRef.current = setInterval(async () => {
+      const { data } = await messagingApi.getMessages(activeConversationId);
+      if (!data) return;
+
+      const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
+      const msgs = rawMsgs.map(normalizeMessage);
+
+      setMessages(prev => {
+        // Compare real message count (excluding optimistic temp- messages)
+        if (msgs.length !== prev.length) {
+          // New messages arrived — AI responded or staff replied
+          setIsAiTyping(false);
+          return msgs;
         }
-      }, 5000);
-    }
+        return prev;
+      });
+    }, 3000);
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [activeConversationId]);
 
+  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleStartConversation = async (dogId?: string) => {
     setIsCreating(true);
     setError(null);
@@ -185,11 +306,17 @@ export function MessagingPage() {
   const handleSendMessage = async (content?: string) => {
     const text = content || messageInput.trim();
     if (!activeConversationId || !text || isSending) return;
+
     setMessageInput('');
     setIsSending(true);
     setIsAiTyping(true);
     setShowQuickReplies(false);
 
+    // Trigger float-away paw flair
+    setSendFlair(true);
+    setTimeout(() => setSendFlair(false), 700);
+
+    // Optimistic message
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       conversationId: activeConversationId,
@@ -198,23 +325,18 @@ export function MessagingPage() {
       content: text,
       createdAt: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, optimisticMsg]);
+    setMessages(prev => [...prev, optimisticMsg]);
     scrollToBottom();
 
+    // POST — server now returns immediately (AI runs in background)
     const { error: sendErr } = await messagingApi.sendMessage(activeConversationId, text);
     if (sendErr) {
       setError(sendErr);
       setIsAiTyping(false);
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
-    } else {
-      const { data } = await messagingApi.getMessages(activeConversationId);
-      if (data) {
-        const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
-        const msgs = rawMsgs.map(normalizeMessage);
-        setMessages(msgs);
-        setIsAiTyping(false);
-      }
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     }
+    // On success: keep isAiTyping=true — polling clears it when AI message arrives
+
     setIsSending(false);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -226,9 +348,9 @@ export function MessagingPage() {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  };
+  // ── Formatters ───────────────────────────────────────────────────────────────
+  const formatTime = (dateString: string) =>
+    new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -250,10 +372,11 @@ export function MessagingPage() {
   const getSenderIcon = (senderType: string) => {
     if (senderType === 'ai') {
       return (
-        <div className="w-8 h-8 rounded-full bg-brand-sage flex items-center justify-center flex-shrink-0">
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
+        <div
+          className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center flex-shrink-0 text-base border border-amber-200/60 shadow-sm select-none"
+          style={{ animation: 'messagePop .35s cubic-bezier(.34,1.56,.64,1)' }}
+        >
+          🐕
         </div>
       );
     }
@@ -269,13 +392,16 @@ export function MessagingPage() {
     return null;
   };
 
-  // Conversation list view
+  // ── Conversation list view ───────────────────────────────────────────────────
   if (!activeConversationId && !isLoadingConversations) {
     return (
       <div className="min-h-[100dvh] bg-brand-cream flex flex-col">
         <header className="bg-white/80 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0">
           <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-brand-sand transition-colors">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-brand-sand transition-colors"
+            >
               <svg className="w-5 h-5 text-brand-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -286,15 +412,17 @@ export function MessagingPage() {
 
         <main className="max-w-lg mx-auto px-4 py-6 flex-1 w-full">
           {error && (
-            <div className="mb-4 p-3 bg-brand-error/10 border border-brand-error/20 rounded-2xl text-brand-error text-sm">{error}</div>
+            <div className="mb-4 p-3 bg-brand-error/10 border border-brand-error/20 rounded-2xl text-brand-error text-sm">
+              {error}
+            </div>
           )}
 
           {/* Pet-specific thread starters */}
           {dogs.length > 0 && (
             <div className="mb-6">
-              <p className="text-sm font-medium text-brand-forest-muted mb-3">Start a conversation about...</p>
+              <p className="text-sm font-medium text-brand-forest-muted mb-3">Start a conversation about…</p>
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {dogs.map((dog) => (
+                {dogs.map(dog => (
                   <button
                     key={dog.id}
                     onClick={() => handleStartConversation(dog.id)}
@@ -304,7 +432,9 @@ export function MessagingPage() {
                     <div className="w-12 h-12 rounded-full bg-brand-sage/10 flex items-center justify-center">
                       <span className="font-pet font-bold text-brand-sage text-lg">{dog.name.charAt(0)}</span>
                     </div>
-                    <span className="font-pet text-xs font-semibold text-brand-forest truncate max-w-[64px]">{dog.name}</span>
+                    <span className="font-pet text-xs font-semibold text-brand-forest truncate max-w-[64px]">
+                      {dog.name}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -313,7 +443,7 @@ export function MessagingPage() {
 
           {conversations.length > 0 ? (
             <div className="space-y-3">
-              {conversations.map((convo) => (
+              {conversations.map(convo => (
                 <button
                   key={convo.id}
                   onClick={() => setActiveConversationId(convo.id)}
@@ -357,11 +487,7 @@ export function MessagingPage() {
           )}
 
           <div className="mt-6">
-            <Button
-              onClick={() => handleStartConversation()}
-              isLoading={isCreating}
-              className="w-full"
-            >
+            <Button onClick={() => handleStartConversation()} isLoading={isCreating} className="w-full">
               Start New Conversation
             </Button>
           </div>
@@ -370,9 +496,11 @@ export function MessagingPage() {
     );
   }
 
+  // ── Chat view ────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 flex flex-col bg-brand-cream overflow-hidden">
-      {/* Chat Header */}
+
+      {/* ── Header ── */}
       <header className="bg-white/90 backdrop-blur-lg border-b border-brand-sand/50 flex-shrink-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
@@ -389,41 +517,66 @@ export function MessagingPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
-          <div className="flex-1">
-            <h1 className="font-heading text-lg font-semibold text-brand-forest">Happy Tail Happy Dog</h1>
-            <p className="text-xs text-brand-forest-muted">AI Assistant + Staff Support</p>
+
+          {/* Avatar + title */}
+          <div className="flex items-center gap-2.5 flex-1">
+            <div className="relative flex-shrink-0">
+              <div
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-lg border border-amber-200/60 shadow-sm select-none"
+                style={{ animation: isAiTyping ? 'dogWiggle 1.5s ease-in-out infinite' : 'none' }}
+              >
+                🐕
+              </div>
+              {/* Animated status dot */}
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 flex items-center justify-center">
+                <span
+                  className="absolute inline-flex w-full h-full rounded-full bg-brand-success opacity-60"
+                  style={{ animation: isAiTyping ? 'softPulse .9s ease-in-out infinite' : 'none' }}
+                />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-brand-success" />
+              </span>
+            </div>
+            <div>
+              <h1 className="font-heading text-base font-semibold text-brand-forest leading-none">Happy Tail Happy Dog</h1>
+              <p className="text-[11px] text-brand-forest-muted mt-0.5">
+                {isAiTyping ? (
+                  <span className="text-brand-sage font-medium" style={{ animation: 'softPulse 1s ease-in-out infinite' }}>
+                    🐾 Fetching a reply…
+                  </span>
+                ) : 'AI Assistant + Staff Support'}
+              </p>
+            </div>
           </div>
-          <div className="w-3 h-3 bg-brand-success rounded-full" title="Online" />
         </div>
       </header>
 
-      {/* Privacy notice */}
+      {/* ── Privacy notice ── */}
       <div className="bg-brand-sage/5 border-b border-brand-sand/30 px-4 py-2 flex-shrink-0">
         <div className="max-w-lg mx-auto flex items-center gap-2 text-xs text-brand-forest-muted">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
-          <span>Messages in this chat are visible to Happy Tail Happy Dog staff. Please don't share sensitive personal information like passwords or payment details.</span>
+          <span>Messages are visible to Happy Tail staff. Don't share passwords or payment details.</span>
         </div>
       </div>
 
-      {/* Messages Area */}
+      {/* ── Messages area ── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-4 py-4">
         <div className="max-w-lg mx-auto space-y-4">
+
           {isLoadingMessages ? (
-            <div className="flex justify-center py-12">
-              <svg className="animate-spin h-8 w-8 text-brand-primary" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <span style={{ fontSize: 36, display: 'block', animation: 'boneFloat 1.4s ease-in-out infinite' }}>🦴</span>
+              <p className="text-sm text-brand-forest-muted font-medium">Loading your messages…</p>
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center py-8 text-brand-forest-muted">
-              <p className="text-sm">Send a message to get started!</p>
+            <div className="text-center py-12">
+              <p className="text-sm text-brand-forest-muted">Send a message to get started! 🐾</p>
             </div>
           ) : (
             Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
               <div key={dateKey}>
+                {/* Date separator */}
                 <div className="flex items-center justify-center mb-4">
                   <span className="bg-brand-sand text-brand-forest-muted text-xs px-3 py-1 rounded-full font-medium">
                     {formatDate(dateMessages[0].createdAt)}
@@ -431,11 +584,19 @@ export function MessagingPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {dateMessages.map((msg) => {
+                  {dateMessages.map((msg, msgIdx) => {
                     const isCustomer = msg.senderType === 'customer';
+                    const isOptimistic = msg.id.startsWith('temp-');
                     return (
-                      <div key={msg.id} className={`flex ${isCustomer ? 'justify-end' : 'justify-start'} gap-2`}>
+                      <div
+                        key={msg.id}
+                        className={`flex ${isCustomer ? 'justify-end' : 'justify-start'} gap-2`}
+                        style={{
+                          animation: `${isCustomer ? 'slideInRight' : 'messagePop'} .35s cubic-bezier(.34,1.56,.64,1) ${msgIdx * 0.04}s both`,
+                        }}
+                      >
                         {!isCustomer && getSenderIcon(msg.senderType)}
+
                         <div className="max-w-[80%]">
                           {!isCustomer && (
                             <p className="text-xs text-brand-forest-muted mb-0.5 ml-1">
@@ -447,10 +608,11 @@ export function MessagingPage() {
                               )}
                             </p>
                           )}
+
                           <div
                             className={`rounded-2xl px-4 py-2.5 ${
                               isCustomer
-                                ? 'bg-brand-primary text-white rounded-br-md'
+                                ? `bg-brand-primary text-white rounded-br-md ${isOptimistic ? 'opacity-75' : ''}`
                                 : 'bg-white text-brand-forest shadow-warm-sm rounded-bl-md border border-brand-sand/30'
                             }`}
                           >
@@ -459,6 +621,7 @@ export function MessagingPage() {
                             )}
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           </div>
+
                           <div className={`flex items-center gap-1.5 mt-1 ${isCustomer ? 'justify-end' : 'justify-start'}`}>
                             <p className="text-xs text-brand-forest-muted">{formatTime(msg.createdAt)}</p>
                             {isCustomer && msg.readAt && (
@@ -476,58 +639,48 @@ export function MessagingPage() {
             ))
           )}
 
-          {/* AI typing indicator */}
-          {isAiTyping && (
-            <div className="flex justify-start gap-2">
-              <div className="w-8 h-8 rounded-full bg-brand-sage flex items-center justify-center flex-shrink-0">
-                <span className="text-sm">🤖</span>
-              </div>
-              <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-warm-sm border border-brand-sand/30">
-                <div className="flex gap-1.5">
-                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-brand-forest-muted/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
+          {/* ── Puppy thinking indicator ── */}
+          {isAiTyping && <PuppyThinking />}
 
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Quick Replies */}
+      {/* ── Quick replies ── */}
       {showQuickReplies && messages.length <= 4 && (
         <div className="bg-white/80 backdrop-blur-sm border-t border-brand-sand/30 px-4 py-3 flex-shrink-0">
           <div className="max-w-lg mx-auto">
-            <p className="text-xs text-brand-forest-muted mb-2 font-medium">Quick replies</p>
+            <p className="text-xs text-brand-forest-muted mb-2 font-medium">🐾 Quick replies</p>
             <div className="relative">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {QUICK_REPLIES.map((qr) => (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {QUICK_REPLIES.map((qr, i) => (
                   <button
                     key={qr.id}
                     onClick={() => handleSendMessage(qr.text)}
                     disabled={isSending}
-                    className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-full border border-brand-sand bg-white text-xs font-medium text-brand-forest hover:border-brand-primary hover:text-brand-primary transition-colors min-h-[36px]"
+                    className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-full border border-brand-sand bg-white text-xs font-medium text-brand-forest hover:border-brand-primary hover:text-brand-primary hover:scale-105 active:scale-95 transition-all min-h-[36px]"
+                    style={{ animationDelay: `${i * 60}ms` }}
                   >
                     <span>{qr.icon}</span>
                     {qr.text}
                   </button>
                 ))}
               </div>
-              {/* Right-edge fade gradient to indicate scrollability */}
               <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white/80 to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
       )}
 
-      {/* Error bar */}
+      {/* ── Error bar ── */}
       {error && (
         <div className="bg-brand-error/10 border-t border-brand-error/20 px-4 py-2 flex-shrink-0">
           <div className="max-w-lg mx-auto flex items-center justify-between">
             <p className="text-sm text-brand-error">{error}</p>
-            <button onClick={() => setError(null)} className="text-brand-error hover:text-brand-error min-h-[44px] min-w-[44px] flex items-center justify-center">
+            <button
+              onClick={() => setError(null)}
+              className="text-brand-error min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -536,41 +689,61 @@ export function MessagingPage() {
         </div>
       )}
 
-      {/* Message Input */}
+      {/* ── Message input ── */}
       <div className="bg-white border-t border-brand-sand/50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex-shrink-0">
         <div className="max-w-lg mx-auto flex items-end gap-2 overflow-hidden">
           <textarea
             ref={inputRef}
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
+            onChange={e => setMessageInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder="Type a message…"
             rows={1}
             autoComplete="off"
             autoFocus
             className="flex-1 min-w-0 w-0 resize-none rounded-2xl border-2 border-brand-sand px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary min-h-[44px] max-h-[120px] bg-brand-cream/50 placeholder-brand-forest-muted transition-all"
             style={{ overflow: 'auto' }}
           />
-          <button
-            onClick={() => handleSendMessage()}
-            disabled={!messageInput.trim() || isSending}
-            className={`w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full transition-all ${
-              messageInput.trim() && !isSending
-                ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-warm'
-                : 'bg-brand-sand text-brand-forest-muted cursor-not-allowed'
-            }`}
-          >
-            {isSending ? (
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-              </svg>
+
+          {/* Send button with float-away flair */}
+          <div className="relative flex-shrink-0">
+            {/* Float-away paw on send */}
+            {sendFlair && (
+              <span
+                className="absolute -top-2 left-1/2 -translate-x-1/2 text-base pointer-events-none select-none"
+                style={{ animation: 'floatAway .7s ease-out forwards' }}
+              >
+                🐾
+              </span>
             )}
-          </button>
+
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!messageInput.trim() || isSending}
+              className={`w-11 h-11 flex items-center justify-center rounded-full transition-all active:scale-90 ${
+                messageInput.trim() && !isSending
+                  ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-warm'
+                  : 'bg-brand-sand text-brand-forest-muted cursor-not-allowed'
+              }`}
+              style={isSending ? { animation: 'softPulse .8s ease-in-out infinite' } : undefined}
+            >
+              {isSending ? (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 20,
+                    animation: 'pawBounce .7s ease-in-out infinite',
+                  }}
+                >
+                  🐾
+                </span>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
