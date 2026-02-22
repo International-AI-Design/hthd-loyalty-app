@@ -271,10 +271,16 @@ export function MessagingPage() {
       const msgs = rawMsgs.map(normalizeMessage);
 
       setMessages(prev => {
-        // Compare real message count (excluding optimistic temp- messages)
-        if (msgs.length !== prev.length) {
-          // New messages arrived — AI responded or staff replied
-          setIsAiTyping(false);
+        // Count only real (non-optimistic) messages in current state
+        const stableCount = prev.filter(m => !m.id.startsWith('temp-')).length;
+
+        // Only update when server has MORE messages than our stable baseline.
+        // This prevents the poll from clearing the optimistic message during
+        // the brief window while the POST is still in flight.
+        if (msgs.length > stableCount) {
+          // Keep typing indicator until the last message is from the AI
+          const lastMsg = msgs[msgs.length - 1];
+          setIsAiTyping(lastMsg?.senderType !== 'ai');
           return msgs;
         }
         return prev;
