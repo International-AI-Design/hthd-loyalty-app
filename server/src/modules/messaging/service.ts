@@ -378,6 +378,26 @@ export class MessagingService {
   }
 
   /**
+   * De-escalate a conversation (return to active, re-enable AI responses).
+   */
+  async deEscalateConversation(conversationId: string) {
+    const conversation = await (prisma as any).conversation.findUnique({
+      where: { id: conversationId },
+    });
+    if (!conversation) {
+      throw new MessagingError('Conversation not found', 404);
+    }
+    if (conversation.status !== 'escalated') {
+      throw new MessagingError('Conversation is not escalated', 400);
+    }
+
+    return (prisma as any).conversation.update({
+      where: { id: conversationId },
+      data: { status: 'active', assignedStaffId: null },
+    });
+  }
+
+  /**
    * Generate an AI response using Claude Haiku with tool access.
    * Builds full customer context, uses the web chat system prompt,
    * and loops on tool_use responses (max 3 rounds).

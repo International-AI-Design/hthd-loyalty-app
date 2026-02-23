@@ -24,7 +24,7 @@ router.use(authenticateStaff);
  */
 router.post('/chat', async (req: Request, res: Response) => {
   try {
-    const staffUser = (req as any).staffUser;
+    const staffUser = (req as any).staff;
     const { message, conversationId } = req.body;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -53,7 +53,7 @@ router.post('/chat', async (req: Request, res: Response) => {
  */
 router.get('/conversations', async (req: Request, res: Response) => {
   try {
-    const staffUser = (req as any).staffUser;
+    const staffUser = (req as any).staff;
 
     const conversations = await (prisma as any).aimConversation.findMany({
       where: { staffUserId: staffUser.id, status: 'active' },
@@ -91,7 +91,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
  */
 router.get('/conversations/:id', async (req: Request, res: Response) => {
   try {
-    const staffUser = (req as any).staffUser;
+    const staffUser = (req as any).staff;
     const { id } = req.params;
 
     const conversation = await (prisma as any).aimConversation.findFirst({
@@ -121,7 +121,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
  */
 router.delete('/conversations/:id', async (req: Request, res: Response) => {
   try {
-    const staffUser = (req as any).staffUser;
+    const staffUser = (req as any).staff;
     const { id } = req.params;
 
     const conversation = await (prisma as any).aimConversation.findFirst({

@@ -104,4 +104,20 @@ router.post('/conversations/:conversationId/escalate', async (req: Request, res:
   }
 });
 
+// POST /conversations/:conversationId/de-escalate — de-escalate conversation
+router.post('/conversations/:conversationId/de-escalate', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const conversationId = req.params.conversationId as string;
+    const conversation = await messagingService.deEscalateConversation(conversationId);
+    res.json({ conversation });
+  } catch (error) {
+    if (error instanceof MessagingError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('De-escalate conversation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

@@ -6,7 +6,7 @@ export function AimButton() {
   const location = useLocation();
 
   // Hide on login page
-  if (location.pathname === '/login') return null;
+  if (location.pathname === '/login' || location.pathname === '/messaging') return null;
 
   return (
     <button

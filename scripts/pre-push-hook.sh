@@ -105,6 +105,25 @@ lint_app "server" "server"
 
 echo ""
 
+# Run API contract tests (if vitest is configured)
+if [ -f "$REPO_ROOT/server/node_modules/.bin/vitest" ] && [ -f "$REPO_ROOT/server/vitest.config.ts" ]; then
+  printf "  %-20s" "server tests:"
+  if (cd "$REPO_ROOT/server" && node_modules/.bin/vitest run --reporter=dot 2>&1); then
+    echo "✅ passed"
+  else
+    echo "❌ FAILED"
+    echo ""
+    echo "  Contract test failures in server:"
+    (cd "$REPO_ROOT/server" && node_modules/.bin/vitest run 2>&1) || true
+    echo ""
+    FAILED=1
+  fi
+else
+  echo "  ⏭  server tests: vitest not configured, skipping"
+fi
+
+echo ""
+
 if [ $FAILED -eq 1 ]; then
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "  🚫 PUSH BLOCKED: TypeScript errors detected"

@@ -893,6 +893,7 @@ export const adminMessagingApi = {
   sendMessage: (id: string, content: string) =>
     api.post<any>(`/v2/admin/messaging/conversations/${id}/messages`, { content }),
   escalate: (id: string) => api.post<any>(`/v2/admin/messaging/conversations/${id}/escalate`, {}),
+  deEscalate: (id: string) => api.post<any>(`/v2/admin/messaging/conversations/${id}/de-escalate`, {}),
 };
 
 // === AIM (AI Manager) Types ===

@@ -209,8 +209,11 @@ export function MessagingPage() {
   };
 
   const handleAssign = async () => {
-    if (!selectedId) return;
-    await adminMessagingApi.assignStaff(selectedId, staff?.id);
+    if (!selectedId || !staff?.id) return;
+    const result = await adminMessagingApi.assignStaff(selectedId, staff.id);
+    if (result.error) {
+      setError(result.error);
+    }
     fetchThread(selectedId);
     fetchConversations();
   };
@@ -218,6 +221,13 @@ export function MessagingPage() {
   const handleEscalate = async () => {
     if (!selectedId) return;
     await adminMessagingApi.escalate(selectedId);
+    fetchThread(selectedId);
+    fetchConversations();
+  };
+
+  const handleDeEscalate = async () => {
+    if (!selectedId) return;
+    await adminMessagingApi.deEscalate(selectedId);
     fetchThread(selectedId);
     fetchConversations();
   };
@@ -332,7 +342,7 @@ export function MessagingPage() {
     <div className="flex flex-col h-full">
       {thread ? (
         <>
-          <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center gap-3">
+          <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center gap-3 sticky top-0 z-10">
             <button
               onClick={handleBack}
               className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100"
@@ -361,7 +371,15 @@ export function MessagingPage() {
                 >
                   Assign
                 </button>
-                {thread.status !== 'escalated' && (
+                {thread.status === 'escalated' ? (
+                  <button
+                    onClick={handleDeEscalate}
+                    className="px-2.5 py-1.5 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-lg hover:bg-emerald-500/20 transition-colors min-h-[36px]"
+                    title="Return to active"
+                  >
+                    De-escalate
+                  </button>
+                ) : (
                   <button
                     onClick={handleEscalate}
                     className="px-2.5 py-1.5 text-xs font-medium bg-[#E8837B]/10 text-[#E8837B] rounded-lg hover:bg-[#E8837B]/20 transition-colors min-h-[36px]"

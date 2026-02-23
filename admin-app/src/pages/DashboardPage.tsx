@@ -176,13 +176,18 @@ export function DashboardPage() {
   }, [fetchCompliance]);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleQuickAction = async (bookingId: string, action: 'checkIn' | 'checkOut') => {
     setActionLoading(bookingId);
+    setActionError(null);
     const apiFn = action === 'checkIn' ? adminBookingApi.checkIn : adminBookingApi.checkOut;
     const result = await apiFn(bookingId);
     setActionLoading(null);
-    if (result.data) {
+    if (result.error) {
+      setActionError(result.error);
+      setTimeout(() => setActionError(null), 5000);
+    } else if (result.data) {
       fetchArrivals();
       fetchFacility();
     }
@@ -365,9 +370,10 @@ export function DashboardPage() {
               </div>
             )}
             {staffOnDuty.map((member) => (
-              <div
+              <button
                 key={member.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                onClick={() => navigate('/staff')}
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 hover:border-[#62A2C3]/30 transition-colors cursor-pointer text-left"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-[#62A2C3]/20 flex items-center justify-center">
@@ -389,7 +395,7 @@ export function DashboardPage() {
                     {formatTime(member.shiftStart)} - {formatTime(member.shiftEnd)}
                   </p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -409,6 +415,14 @@ export function DashboardPage() {
         {arrivalsError && (
           <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
             {arrivalsError}
+          </div>
+        )}
+        {actionError && (
+          <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between">
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-600 ml-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
         )}
 
