@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateCustomer, AuthenticatedCustomerRequest } from '../../middleware/auth';
+import { logger } from '../../middleware/security';
 import { MessagingService, MessagingError } from './service';
 import {
   SendMessageSchema,
@@ -51,6 +52,12 @@ router.get('/conversations/:conversationId/messages', async (req: Request, res: 
     const customerReq = req as AuthenticatedCustomerRequest;
     const conversationId = req.params.conversationId as string;
     const paramsValidation = MessageListParamsSchema.safeParse(req.query);
+    if (!paramsValidation.success) {
+      logger.warn('[getMessages] Query param validation failed, using defaults', {
+        query: req.query,
+        errors: paramsValidation.error.issues,
+      });
+    }
     const params = paramsValidation.success ? paramsValidation.data : undefined;
 
     const result = await messagingService.getMessages(

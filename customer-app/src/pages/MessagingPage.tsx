@@ -276,9 +276,14 @@ export function MessagingPage() {
       // Always update messages from server — merge with any unsent optimistic msgs
       setMessages(prev => {
         const prevReal = prev.filter(m => !m.id.startsWith('temp-'));
-        // Skip update if server count hasn't changed (avoids unnecessary re-renders)
-        if (msgs.length === prevReal.length) return prev;
-        return msgs;
+        const lastServerMsg = msgs[msgs.length - 1];
+        const lastPrevMsg = prevReal[prevReal.length - 1];
+
+        // Update if the latest message changed OR count changed
+        if (lastServerMsg?.id !== lastPrevMsg?.id || msgs.length !== prevReal.length) {
+          return msgs;
+        }
+        return prev;
       });
 
       // Clear typing indicator when AI response arrives
@@ -351,8 +356,20 @@ export function MessagingPage() {
         : sendErr);
       setIsAiTyping(false);
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+    } else {
+      // Immediate fetch — catches the customer message right away
+      // and often catches the AI response too (if it's fast enough)
+      setTimeout(async () => {
+        const { data } = await messagingApi.getMessages(activeConversationId, 500);
+        if (data) {
+          const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
+          const msgs = rawMsgs.map(normalizeMessage);
+          setMessages(msgs);
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg?.senderType === 'ai') setIsAiTyping(false);
+        }
+      }, 1500);
     }
-    // On success: keep isAiTyping=true — polling clears it when AI message arrives
 
     setIsSending(false);
     requestAnimationFrame(() => inputRef.current?.focus());
