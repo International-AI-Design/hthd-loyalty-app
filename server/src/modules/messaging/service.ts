@@ -60,6 +60,12 @@ export class MessagingService {
       throw new MessagingError('Conversation is closed', 400);
     }
 
+    logger.info('[sendMessage] Processing', {
+      conversationId,
+      status: conversation.status,
+      assignedStaffId: conversation.assignedStaffId,
+    });
+
     // Create the customer message
     const customerMessage = await (prisma as any).message.create({
       data: {
@@ -76,29 +82,10 @@ export class MessagingService {
       data: { lastMessageAt: new Date() },
     });
 
-    // If staff is assigned and conversation is escalated, skip AI — staff handles it.
-    // Save a brief acknowledgment so the client animation resolves cleanly.
-    if (conversation.assignedStaffId && conversation.status === 'escalated') {
-      try {
-        await (prisma as any).message.create({
-          data: {
-            conversationId,
-            role: 'assistant',
-            content: "✋ You're connected with our team. A staff member will respond shortly.",
-            channel: 'web_chat',
-          },
-        });
-        await (prisma as any).conversation.update({
-          where: { id: conversationId },
-          data: { lastMessageAt: new Date() },
-        });
-      } catch (err) {
-        logger.error('[sendMessage] acknowledgment save failed', { conversationId, error: err instanceof Error ? err.message : String(err) });
-      }
-      return { customerMessage, aiMessage: null };
-    }
-
+    // If conversation is escalated, always trigger AI so the customer gets a response.
+    // Staff can still see and respond via the admin panel independently.
     // Fire AI generation in background — client gets instant 201, polls for AI reply
+    logger.info('[sendMessage] Firing AI generation', { conversationId });
     void this.generateAndSaveAIResponse(conversationId, customerId);
 
     return { customerMessage, aiMessage: null };
