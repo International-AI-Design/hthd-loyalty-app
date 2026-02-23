@@ -107,13 +107,36 @@ export class MessagingService {
   /**
    * Background AI generation — runs after sendMessage returns.
    * Always resolves (never throws): worst case saves the fallback message.
+   * Hard 45-second timeout ensures a response is ALWAYS saved.
    */
   private async generateAndSaveAIResponse(
     conversationId: string,
     customerId: string
   ): Promise<void> {
+    const HARD_TIMEOUT_MS = 45_000;
+    const FALLBACK = "Thanks for your message! A team member will be with you shortly.";
+
+    let aiContent: string;
     try {
-      const aiContent = await this.getAIResponse(conversationId, customerId);
+      logger.info('[AI Background] Starting generation', { conversationId, customerId });
+
+      aiContent = await Promise.race([
+        this.getAIResponse(conversationId, customerId),
+        new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error('AI generation timed out after 45s')), HARD_TIMEOUT_MS)
+        ),
+      ]);
+
+      logger.info('[AI Background] Generation complete', { conversationId, length: aiContent.length });
+    } catch (err) {
+      logger.error('[AI Background] Generation failed, saving fallback', {
+        conversationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      aiContent = FALLBACK;
+    }
+
+    try {
       await (prisma as any).message.create({
         data: {
           conversationId,
@@ -127,6 +150,7 @@ export class MessagingService {
         where: { id: conversationId },
         data: { lastMessageAt: new Date() },
       });
+      logger.info('[AI Background] Message saved', { conversationId });
     } catch (err) {
       logger.error('[AI Background] Save error', { conversationId, error: err instanceof Error ? err.message : String(err) });
     }
@@ -412,10 +436,12 @@ export class MessagingService {
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
+        logger.warn('[WebChat AI] No ANTHROPIC_API_KEY set', { conversationId });
         return "Thanks for your message! A team member will be with you shortly.";
       }
 
       // Build full customer context and system prompt
+      logger.info('[WebChat AI] Building context', { conversationId, customerId });
       const context = await buildContextForCustomerId(customerId);
       const systemPrompt = buildWebChatSystemPrompt(context);
 
@@ -447,9 +473,11 @@ export class MessagingService {
         return "Hi there! How can I help you today?";
       }
 
+      logger.info('[WebChat AI] Calling Anthropic API', { conversationId, historyLength: messages.length });
+
       const client = new Anthropic({
         apiKey,
-        timeout: 30_000, // 30 second max per API call
+        timeout: 20_000, // 20 second max per API call
         ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
       });
       let rounds = 0;
@@ -464,6 +492,8 @@ export class MessagingService {
           tools: TOOL_DEFINITIONS,
           messages,
         });
+
+        logger.info('[WebChat AI] API response received', { conversationId, round: rounds, stopReason: response.stop_reason });
 
         // Final text response
         if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {

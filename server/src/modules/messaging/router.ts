@@ -58,6 +58,8 @@ router.get('/conversations/:conversationId/messages', async (req: Request, res: 
       customerReq.customer.id,
       params
     );
+    // Disable ETag so polling always sees fresh data (prevents 304 caching)
+    res.set('Cache-Control', 'no-cache, no-store');
     res.json(result);
   } catch (error) {
     if (error instanceof MessagingError) {
