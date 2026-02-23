@@ -208,8 +208,7 @@ export function MessagingPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Safety net: clear typing indicator after 45s if poll never clears it */
   const aiTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Tracks how many real (non-optimistic) messages are in state — used by poll to detect new arrivals */
-  const stableCountRef = useRef(0);
+
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -263,11 +262,6 @@ export function MessagingPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Keep stableCountRef in sync with real (non-optimistic) message count
-  useEffect(() => {
-    stableCountRef.current = messages.filter(m => !m.id.startsWith('temp-')).length;
-  }, [messages]);
-
   // ── Polling: detect new messages, clear AI typing when response arrives ───────
   useEffect(() => {
     if (!activeConversationId) return;
@@ -279,21 +273,22 @@ export function MessagingPage() {
       const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
       const msgs = rawMsgs.map(normalizeMessage);
 
-      // Only update when server has MORE messages than our stable baseline.
-      // stableCountRef.current is always current — no stale closure issues.
-      if (msgs.length > stableCountRef.current) {
-        setMessages(msgs);
+      // Always update messages from server — merge with any unsent optimistic msgs
+      setMessages(prev => {
+        const prevReal = prev.filter(m => !m.id.startsWith('temp-'));
+        // Skip update if server count hasn't changed (avoids unnecessary re-renders)
+        if (msgs.length === prevReal.length) return prev;
+        return msgs;
+      });
 
-        // Clear typing indicator outside the setMessages call for reliability
-        const lastMsg = msgs[msgs.length - 1];
-        const aiArrived = lastMsg?.senderType === 'ai';
-        if (aiArrived) {
-          if (aiTypingTimerRef.current) {
-            clearTimeout(aiTypingTimerRef.current);
-            aiTypingTimerRef.current = null;
-          }
-          setIsAiTyping(false);
+      // Clear typing indicator when AI response arrives
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg?.senderType === 'ai') {
+        if (aiTypingTimerRef.current) {
+          clearTimeout(aiTypingTimerRef.current);
+          aiTypingTimerRef.current = null;
         }
+        setIsAiTyping(false);
       }
     }, 3000);
 
