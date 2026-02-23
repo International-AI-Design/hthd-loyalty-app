@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.17] - Messaging Fix + Grooming Sub-Services - 2026-02-23
+
+### Fixed
+- **Messaging disappearing messages** — Root cause: `getConversations()` returned closed conversations; sending into a closed convo returned HTTP 400, triggering optimistic message removal. Fixed by filtering to active/escalated conversations only.
+- **Closed conversation UX** — Improved error message when attempting to send into a closed conversation: "This conversation has been closed. Tap Start New Conversation to continue."
+
+### Added
+- **Grooming sub-services** — New `GroomingSubService` model with 5 services: Nail Trim ($20), Ear Cleaning ($15), Bath & Dry, Bath & Haircut, Full Groom
+- **Sub-service booking step** — Step 1.5 in booking wizard: tappable cards with fixed price (non-coat) or "From $X+" (coat-related)
+- **Conditional photo step** — Coat-related services (bath/cut/full groom) show optional photo upload; non-coat services (nails/ear cleaning) skip photo entirely
+- **Context-aware confirmation** — Booking success screen shows pending-price messaging for coat-related vs. fixed-price confirmation for non-coat
+- **Pay Now pending state** — Coat-related grooming bookings: Pay Now grayed out with tap-to-reveal amber explanation ("Price pending grooming review")
+- **Groomer rating notification** — When groomer rates coat condition, customer automatically receives chat message with final quoted price
+- `GET /v2/grooming/sub-services` endpoint returning active sub-services sorted by sortOrder
+- `groomingSubServiceId` field on Booking model (FK to GroomingSubService)
+
+### Database
+- New `grooming_sub_services` table seeded with 5 services
+- `bookings.grooming_sub_service_id` FK column added
+
+---
+
 ## [2.0.0-alpha.16] - Messaging Bug Fixes - 2026-02-20
 
 ### Fixed
