@@ -2,7 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0-alpha.14] - AIM Backend (Segment 4) - 2026-02-19
+## [2.0.0-alpha.16] - Messaging Bug Fixes - 2026-02-20
+
+### Fixed
+- **Infinite animation loop** — Escalated conversations triggered continuous polling; added 45s client-side failsafe timeout
+- **AI response blocking** — Added background job logging and 30s timeout to prevent messaging endpoint from hanging indefinitely
+- **Poll race condition** — Optimistic messages were being cleared by concurrent poll responses
+- **Async AI responses** — AI now responds asynchronously with puppy loading animations while processing
+- **Conversation state logging** — Added diagnostic logging to `sendMessage` for production debugging
+- **`setIsAiTyping` updater** — Moved outside `setMessages` updater to prevent React state batching issues
+
+## [2.0.0-alpha.15] - AIM Frontend + Staff Polish (Segments 5 & 6) - 2026-02-19
+
+### AIM Frontend — 8 New Components (Segment 5)
+
+- **AimContext** — Global state provider: drawer open/close, active tab, unread alert count, pending prompts; polls alerts every 60s
+- **NotificationContext** — Toast notification system with success/info/warning/error types; max 3 stacked, auto-dismiss 5s
+- **AimButton** — Fixed bottom-right FAB (56px) with sparkle icon, coral unread badge, pulse animation; hidden on `/login`
+- **AimDrawer** — Slide-in panel from right (400px desktop, full-width mobile); 3 tabs: Chat, Activity, Alerts; escape/backdrop close
+- **AimChat** — Chat interface with user/assistant bubbles, quick prompt chips, tool usage indicator, conversation history, new chat
+- **AimActivity** — Real-time facility event feed (check-ins, check-outs, bookings, escalations); polls every 30s
+- **AimAlerts** — Alert panel with severity styling (info/warning/critical), dismiss and "Ask AIM" actions
+- **NotificationToast** — Fixed top-right toasts with slide-in animation, color-coded by type
+
+### Staff Break Management (Segment 6)
+
+#### Backend
+- **Break service methods** — `addBreak()`, `removeBreak()`, `getBreaks()` on staff-schedule service
+- **Break routes** — `POST /:scheduleId/breaks`, `DELETE /breaks/:breakId` with Zod validation
+- **Schedule includes** — All schedule queries now include breaks ordered by startTime
+
+#### Frontend
+- **Break UI on StaffSchedulePage** — Break indicators per shift (type + time range), inline add-break form, remove with confirmation
+- **API client** — Added `adminScheduleApi.addBreak()` and `.removeBreak()`
+
+### AIM Alert Refinement (Segment 6)
+- **Staffing shortfall** — Two-tier: >8:1 dog:staff = warning, >12:1 = critical
+- **Capacity forecasting** — Three-tier 7-day forecast: >80% = info, >90% = warning, >95% = critical
+
+### Visual Audit — Brand Consistency (Segment 6)
+- **Zero generic green classes** remaining across entire admin app
+- Replaced all `bg-green-*`, `text-green-*`, `ring-green-*` with brand palette hex values
+- Pages audited: StaffPage, BundleManagementPage, GroomingPricingPage, SchedulePage, ProtectedRoute, Alert, Input, Select
+
+### Build Fixes
+- `QuickBookModal.tsx` / `ServiceDrilldownModal.tsx` — `JSX.Element` → `React.ReactNode` (Vercel `tsc -b` strictness)
+- `GingrSyncPage.tsx` — Removed unused `Badge` import
+- `LoyaltyPage.tsx` — Removed unused `navigate` / `useNavigate`
+
+### TypeScript
+- Both `admin-app` and `server` pass `tsc --noEmit` and Vercel `tsc -b` clean
+
+### Deployed
+- Admin app deployed to Vercel production at https://hthd-admin.internationalaidesign.com
+- Server auto-deployed to Railway via push to main
+
+
 
 ### Schema — 4 New Tables
 - **aim_conversations** — Staff-to-AIM chat sessions with title, status, staff ownership
