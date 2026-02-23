@@ -89,6 +89,7 @@ export function BookingPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [showPricePendingMessage, setShowPricePendingMessage] = useState(false);
 
   // Vaccination warnings
   const [vaxWarnings, setVaxWarnings] = useState<VaxWarning[]>([]);
@@ -664,9 +665,29 @@ export function BookingPage() {
             </div>
 
             <div className="space-y-3">
-              <Button className="w-full" size="lg" onClick={() => navigate(`/checkout/${confirmedBooking.id}`, { state: { booking: confirmedBooking } })}>
-                Pay Now
-              </Button>
+              {isGrooming && isCoatRelated ? (
+                <>
+                  <button
+                    onClick={() => setShowPricePendingMessage(true)}
+                    className="w-full py-4 rounded-2xl bg-brand-sand text-brand-forest-muted font-semibold text-base cursor-not-allowed min-h-[56px] flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    Pay Now
+                  </button>
+                  {showPricePendingMessage && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 text-left">
+                      <p className="font-semibold mb-0.5">Price pending grooming review</p>
+                      <p>Your groomer needs to assess your pet's coat condition to give you a final price. You'll get a message in chat once it's ready — then you can pay ahead of time.</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Button className="w-full" size="lg" onClick={() => navigate(`/checkout/${confirmedBooking.id}`, { state: { booking: confirmedBooking } })}>
+                  Pay Now
+                </Button>
+              )}
               <Button variant="outline" className="w-full" size="lg" onClick={() => navigate('/bookings')}>
                 View My Bookings
               </Button>
