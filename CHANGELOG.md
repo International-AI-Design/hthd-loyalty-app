@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.18] - Chat AI Response Fix + Date UX - 2026-02-23
+
+### Fixed
+- **AI responses not appearing in chat** — Root cause: Zod schema `.max(100)` on message list `limit` param silently rejected the frontend's `limit=500`. `safeParse` returned `success: false`, router fell back to defaults (`limit=50`), so conversations with 50+ messages never showed new messages. The frontend poll saw the same 50 oldest messages every cycle and correctly detected "no change." Five previous fix attempts failed because they addressed symptoms (polling logic, pagination, state comparison) while the Zod cap silently undid each fix. **Resolution:** Changed `.max(100)` to `.max(500)` in `MessageListParamsSchema`.
+- **Polling comparison logic** — Replaced fragile length-only comparison with last-message-ID check. Length comparison fails when message count stabilizes (pagination cap, race conditions). ID comparison detects any new message reliably.
+- **Post-send fetch delay** — Added immediate fetch 1.5s after successful POST. Catches customer message and often the AI response without waiting for the next 3s poll cycle.
+- **Silent Zod validation failures** — Added `logger.warn()` when query param validation fails in messaging router. Previously, Zod `safeParse` failures were silently swallowed with no log trace.
+- **AI date format instructions** — AI concierge no longer asks customers to provide dates in YYYY-MM-DD format. System prompt now instructs the AI to interpret natural language dates ("next Tuesday", "tomorrow", "the 25th") using its clock context, confirm in friendly format ("Tuesday, February 25th"), and convert to YYYY-MM-DD internally when calling booking tools.
+
+### Lessons Learned
+- **Zod `safeParse` + silent fallback = invisible bugs.** When `safeParse` fails and code falls through to defaults, there is zero indication anything went wrong. Always log validation failures, even when using defaults as fallback.
+- **Fix the root cause, not the symptom.** Five commits tried to fix polling logic, state comparison, and pagination — all were treating symptoms. The actual bug was a one-line Zod constraint that silently capped the query result.
+- **Validate assumptions at system boundaries.** The frontend sent `limit=500` and assumed it would work. The server silently returned 50. Neither side logged the mismatch. Boundary contracts need validation logging.
+
+---
+
 ## [2.0.0-alpha.17] - Messaging Fix + Grooming Sub-Services - 2026-02-23
 
 ### Fixed
