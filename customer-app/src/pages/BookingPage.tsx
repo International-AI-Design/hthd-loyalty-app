@@ -14,6 +14,7 @@ import type {
   BundleCalculation,
   Booking,
   DateAvailability,
+  GroomingSubService,
 } from '../lib/api';
 import { Button, Alert } from '../components/ui';
 
@@ -23,7 +24,7 @@ interface VaxWarning {
   issues: string[];
 }
 
-type BookingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type BookingStep = 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 7;
 
 const SIZE_OPTIONS = [
   { value: 'small', label: 'Small', desc: 'Up to 25 lbs' },
@@ -47,6 +48,11 @@ export function BookingPage() {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
+
+  // Step 1.5: Grooming sub-service selection
+  const [groomingSubServices, setGroomingSubServices] = useState<GroomingSubService[]>([]);
+  const [selectedSubService, setSelectedSubService] = useState<GroomingSubService | null>(null);
+  const [isLoadingSubServices, setIsLoadingSubServices] = useState(false);
 
   // Step 2: Dog selection
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -103,6 +109,8 @@ export function BookingPage() {
   const isBoarding = selectedService?.name === 'boarding';
   // Multi-day selection for daycare and non-boarding, non-grooming
   const isMultiDay = !isGrooming && !isBoarding;
+  // Photo step only shown for coat-related grooming sub-services
+  const isCoatRelated = selectedSubService?.isCoatRelated ?? true; // default true so existing grooming bookings without sub-service still show photo
 
   // Load service types on mount
   useEffect(() => {
@@ -129,6 +137,17 @@ export function BookingPage() {
     };
     loadDogs();
   }, []);
+
+  // Load grooming sub-services when step 1.5 is reached
+  useEffect(() => {
+    if (step === 1.5 && groomingSubServices.length === 0) {
+      setIsLoadingSubServices(true);
+      bookingApi.getGroomingSubServices().then(({ data }) => {
+        if (data) setGroomingSubServices(data.subServices);
+        setIsLoadingSubServices(false);
+      });
+    }
+  }, [step, groomingSubServices.length]);
 
   // Check vaccination compliance when dogs are selected
   useEffect(() => {
@@ -265,11 +284,18 @@ export function BookingPage() {
 
   const goNext = () => {
     directionRef.current = "forward";
-    if (step === 3 && !isGrooming) {
+    if (step === 1.5) {
+      setStep(2);
+    } else if (step === 3 && !isGrooming) {
       // Skip time and photo steps for non-grooming
       setStep(6);
     } else if (step === 4 && isGrooming) {
-      setStep(5);
+      if (isCoatRelated) {
+        setStep(5);
+      } else {
+        // Non-coat service: skip photo step
+        setStep(6);
+      }
     } else {
       setStep((s) => Math.min(s + 1, 7) as BookingStep);
     }
@@ -277,9 +303,16 @@ export function BookingPage() {
 
   const goBack = () => {
     directionRef.current = "backward";
-    if (step === 6 && !isGrooming) {
+    if (step === 1.5) {
+      setStep(1);
+    } else if (step === 2 && isGrooming) {
+      setStep(1.5);
+    } else if (step === 6 && !isGrooming) {
       setStep(3);
     } else if (step === 5 && isGrooming) {
+      setStep(4);
+    } else if (step === 6 && isGrooming && !isCoatRelated) {
+      // Non-coat service: skipped photo step going backward
       setStep(4);
     } else {
       setStep((s) => Math.max(s - 1, 1) as BookingStep);
@@ -296,9 +329,15 @@ export function BookingPage() {
     setPhotoData(null);
     setSelectedBundle(null);
     setBundleCalc(null);
+    setSelectedSubService(null);
     setNotes('');
     setError(null);
-    goNext();
+    if (service.name === 'grooming') {
+      directionRef.current = 'forward';
+      setStep(1.5);
+    } else {
+      goNext();
+    }
   };
 
   const handleDogToggle = (dogId: string) => {
@@ -521,6 +560,7 @@ export function BookingPage() {
       date: bookingDate,
       startTime: selectedTime || undefined,
       notes: notes || undefined,
+      groomingSubServiceId: selectedSubService?.id || undefined,
     });
 
     if (data) {
@@ -582,12 +622,20 @@ export function BookingPage() {
               </svg>
             </div>
             <h2 className="font-heading text-2xl font-bold text-brand-forest mb-2">Booking Confirmed!</h2>
-            <p className="text-brand-forest-muted mb-6">Your appointment has been submitted.</p>
+            <p className="text-brand-forest-muted mb-6">
+              {isGrooming && isCoatRelated && !photoData
+                ? 'Your groomer will quote the final price on the day of your appointment.'
+                : isGrooming && isCoatRelated && photoData
+                ? "Your groomer will review your photo and confirm the final price — you'll get a message in chat."
+                : 'Your appointment has been submitted.'}
+            </p>
 
             <div className="bg-brand-cream rounded-xl p-4 mb-6 text-left space-y-2">
               <div className="flex justify-between">
                 <span className="text-brand-forest-muted">Service</span>
-                <span className="font-semibold text-brand-forest">{confirmedBooking.serviceType.displayName}</span>
+                <span className="font-semibold text-brand-forest">
+                  {selectedSubService ? selectedSubService.displayName : confirmedBooking.serviceType.displayName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-forest-muted">{isBoarding && selectedEndDate ? "Dates" : "Date"}</span>
@@ -700,6 +748,57 @@ export function BookingPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 1.5: Grooming Sub-Service Selection */}
+        {step === 1.5 && (
+          <div className="space-y-4">
+            <h2 className="font-heading text-xl font-bold text-brand-forest">What service does your pup need?</h2>
+            <p className="text-sm text-brand-forest-muted">Choose the grooming service to get started.</p>
+            {isLoadingSubServices ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {groomingSubServices.map((ss) => {
+                  const isSelected = selectedSubService?.id === ss.id;
+                  return (
+                    <button
+                      key={ss.id}
+                      onClick={() => {
+                        setSelectedSubService(ss);
+                        directionRef.current = 'forward';
+                        setStep(2);
+                      }}
+                      className={`w-full rounded-2xl p-5 text-left transition-all min-h-[80px] ${
+                        isSelected
+                          ? 'bg-brand-primary/10 ring-2 ring-brand-primary shadow-md'
+                          : 'bg-white shadow-md hover:shadow-lg hover:ring-2 hover:ring-brand-primary/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-heading text-base font-bold text-brand-forest">{ss.displayName}</h3>
+                          {ss.description && (
+                            <p className="text-sm text-brand-forest-muted mt-0.5">{ss.description}</p>
+                          )}
+                        </div>
+                        <div className="ml-4 text-right flex-shrink-0">
+                          <p className="text-lg font-bold text-brand-primary">
+                            {ss.isCoatRelated ? `From $${(ss.basePriceCents / 100).toFixed(0)}+` : `$${(ss.basePriceCents / 100).toFixed(0)}`}
+                          </p>
+                          {ss.isCoatRelated && (
+                            <p className="text-xs text-brand-forest-muted">Price set by groomer</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1053,24 +1152,24 @@ export function BookingPage() {
           </div>
         )}
 
-        {/* Step 5: Photo Upload (grooming only, skippable) */}
-        {step === 5 && isGrooming && (
+        {/* Step 5: Photo Upload (grooming + coat-related only, skippable) */}
+        {step === 5 && isGrooming && isCoatRelated && (
           <div className="space-y-4">
             <h2 className="font-heading text-xl font-bold text-brand-forest">Coat Condition Photo</h2>
             <p className="text-sm text-brand-forest-muted">
-              Upload a photo of your dog's coat to help us prepare for the appointment. This is optional.
+              Upload a photo of your dog's coat so your groomer can prepare. Helps them set an accurate price before your visit.
             </p>
 
             {groomingPriceRange && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <p className="text-sm text-brand-forest-muted">
-                  Grooming price range for your dog's size:
+                  Estimated price range for your dog's size:
                 </p>
                 <p className="text-lg font-bold text-brand-forest">
                   {formatPrice(groomingPriceRange.min)} - {formatPrice(groomingPriceRange.max)}
                 </p>
                 <p className="text-xs text-brand-forest-muted mt-1">
-                  Final price depends on coat condition and services needed.
+                  Your groomer will confirm the final price after reviewing the photo.
                 </p>
               </div>
             )}
@@ -1115,7 +1214,7 @@ export function BookingPage() {
                 size="lg"
                 onClick={goNext}
               >
-                Skip
+                Skip — Quote on Day Of
               </Button>
               <Button
                 className="flex-1"
@@ -1123,7 +1222,7 @@ export function BookingPage() {
                 onClick={goNext}
                 disabled={!photoData}
               >
-                Continue
+                Continue with Photo
               </Button>
             </div>
           </div>
@@ -1286,7 +1385,9 @@ export function BookingPage() {
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-brand-forest-muted">Service</span>
-                <span className="font-semibold text-brand-forest">{selectedService?.displayName}</span>
+                <span className="font-semibold text-brand-forest">
+                  {selectedSubService ? selectedSubService.displayName : selectedService?.displayName}
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-brand-forest-muted">Dog{selectedDogIds.length > 1 ? 's' : ''}</span>

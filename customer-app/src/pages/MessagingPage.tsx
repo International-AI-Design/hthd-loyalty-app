@@ -351,7 +351,9 @@ export function MessagingPage() {
     // POST — server now returns immediately (AI runs in background)
     const { error: sendErr } = await messagingApi.sendMessage(activeConversationId, text);
     if (sendErr) {
-      setError(sendErr);
+      setError(sendErr === 'Conversation is closed'
+        ? 'This conversation has been closed. Tap "Start New Conversation" to continue.'
+        : sendErr);
       setIsAiTyping(false);
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     }

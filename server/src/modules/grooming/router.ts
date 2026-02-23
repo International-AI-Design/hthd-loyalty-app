@@ -2,9 +2,33 @@ import { Router, Request, Response } from 'express';
 import { authenticateCustomer, AuthenticatedCustomerRequest, authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { GroomingService, GroomingError } from './service';
+import { prisma } from '../../lib/prisma';
 
 const router = Router();
 const groomingService = new GroomingService();
+
+// GET /sub-services — customer-facing list of grooming sub-services
+router.get('/sub-services', authenticateCustomer, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const subServices = await (prisma as any).groomingSubService.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        description: true,
+        basePriceCents: true,
+        isCoatRelated: true,
+        sortOrder: true,
+      },
+    });
+    res.json({ subServices });
+  } catch (error) {
+    console.error('Get grooming sub-services error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET /pricing/:sizeCategory — customer-facing price range
 router.get('/pricing/:sizeCategory', authenticateCustomer, async (req: Request, res: Response): Promise<void> => {

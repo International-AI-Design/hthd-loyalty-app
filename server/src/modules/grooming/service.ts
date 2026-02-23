@@ -1,4 +1,7 @@
 import { prisma } from '../../lib/prisma';
+import { MessagingService } from '../messaging/service';
+
+const messagingService = new MessagingService();
 
 export class GroomingService {
   /**
@@ -111,6 +114,22 @@ export class GroomingService {
         where: { id: bookingDog.booking.id },
         data: { totalCents: newTotal },
       });
+    }
+
+    // Notify customer in chat: groomer has set the price
+    try {
+      const customerId = bookingDog.booking.customerId;
+      const dogName = bookingDog.dog.name;
+      const priceFormatted = `$${(tier.priceCents / 100).toFixed(2)}`;
+      const conversation = await messagingService.getOrCreateConversation(customerId);
+      await messagingService.sendStaffMessage(
+        conversation.id,
+        staffId,
+        `🐾 ${dogName}'s grooming assessment is complete! Your groomer has set the price: ${priceFormatted}. You can pay at pickup or through the app.`
+      );
+    } catch (err) {
+      // Non-fatal — don't fail the rating if notification fails
+      console.error('[rateCondition] notification failed:', err instanceof Error ? err.message : String(err));
     }
 
     return {

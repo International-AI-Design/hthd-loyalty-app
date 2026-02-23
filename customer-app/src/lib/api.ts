@@ -465,6 +465,20 @@ export const referralApi = {
 
 // === V2 Booking Types ===
 
+export interface GroomingSubService {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  basePriceCents: number;
+  isCoatRelated: boolean;
+  sortOrder: number;
+}
+
+export interface GroomingSubServicesResponse {
+  subServices: GroomingSubService[];
+}
+
 export interface ServiceType {
   id: string;
   name: string;
@@ -588,7 +602,9 @@ export const bookingApi = {
     api.get<GroomingSlotsResponse>(`/v2/bookings/grooming-slots?date=${date}`),
   getGroomingPriceRange: (sizeCategory: string) =>
     api.get<GroomingPriceRange>(`/v2/grooming/pricing/${sizeCategory}`),
-  createBooking: (data: { serviceTypeId: string; dogIds: string[]; date: string; startTime?: string; notes?: string }) =>
+  getGroomingSubServices: () =>
+    api.get<GroomingSubServicesResponse>('/v2/grooming/sub-services'),
+  createBooking: (data: { serviceTypeId: string; dogIds: string[]; date: string; startTime?: string; notes?: string; groomingSubServiceId?: string }) =>
     api.post<BookingResponse>('/v2/bookings', data),
   getBookings: (params?: { status?: string; limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();

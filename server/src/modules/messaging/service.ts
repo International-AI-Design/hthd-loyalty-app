@@ -136,7 +136,7 @@ export class MessagingService {
    * List conversations for a customer with last message preview.
    */
   async getConversations(customerId: string, filter?: ConversationFilter) {
-    const where: Record<string, any> = { customerId };
+    const where: Record<string, any> = { customerId, status: { in: ['active', 'escalated'] } };
     if (filter?.status) where.status = filter.status;
     if (filter?.channel) where.channel = filter.channel;
 

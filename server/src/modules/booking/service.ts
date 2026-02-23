@@ -170,7 +170,7 @@ export class BookingService {
    * Validates service type, dog ownership, availability, and duplicates.
    */
   async createBooking(input: CreateBookingInput) {
-    const { customerId, serviceTypeId, dogIds, date, startTime, notes } = input;
+    const { customerId, serviceTypeId, dogIds, date, startTime, notes, groomingSubServiceId } = input;
 
     // Validate service type exists and is active (safe outside transaction)
     const serviceType = await (prisma as any).serviceType.findUnique({
@@ -258,6 +258,7 @@ export class BookingService {
           status: 'pending',
           totalCents,
           notes: notes ?? null,
+          groomingSubServiceId: groomingSubServiceId ?? null,
           dogs: {
             create: dogIds.map((dogId: string) => ({ dogId })),
           },

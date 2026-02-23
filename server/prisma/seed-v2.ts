@@ -172,6 +172,24 @@ async function main() {
   }
   console.log(`  GroomingPriceTier: ${priceMatrix.length} price tiers seeded`);
 
+  // --- Grooming Sub-Services ---
+  const subServices = [
+    { name: 'nails',         displayName: 'Nail Trim',       description: 'Nail trimming and filing',                  basePriceCents: 2000, isCoatRelated: false, sortOrder: 1 },
+    { name: 'ear_cleaning',  displayName: 'Ear Cleaning',    description: 'Gentle ear cleaning and inspection',         basePriceCents: 1500, isCoatRelated: false, sortOrder: 2 },
+    { name: 'bath',          displayName: 'Bath & Dry',      description: 'Shampoo, blow-dry, and brush-out',           basePriceCents: 5500, isCoatRelated: true,  sortOrder: 3 },
+    { name: 'cut',           displayName: 'Bath & Haircut',  description: 'Full bath plus breed-style haircut',         basePriceCents: 7500, isCoatRelated: true,  sortOrder: 4 },
+    { name: 'full_groom',    displayName: 'Full Groom',      description: 'Bath, haircut, nails, ears, and finishing',  basePriceCents: 8500, isCoatRelated: true,  sortOrder: 5 },
+  ];
+
+  for (const ss of subServices) {
+    await (prisma as any).groomingSubService.upsert({
+      where: { name: ss.name },
+      update: { displayName: ss.displayName, description: ss.description, basePriceCents: ss.basePriceCents, isCoatRelated: ss.isCoatRelated, sortOrder: ss.sortOrder },
+      create: ss,
+    });
+  }
+  console.log(`  GroomingSubService: ${subServices.length} sub-services seeded`);
+
   // --- Promote admin staff user to 'owner' role ---
   const promoted = await prisma.staffUser.updateMany({
     where: { role: 'admin' },

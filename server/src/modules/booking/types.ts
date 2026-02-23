@@ -37,6 +37,7 @@ export interface CreateBookingInput {
   date: string; // ISO date string
   startTime?: string; // HH:MM for grooming
   notes?: string;
+  groomingSubServiceId?: string;
 }
 
 // --- Multi-day Create Booking ---
@@ -66,6 +67,7 @@ export const createBookingSchema = z.object({
     .regex(timeRegex, 'Start time must be HH:MM format')
     .optional(),
   notes: z.string().max(1000).optional(),
+  groomingSubServiceId: z.string().uuid('Invalid grooming sub-service ID').optional(),
 });
 
 export const createMultiDayBookingSchema = z.object({

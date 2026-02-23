@@ -279,10 +279,13 @@ model Booking {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
-  checkInStaff  StaffUser?  @relation("CheckInStaff", fields: [checkedInBy], references: [id])
-  checkOutStaff StaffUser?  @relation("CheckOutStaff", fields: [checkedOutBy], references: [id])
+  groomingSubServiceId  String?              @map("grooming_sub_service_id")
+
+  customer             Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType          ServiceType           @relation(fields: [serviceTypeId], references: [id])
+  checkInStaff         StaffUser?            @relation("CheckInStaff", fields: [checkedInBy], references: [id])
+  checkOutStaff        StaffUser?            @relation("CheckOutStaff", fields: [checkedOutBy], references: [id])
+  groomingSubService   GroomingSubService?   @relation(fields: [groomingSubServiceId], references: [id])
 
   dogs          BookingDog[]
   payments      Payment[]
@@ -548,6 +551,24 @@ model IntakeForm {
 
   @@index([phoneNumber])
   @@map("intake_forms")
+}
+
+// --- Grooming Sub-Services ---
+
+model GroomingSubService {
+  id             String    @id @default(uuid())
+  name           String    @unique              // 'nails', 'bath', 'cut', 'full_groom', 'ear_cleaning'
+  displayName    String    @map("display_name") // 'Nail Trim', 'Bath & Dry', etc.
+  description    String?
+  basePriceCents Int       @map("base_price_cents")
+  isCoatRelated  Boolean   @default(false) @map("is_coat_related")
+  isActive       Boolean   @default(true) @map("is_active")
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  bookings       Booking[]
+
+  @@map("grooming_sub_services")
 }
 
 // --- Grooming Pricing ---
