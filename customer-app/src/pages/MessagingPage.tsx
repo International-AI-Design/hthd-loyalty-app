@@ -233,7 +233,7 @@ export function MessagingPage() {
 
   const fetchMessages = useCallback(async (conversationId: string) => {
     setIsLoadingMessages(true);
-    const { data, error: fetchErr } = await messagingApi.getMessages(conversationId);
+    const { data, error: fetchErr } = await messagingApi.getMessages(conversationId, 500);
     if (fetchErr) {
       setError(fetchErr);
     } else if (data) {
@@ -273,7 +273,7 @@ export function MessagingPage() {
     if (!activeConversationId) return;
 
     pollRef.current = setInterval(async () => {
-      const { data } = await messagingApi.getMessages(activeConversationId);
+      const { data } = await messagingApi.getMessages(activeConversationId, 500);
       if (!data) return;
 
       const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
