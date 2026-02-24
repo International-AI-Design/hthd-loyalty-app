@@ -1,0 +1,36 @@
+{
+  "name": "happy-tail",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "dotenv": "^17.3.1",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "test:server": "cd server && npx vitest run",
+    "test:e2e": "npx playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:customer": "npx playwright test --config=e2e/playwright.config.ts --project=customer-desktop",
+    "test:e2e:admin": "npx playwright test --config=e2e/playwright.config.ts --project=admin-desktop",
+    "test:e2e:audit": "npx playwright test --config=e2e/playwright.config.ts --project=functional-audit",
+    "test:e2e:critical": "npx playwright test --config=e2e/playwright.config.ts --grep=@critical",
+    "post-deploy": "./scripts/post-deploy-e2e.sh",
+    "health-check": "npx ts-node scripts/health-monitor.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/International-AI-Design/hthd-loyalty-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/International-AI-Design/hthd-loyalty-app/issues"
+  },
+  "homepage": "https://github.com/International-AI-Design/hthd-loyalty-app#readme"
+}

@@ -1,0 +1,765 @@
+{
+  "app": "admin",
+  "baseUrl": "http://localhost:5174",
+  "description": "Happy Tail admin panel feature registry",
+  "generatedAt": "2026-02-23",
+  "routes": {
+    "/login": {
+      "page": "LoginPage",
+      "auth": "public",
+      "description": "Admin/staff login page",
+      "elements": [
+        {
+          "name": "email-input",
+          "selector": "input[type='email'], input[name='email']",
+          "action": "type",
+          "expected": "Accepts staff email address input",
+          "test": "login.form.emailInput",
+          "critical": true
+        },
+        {
+          "name": "password-input",
+          "selector": "input[type='password'], input[name='password']",
+          "action": "type",
+          "expected": "Accepts password input with masking",
+          "test": "login.form.passwordInput",
+          "critical": true
+        },
+        {
+          "name": "login-button",
+          "selector": "button:has-text('Log In'), button:has-text('Sign In'), button[type='submit']",
+          "action": "click",
+          "expected": "Submits credentials. On success, redirects to /dashboard. On failure, shows error message.",
+          "test": "login.form.submit",
+          "critical": true
+        },
+        {
+          "name": "error-message",
+          "selector": "[role='alert'], .error-message, [data-testid='login-error']",
+          "action": "assert-visible",
+          "expected": "Displays error message on invalid credentials",
+          "test": "login.form.errorDisplay"
+        }
+      ]
+    },
+    "/dashboard": {
+      "page": "DashboardPage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Admin dashboard with business overview, today's schedule, and key metrics",
+      "elements": [
+        {
+          "name": "todays-schedule-summary",
+          "selector": "[data-testid='todays-schedule'], .todays-schedule, .schedule-summary",
+          "action": "assert-visible",
+          "expected": "Shows summary of today's appointments and bookings",
+          "test": "dashboard.schedule.todaySummary",
+          "critical": true
+        },
+        {
+          "name": "metrics-cards",
+          "selector": "[data-testid='metrics'], .metrics-grid, .dashboard-metrics",
+          "action": "assert-visible",
+          "expected": "Displays key business metrics (revenue, bookings, active customers, etc.)",
+          "test": "dashboard.metrics.visible"
+        },
+        {
+          "name": "recent-bookings",
+          "selector": "[data-testid='recent-bookings'], .recent-bookings",
+          "action": "assert-visible",
+          "expected": "Shows list of recent bookings with status indicators",
+          "test": "dashboard.bookings.recent"
+        },
+        {
+          "name": "quick-actions",
+          "selector": "[data-testid='quick-actions'], .quick-actions",
+          "action": "assert-visible",
+          "expected": "Shows quick action buttons for common admin tasks",
+          "test": "dashboard.quickActions.visible"
+        },
+        {
+          "name": "nav-sidebar",
+          "selector": "nav, [data-testid='sidebar'], .sidebar, aside",
+          "action": "assert-visible",
+          "expected": "Layout sidebar navigation is visible with links to all admin sections",
+          "test": "dashboard.layout.sidebar"
+        }
+      ]
+    },
+    "/schedule": {
+      "page": "SchedulePage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Daily/weekly schedule view of all bookings and appointments",
+      "elements": [
+        {
+          "name": "schedule-view",
+          "selector": "[data-testid='schedule-view'], .schedule-view, .schedule-calendar",
+          "action": "assert-visible",
+          "expected": "Displays schedule grid with bookings organized by time and resource",
+          "test": "schedule.view.visible",
+          "critical": true
+        },
+        {
+          "name": "day-view-toggle",
+          "selector": "button:has-text('Day'), [data-testid='view-day']",
+          "action": "click",
+          "expected": "Switches to day view showing detailed hourly breakdown",
+          "test": "schedule.view.dayToggle"
+        },
+        {
+          "name": "week-view-toggle",
+          "selector": "button:has-text('Week'), [data-testid='view-week']",
+          "action": "click",
+          "expected": "Switches to week view showing overview of the full week",
+          "test": "schedule.view.weekToggle"
+        },
+        {
+          "name": "date-navigation-prev",
+          "selector": "button[aria-label='Previous'], button:has-text('Prev'), [data-testid='nav-prev']",
+          "action": "click",
+          "expected": "Navigates to previous day/week",
+          "test": "schedule.navigation.prev"
+        },
+        {
+          "name": "date-navigation-next",
+          "selector": "button[aria-label='Next'], button:has-text('Next'), [data-testid='nav-next']",
+          "action": "click",
+          "expected": "Navigates to next day/week",
+          "test": "schedule.navigation.next"
+        },
+        {
+          "name": "booking-slot",
+          "selector": "[data-testid='booking-slot'], .booking-slot, .schedule-item",
+          "action": "click",
+          "expected": "Opens booking detail view or popover with booking information",
+          "test": "schedule.booking.viewDetail"
+        },
+        {
+          "name": "filter-by-service",
+          "selector": "[data-testid='filter-service'], select, button:has-text('All Services')",
+          "action": "click",
+          "expected": "Filters schedule by service type (daycare, boarding, grooming)",
+          "test": "schedule.filter.byService"
+        }
+      ]
+    },
+    "/customers": {
+      "page": "CustomersPage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Customer management list with search and filters",
+      "elements": [
+        {
+          "name": "customers-table",
+          "selector": "[data-testid='customers-table'], table, .customers-list",
+          "action": "assert-visible",
+          "expected": "Displays list/table of all customers with name, email, dogs, status",
+          "test": "customers.table.visible",
+          "critical": true
+        },
+        {
+          "name": "search-input",
+          "selector": "input[type='search'], input[placeholder*='Search'], [data-testid='customer-search']",
+          "action": "type",
+          "expected": "Filters customers table by search query (name, email, phone)",
+          "test": "customers.search.input",
+          "critical": true
+        },
+        {
+          "name": "customer-row",
+          "selector": "[data-testid='customer-row'], tr.customer-row, .customer-item",
+          "action": "click",
+          "expected": "Navigates to /customers/:id detail page for the selected customer",
+          "test": "customers.table.rowClick",
+          "critical": true
+        },
+        {
+          "name": "pagination-next",
+          "selector": "button:has-text('Next'), button[aria-label='Next page'], [data-testid='pagination-next']",
+          "action": "click",
+          "expected": "Loads next page of customers",
+          "test": "customers.pagination.next"
+        },
+        {
+          "name": "pagination-prev",
+          "selector": "button:has-text('Previous'), button:has-text('Prev'), button[aria-label='Previous page'], [data-testid='pagination-prev']",
+          "action": "click",
+          "expected": "Loads previous page of customers",
+          "test": "customers.pagination.prev"
+        }
+      ]
+    },
+    "/customers/:id": {
+      "page": "CustomerDetailPage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Individual customer detail view with full profile, dogs, bookings, and messaging history",
+      "elements": [
+        {
+          "name": "customer-info",
+          "selector": "[data-testid='customer-info'], .customer-info, .customer-profile",
+          "action": "assert-visible",
+          "expected": "Displays customer profile: name, email, phone, registration date, loyalty tier",
+          "test": "customerDetail.info.visible",
+          "critical": true
+        },
+        {
+          "name": "dogs-section",
+          "selector": "[data-testid='customer-dogs'], .customer-dogs",
+          "action": "assert-visible",
+          "expected": "Shows list of customer's registered dogs with breed, weight, and notes",
+          "test": "customerDetail.dogs.visible"
+        },
+        {
+          "name": "bookings-section",
+          "selector": "[data-testid='customer-bookings'], .customer-bookings",
+          "action": "assert-visible",
+          "expected": "Shows customer's booking history with dates, services, and status",
+          "test": "customerDetail.bookings.visible"
+        },
+        {
+          "name": "points-section",
+          "selector": "[data-testid='customer-points'], .customer-points, .loyalty-info",
+          "action": "assert-visible",
+          "expected": "Shows customer's loyalty points balance and tier",
+          "test": "customerDetail.points.visible"
+        },
+        {
+          "name": "edit-customer-button",
+          "selector": "button:has-text('Edit'), [data-testid='edit-customer']",
+          "action": "click",
+          "expected": "Enables editing of customer profile information",
+          "test": "customerDetail.actions.edit"
+        },
+        {
+          "name": "message-customer-button",
+          "selector": "button:has-text('Message'), [data-testid='message-customer']",
+          "action": "click",
+          "expected": "Opens messaging thread with this customer or navigates to /messages",
+          "test": "customerDetail.actions.message"
+        },
+        {
+          "name": "back-to-list",
+          "selector": "button:has-text('Back'), a:has-text('Customers'), a[href='/customers']",
+          "action": "click",
+          "expected": "Navigates back to /customers list",
+          "test": "customerDetail.navigation.backToList"
+        }
+      ]
+    },
+    "/grooming-pricing": {
+      "page": "GroomingPricingPage",
+      "auth": "protected",
+      "roles": ["owner", "admin", "manager"],
+      "description": "Manage grooming service pricing tiers and options",
+      "elements": [
+        {
+          "name": "pricing-table",
+          "selector": "[data-testid='pricing-table'], table, .pricing-grid",
+          "action": "assert-visible",
+          "expected": "Displays pricing table with grooming services, sizes, and prices",
+          "test": "groomingPricing.table.visible",
+          "critical": true
+        },
+        {
+          "name": "edit-price",
+          "selector": "button:has-text('Edit'), [data-testid='edit-price'], .edit-price-btn",
+          "action": "click",
+          "expected": "Enables inline editing of a price or opens edit modal",
+          "test": "groomingPricing.actions.editPrice"
+        },
+        {
+          "name": "price-input",
+          "selector": "input[type='number'], input[name*='price'], [data-testid='price-input']",
+          "action": "type",
+          "expected": "Accepts numeric price value input",
+          "test": "groomingPricing.form.priceInput"
+        },
+        {
+          "name": "save-button",
+          "selector": "button:has-text('Save'), button[type='submit'], [data-testid='save-pricing']",
+          "action": "click",
+          "expected": "Saves updated pricing. Shows success confirmation.",
+          "test": "groomingPricing.actions.save",
+          "critical": true
+        },
+        {
+          "name": "add-service",
+          "selector": "button:has-text('Add Service'), button:has-text('Add'), [data-testid='add-service']",
+          "action": "click",
+          "expected": "Opens form to add a new grooming service with name, description, and pricing",
+          "test": "groomingPricing.actions.addService"
+        }
+      ]
+    },
+    "/bundles": {
+      "page": "BundleManagementPage",
+      "auth": "protected",
+      "roles": ["owner", "admin", "manager"],
+      "description": "Manage service bundle packages for upselling",
+      "elements": [
+        {
+          "name": "bundles-list",
+          "selector": "[data-testid='bundles-list'], .bundles-list, .bundles-grid",
+          "action": "assert-visible",
+          "expected": "Displays list of all service bundles with names, included services, and pricing",
+          "test": "bundles.list.visible",
+          "critical": true
+        },
+        {
+          "name": "create-bundle-button",
+          "selector": "button:has-text('Create'), button:has-text('Add Bundle'), button:has-text('New Bundle'), [data-testid='create-bundle']",
+          "action": "click",
+          "expected": "Opens bundle creation form or modal",
+          "test": "bundles.actions.create"
+        },
+        {
+          "name": "bundle-card",
+          "selector": "[data-testid='bundle-card'], .bundle-card, .bundle-item",
+          "action": "click",
+          "expected": "Opens bundle detail/edit view",
+          "test": "bundles.list.cardClick"
+        },
+        {
+          "name": "edit-bundle-button",
+          "selector": "button:has-text('Edit'), [data-testid='edit-bundle']",
+          "action": "click",
+          "expected": "Enables editing of bundle name, services, pricing, and availability",
+          "test": "bundles.actions.edit"
+        },
+        {
+          "name": "toggle-bundle-active",
+          "selector": "[data-testid='bundle-toggle'], input[type='checkbox'], .toggle-switch",
+          "action": "click",
+          "expected": "Toggles bundle active/inactive status for customer-facing visibility",
+          "test": "bundles.actions.toggleActive"
+        },
+        {
+          "name": "delete-bundle-button",
+          "selector": "button:has-text('Delete'), button:has-text('Remove'), [data-testid='delete-bundle']",
+          "action": "click",
+          "expected": "Opens confirmation dialog to delete the bundle",
+          "test": "bundles.actions.delete"
+        },
+        {
+          "name": "save-bundle-button",
+          "selector": "button:has-text('Save'), button[type='submit'], [data-testid='save-bundle']",
+          "action": "click",
+          "expected": "Saves bundle changes. Shows success confirmation.",
+          "test": "bundles.actions.save"
+        }
+      ]
+    },
+    "/staff": {
+      "page": "StaffPage",
+      "auth": "protected",
+      "roles": ["owner", "admin"],
+      "description": "Staff member management (owner and admin only)",
+      "elements": [
+        {
+          "name": "staff-list",
+          "selector": "[data-testid='staff-list'], table, .staff-list, .staff-grid",
+          "action": "assert-visible",
+          "expected": "Displays list of all staff members with name, role, email, and status",
+          "test": "staff.list.visible",
+          "critical": true
+        },
+        {
+          "name": "add-staff-button",
+          "selector": "button:has-text('Add Staff'), button:has-text('Invite'), button:has-text('Add'), [data-testid='add-staff']",
+          "action": "click",
+          "expected": "Opens add staff form or invite modal",
+          "test": "staff.actions.add"
+        },
+        {
+          "name": "staff-row",
+          "selector": "[data-testid='staff-row'], tr.staff-row, .staff-item",
+          "action": "click",
+          "expected": "Opens staff member detail/edit view",
+          "test": "staff.list.rowClick"
+        },
+        {
+          "name": "edit-staff-button",
+          "selector": "button:has-text('Edit'), [data-testid='edit-staff']",
+          "action": "click",
+          "expected": "Enables editing of staff member details and role assignment",
+          "test": "staff.actions.edit"
+        },
+        {
+          "name": "role-selector",
+          "selector": "select[name='role'], [data-testid='role-select'], .role-dropdown",
+          "action": "click",
+          "expected": "Dropdown to assign staff role (admin, manager, groomer, attendant)",
+          "test": "staff.form.roleSelect"
+        },
+        {
+          "name": "deactivate-staff",
+          "selector": "button:has-text('Deactivate'), button:has-text('Disable'), [data-testid='deactivate-staff']",
+          "action": "click",
+          "expected": "Deactivates staff account (does not delete, preserves history)",
+          "test": "staff.actions.deactivate"
+        },
+        {
+          "name": "save-staff-button",
+          "selector": "button:has-text('Save'), button[type='submit'], [data-testid='save-staff']",
+          "action": "click",
+          "expected": "Saves staff member changes. Shows success confirmation.",
+          "test": "staff.actions.save"
+        }
+      ]
+    },
+    "/staff-schedule": {
+      "page": "StaffSchedulePage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Staff work schedule and shift management",
+      "elements": [
+        {
+          "name": "schedule-grid",
+          "selector": "[data-testid='staff-schedule-grid'], .staff-schedule, .schedule-grid",
+          "action": "assert-visible",
+          "expected": "Displays staff schedule grid with shifts organized by staff member and day",
+          "test": "staffSchedule.grid.visible",
+          "critical": true
+        },
+        {
+          "name": "add-shift-button",
+          "selector": "button:has-text('Add Shift'), [data-testid='add-shift']",
+          "action": "click",
+          "expected": "Opens form to create a new shift assignment",
+          "test": "staffSchedule.actions.addShift"
+        },
+        {
+          "name": "shift-block",
+          "selector": "[data-testid='shift-block'], .shift-block, .schedule-shift",
+          "action": "click",
+          "expected": "Opens shift detail for editing (start time, end time, assigned staff)",
+          "test": "staffSchedule.shift.click"
+        },
+        {
+          "name": "week-navigation",
+          "selector": "button[aria-label='Next'], button[aria-label='Previous'], [data-testid='week-nav']",
+          "action": "click",
+          "expected": "Navigates to next/previous week in the schedule view",
+          "test": "staffSchedule.navigation.week"
+        },
+        {
+          "name": "staff-filter",
+          "selector": "[data-testid='staff-filter'], select, .staff-filter",
+          "action": "click",
+          "expected": "Filters schedule to show specific staff member's shifts",
+          "test": "staffSchedule.filter.byStaff"
+        }
+      ]
+    },
+    "/loyalty": {
+      "page": "LoyaltyPage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Loyalty program configuration and management",
+      "elements": [
+        {
+          "name": "loyalty-settings",
+          "selector": "[data-testid='loyalty-settings'], .loyalty-settings",
+          "action": "assert-visible",
+          "expected": "Displays loyalty program configuration (points per dollar, tiers, rewards)",
+          "test": "loyalty.settings.visible",
+          "critical": true
+        },
+        {
+          "name": "edit-points-rate",
+          "selector": "[data-testid='edit-points-rate'], button:has-text('Edit'), input[name='pointsRate']",
+          "action": "click",
+          "expected": "Allows editing of points earning rate (points per dollar spent)",
+          "test": "loyalty.settings.editPointsRate"
+        },
+        {
+          "name": "tiers-section",
+          "selector": "[data-testid='loyalty-tiers'], .loyalty-tiers",
+          "action": "assert-visible",
+          "expected": "Shows loyalty tier configuration with thresholds and benefits",
+          "test": "loyalty.tiers.visible"
+        },
+        {
+          "name": "rewards-section",
+          "selector": "[data-testid='loyalty-rewards'], .loyalty-rewards",
+          "action": "assert-visible",
+          "expected": "Shows available rewards catalog with point costs",
+          "test": "loyalty.rewards.visible"
+        },
+        {
+          "name": "add-reward-button",
+          "selector": "button:has-text('Add Reward'), [data-testid='add-reward']",
+          "action": "click",
+          "expected": "Opens form to create a new redeemable reward",
+          "test": "loyalty.rewards.add"
+        },
+        {
+          "name": "save-settings",
+          "selector": "button:has-text('Save'), button[type='submit'], [data-testid='save-loyalty']",
+          "action": "click",
+          "expected": "Saves loyalty program changes. Shows success confirmation.",
+          "test": "loyalty.actions.save"
+        },
+        {
+          "name": "customer-points-overview",
+          "selector": "[data-testid='customer-points-overview'], .customer-points-table",
+          "action": "assert-visible",
+          "expected": "Shows table of customers with their points balances and tiers",
+          "test": "loyalty.customers.overview"
+        }
+      ]
+    },
+    "/gingr-sync": {
+      "page": "GingrSyncPage",
+      "auth": "protected",
+      "roles": ["owner", "admin", "manager"],
+      "description": "Gingr PMS integration sync status and controls",
+      "elements": [
+        {
+          "name": "sync-status",
+          "selector": "[data-testid='sync-status'], .sync-status",
+          "action": "assert-visible",
+          "expected": "Displays current sync status (last sync time, connection health, error count)",
+          "test": "gingrSync.status.visible",
+          "critical": true
+        },
+        {
+          "name": "manual-sync-button",
+          "selector": "button:has-text('Sync Now'), button:has-text('Manual Sync'), [data-testid='manual-sync']",
+          "action": "click",
+          "expected": "Triggers a manual sync with Gingr PMS. Shows progress indicator during sync.",
+          "test": "gingrSync.actions.manualSync",
+          "critical": true
+        },
+        {
+          "name": "sync-history",
+          "selector": "[data-testid='sync-history'], .sync-history, .sync-log",
+          "action": "assert-visible",
+          "expected": "Shows log of recent sync operations with timestamps and outcomes",
+          "test": "gingrSync.history.visible"
+        },
+        {
+          "name": "sync-error-details",
+          "selector": "[data-testid='sync-errors'], .sync-errors",
+          "action": "assert-visible",
+          "expected": "Shows detailed error information for failed sync operations",
+          "test": "gingrSync.errors.visible"
+        },
+        {
+          "name": "connection-test-button",
+          "selector": "button:has-text('Test Connection'), [data-testid='test-connection']",
+          "action": "click",
+          "expected": "Tests connectivity to Gingr API and reports result",
+          "test": "gingrSync.actions.testConnection"
+        },
+        {
+          "name": "sync-settings",
+          "selector": "[data-testid='sync-settings'], .sync-settings",
+          "action": "assert-visible",
+          "expected": "Shows sync configuration (interval, entity mappings, enabled data types)",
+          "test": "gingrSync.settings.visible"
+        }
+      ]
+    },
+    "/messages": {
+      "page": "MessagingPage",
+      "auth": "protected",
+      "layout": "Layout",
+      "description": "Admin messaging panel for customer communication management with escalation controls",
+      "states": {
+        "conversation-list": {
+          "name": "Conversation List",
+          "description": "Shows all customer conversations with filter tabs for status management",
+          "elements": [
+            {
+              "name": "filter-all",
+              "selector": "button:has-text('All'), [data-testid='filter-all']",
+              "action": "click",
+              "expected": "Shows all conversations regardless of status",
+              "test": "adminMessages.conversationList.filterAll",
+              "critical": true
+            },
+            {
+              "name": "filter-active",
+              "selector": "button:has-text('Active'), [data-testid='filter-active']",
+              "action": "click",
+              "expected": "Filters to show only active/open conversations",
+              "test": "adminMessages.conversationList.filterActive"
+            },
+            {
+              "name": "filter-escalated",
+              "selector": "button:has-text('Escalated'), [data-testid='filter-escalated']",
+              "action": "click",
+              "expected": "Filters to show only escalated conversations requiring human attention",
+              "test": "adminMessages.conversationList.filterEscalated",
+              "critical": true
+            },
+            {
+              "name": "filter-closed",
+              "selector": "button:has-text('Closed'), [data-testid='filter-closed']",
+              "action": "click",
+              "expected": "Filters to show only closed/resolved conversations",
+              "test": "adminMessages.conversationList.filterClosed"
+            },
+            {
+              "name": "conversation-item",
+              "selector": "[data-testid='conversation-item'], .conversation-item",
+              "action": "click",
+              "expected": "Opens the selected conversation in thread view",
+              "test": "adminMessages.conversationList.openConversation",
+              "critical": true
+            },
+            {
+              "name": "escalation-badge",
+              "selector": "[data-testid='escalation-badge'], .escalation-badge, .badge-escalated",
+              "action": "assert-visible",
+              "expected": "Shows visual indicator on escalated conversations",
+              "test": "adminMessages.conversationList.escalationBadge"
+            },
+            {
+              "name": "search-conversations",
+              "selector": "input[type='search'], input[placeholder*='Search'], [data-testid='conversation-search']",
+              "action": "type",
+              "expected": "Searches conversations by customer name, content, or topic",
+              "test": "adminMessages.conversationList.search"
+            }
+          ]
+        },
+        "thread-view": {
+          "name": "Thread View",
+          "description": "Individual conversation thread with messages and admin action controls",
+          "elements": [
+            {
+              "name": "messages-thread",
+              "selector": "[data-testid='messages-thread'], .messages-thread, .message-list",
+              "action": "assert-visible",
+              "expected": "Displays full conversation thread with customer and AI messages",
+              "test": "adminMessages.thread.visible",
+              "critical": true
+            },
+            {
+              "name": "reply-textarea",
+              "selector": "textarea, [data-testid='reply-input'], input[placeholder*='Reply']",
+              "action": "type",
+              "expected": "Accepts admin reply text input",
+              "test": "adminMessages.thread.replyInput",
+              "critical": true
+            },
+            {
+              "name": "send-button",
+              "selector": "button:has-text('Send'), button[aria-label='Send'], [data-testid='send-reply']",
+              "action": "click",
+              "expected": "Sends admin reply message to the customer. Message appears in thread.",
+              "test": "adminMessages.thread.send",
+              "critical": true
+            },
+            {
+              "name": "assign-button",
+              "selector": "button:has-text('Assign'), [data-testid='assign-conversation']",
+              "action": "click",
+              "expected": "Opens staff assignment dropdown or modal to assign conversation to a staff member",
+              "test": "adminMessages.thread.assign"
+            },
+            {
+              "name": "escalate-button",
+              "selector": "button:has-text('Escalate'), [data-testid='escalate-conversation']",
+              "action": "click",
+              "expected": "Escalates conversation to human attention. Sets escalated status and sends notification.",
+              "test": "adminMessages.thread.escalate",
+              "critical": true
+            },
+            {
+              "name": "de-escalate-button",
+              "selector": "button:has-text('De-escalate'), button:has-text('Deescalate'), [data-testid='de-escalate-conversation']",
+              "action": "click",
+              "expected": "Removes escalation status and returns conversation to normal AI handling",
+              "test": "adminMessages.thread.deEscalate"
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), button[aria-label='Back'], [data-testid='thread-back']",
+              "action": "click",
+              "expected": "Returns to conversation list (primarily on mobile responsive view)",
+              "test": "adminMessages.thread.back"
+            },
+            {
+              "name": "customer-info-panel",
+              "selector": "[data-testid='customer-panel'], .customer-info-panel",
+              "action": "assert-visible",
+              "expected": "Shows customer info sidebar/panel with name, dogs, recent bookings",
+              "test": "adminMessages.thread.customerPanel"
+            }
+          ]
+        }
+      }
+    },
+    "/ai-monitoring": {
+      "page": "AIMonitoringPage",
+      "auth": "protected",
+      "roles": ["owner", "admin", "manager"],
+      "description": "AI conversation monitoring dashboard showing all AI-customer interactions",
+      "elements": [
+        {
+          "name": "conversation-table",
+          "selector": "[data-testid='ai-conversations-table'], table, .conversations-table",
+          "action": "assert-visible",
+          "expected": "Displays table of AI conversations with customer name, topic, status, satisfaction, and timestamp",
+          "test": "aiMonitoring.table.visible",
+          "critical": true
+        },
+        {
+          "name": "view-conversation-button",
+          "selector": "button:has-text('View'), a:has-text('View'), [data-testid='view-conversation']",
+          "action": "click",
+          "expected": "Navigates to /messages?conv=:id to view the full conversation thread in the messaging panel",
+          "test": "aiMonitoring.table.viewConversation",
+          "critical": true
+        },
+        {
+          "name": "conversation-row",
+          "selector": "[data-testid='conversation-row'], tr, .conversation-row",
+          "action": "click",
+          "expected": "Selects the row or expands inline conversation preview",
+          "test": "aiMonitoring.table.rowClick"
+        },
+        {
+          "name": "filter-status",
+          "selector": "[data-testid='filter-status'], select, button:has-text('Status')",
+          "action": "click",
+          "expected": "Filters conversations by status (active, escalated, resolved, closed)",
+          "test": "aiMonitoring.filter.status"
+        },
+        {
+          "name": "filter-date-range",
+          "selector": "[data-testid='filter-date'], input[type='date'], .date-range-picker",
+          "action": "click",
+          "expected": "Filters conversations by date range",
+          "test": "aiMonitoring.filter.dateRange"
+        },
+        {
+          "name": "search-conversations",
+          "selector": "input[type='search'], input[placeholder*='Search'], [data-testid='ai-search']",
+          "action": "type",
+          "expected": "Searches conversations by customer name, content, or AI response topic",
+          "test": "aiMonitoring.search.input"
+        },
+        {
+          "name": "escalation-stats",
+          "selector": "[data-testid='escalation-stats'], .escalation-stats, .ai-metrics",
+          "action": "assert-visible",
+          "expected": "Shows metrics: total conversations, escalation rate, avg response time, satisfaction score",
+          "test": "aiMonitoring.metrics.visible"
+        },
+        {
+          "name": "refresh-button",
+          "selector": "button:has-text('Refresh'), button[aria-label='Refresh'], [data-testid='refresh-data']",
+          "action": "click",
+          "expected": "Refreshes conversation data from the server",
+          "test": "aiMonitoring.actions.refresh"
+        }
+      ]
+    }
+  }
+}

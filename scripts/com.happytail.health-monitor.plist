@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.happytail.health-monitor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/npx</string>
+        <string>ts-node</string>
+        <string>/Users/johnny/Documents/01_VibeCoding/production/happy-tail/scripts/health-monitor.ts</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>1800</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/happytail-health-monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/happytail-health-monitor.err</string>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

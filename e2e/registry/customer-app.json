@@ -1,0 +1,1041 @@
+{
+  "app": "customer",
+  "baseUrl": "http://localhost:5173",
+  "description": "Happy Tail customer-facing web app feature registry",
+  "generatedAt": "2026-02-23",
+  "routes": {
+    "/login": {
+      "page": "LoginPage",
+      "auth": "public",
+      "description": "Customer login page",
+      "elements": [
+        {
+          "name": "email-input",
+          "selector": "input[type='email'], input[name='email']",
+          "action": "type",
+          "expected": "Accepts email address input",
+          "test": "login.form.emailInput",
+          "critical": true
+        },
+        {
+          "name": "password-input",
+          "selector": "input[type='password'], input[name='password']",
+          "action": "type",
+          "expected": "Accepts password input with masking",
+          "test": "login.form.passwordInput",
+          "critical": true
+        },
+        {
+          "name": "login-button",
+          "selector": "button:has-text('Log In'), button:has-text('Sign In'), button[type='submit']",
+          "action": "click",
+          "expected": "Submits credentials. On success, redirects to /dashboard. On failure, shows error message.",
+          "test": "login.form.submit",
+          "critical": true
+        },
+        {
+          "name": "forgot-password-link",
+          "selector": "a:has-text('Forgot'), a[href='/forgot-password']",
+          "action": "click",
+          "expected": "Navigates to /forgot-password",
+          "test": "login.navigation.forgotPassword"
+        },
+        {
+          "name": "register-link",
+          "selector": "a:has-text('Register'), a:has-text('Sign Up'), a[href='/register']",
+          "action": "click",
+          "expected": "Navigates to /register",
+          "test": "login.navigation.register"
+        },
+        {
+          "name": "error-message",
+          "selector": "[role='alert'], .error-message, [data-testid='login-error']",
+          "action": "assert-visible",
+          "expected": "Displays error message on invalid credentials",
+          "test": "login.form.errorDisplay"
+        }
+      ]
+    },
+    "/register": {
+      "page": "RegisterPage",
+      "auth": "public",
+      "description": "New customer registration page",
+      "elements": [
+        {
+          "name": "first-name-input",
+          "selector": "input[name='firstName'], input[placeholder*='First']",
+          "action": "type",
+          "expected": "Accepts first name input",
+          "test": "register.form.firstName"
+        },
+        {
+          "name": "last-name-input",
+          "selector": "input[name='lastName'], input[placeholder*='Last']",
+          "action": "type",
+          "expected": "Accepts last name input",
+          "test": "register.form.lastName"
+        },
+        {
+          "name": "email-input",
+          "selector": "input[type='email'], input[name='email']",
+          "action": "type",
+          "expected": "Accepts email address, validates format",
+          "test": "register.form.email",
+          "critical": true
+        },
+        {
+          "name": "password-input",
+          "selector": "input[type='password'], input[name='password']",
+          "action": "type",
+          "expected": "Accepts password with strength validation",
+          "test": "register.form.password",
+          "critical": true
+        },
+        {
+          "name": "confirm-password-input",
+          "selector": "input[name='confirmPassword'], input[placeholder*='Confirm']",
+          "action": "type",
+          "expected": "Validates password match",
+          "test": "register.form.confirmPassword"
+        },
+        {
+          "name": "phone-input",
+          "selector": "input[type='tel'], input[name='phone']",
+          "action": "type",
+          "expected": "Accepts phone number input",
+          "test": "register.form.phone"
+        },
+        {
+          "name": "register-button",
+          "selector": "button:has-text('Register'), button:has-text('Sign Up'), button:has-text('Create Account'), button[type='submit']",
+          "action": "click",
+          "expected": "Submits registration. On success, redirects to /login or /dashboard. On failure, shows validation errors.",
+          "test": "register.form.submit",
+          "critical": true
+        },
+        {
+          "name": "login-link",
+          "selector": "a:has-text('Log In'), a:has-text('Sign In'), a[href='/login']",
+          "action": "click",
+          "expected": "Navigates to /login",
+          "test": "register.navigation.login"
+        },
+        {
+          "name": "validation-errors",
+          "selector": "[role='alert'], .error-message, .field-error",
+          "action": "assert-visible",
+          "expected": "Displays field-level validation errors for invalid inputs",
+          "test": "register.form.validationErrors"
+        }
+      ]
+    },
+    "/forgot-password": {
+      "page": "ForgotPasswordPage",
+      "auth": "public",
+      "description": "Password reset request page",
+      "elements": [
+        {
+          "name": "email-input",
+          "selector": "input[type='email'], input[name='email']",
+          "action": "type",
+          "expected": "Accepts email address for password reset",
+          "test": "forgotPassword.form.email",
+          "critical": true
+        },
+        {
+          "name": "submit-button",
+          "selector": "button:has-text('Reset'), button:has-text('Send'), button[type='submit']",
+          "action": "click",
+          "expected": "Sends password reset email. Shows confirmation message regardless of whether email exists.",
+          "test": "forgotPassword.form.submit",
+          "critical": true
+        },
+        {
+          "name": "back-to-login-link",
+          "selector": "a:has-text('Back'), a:has-text('Log In'), a[href='/login']",
+          "action": "click",
+          "expected": "Navigates back to /login",
+          "test": "forgotPassword.navigation.backToLogin"
+        },
+        {
+          "name": "success-message",
+          "selector": "[role='status'], .success-message, [data-testid='reset-success']",
+          "action": "assert-visible",
+          "expected": "Displays confirmation that reset email has been sent",
+          "test": "forgotPassword.form.successMessage"
+        }
+      ]
+    },
+    "/claim": {
+      "page": "ClaimPage",
+      "auth": "public",
+      "description": "Account claim page for existing Gingr customers to link their account",
+      "elements": [
+        {
+          "name": "claim-form",
+          "selector": "form, [data-testid='claim-form']",
+          "action": "assert-visible",
+          "expected": "Displays claim/verification form for existing customers",
+          "test": "claim.form.visible",
+          "critical": true
+        },
+        {
+          "name": "email-input",
+          "selector": "input[type='email'], input[name='email']",
+          "action": "type",
+          "expected": "Accepts email to match against existing Gingr records",
+          "test": "claim.form.email"
+        },
+        {
+          "name": "submit-button",
+          "selector": "button:has-text('Claim'), button:has-text('Verify'), button[type='submit']",
+          "action": "click",
+          "expected": "Submits claim request. Verifies identity and links account.",
+          "test": "claim.form.submit",
+          "critical": true
+        }
+      ]
+    },
+    "/dashboard": {
+      "page": "DashboardPage",
+      "auth": "protected",
+      "description": "Main customer dashboard with points, pets, quick actions, and upcoming bookings",
+      "elements": [
+        {
+          "name": "points-balance",
+          "selector": "[data-testid='points-balance'], .points-balance, text=/\\d+\\s*points/i",
+          "action": "assert-visible",
+          "expected": "Displays customer's current loyalty points balance",
+          "test": "dashboard.points.balance",
+          "critical": true
+        },
+        {
+          "name": "pet-card",
+          "selector": "[data-testid='pet-card'], .pet-card",
+          "action": "click",
+          "expected": "Tappable pet card navigates to /dogs/:dogId profile page",
+          "test": "dashboard.pets.cardNavigation",
+          "critical": true
+        },
+        {
+          "name": "pet-cards-section",
+          "selector": "[data-testid='pet-cards'], .pet-cards-section",
+          "action": "assert-visible",
+          "expected": "Shows all customer's registered pets as cards",
+          "test": "dashboard.pets.section"
+        },
+        {
+          "name": "book-cta",
+          "selector": "button:has-text('Book'), a:has-text('Book'), [data-testid='quick-action-book']",
+          "action": "click",
+          "expected": "Quick action CTA navigates to /book booking wizard",
+          "test": "dashboard.quickActions.book",
+          "critical": true
+        },
+        {
+          "name": "messages-cta",
+          "selector": "button:has-text('Messages'), a:has-text('Messages'), [data-testid='quick-action-messages']",
+          "action": "click",
+          "expected": "Quick action CTA navigates to /messages",
+          "test": "dashboard.quickActions.messages"
+        },
+        {
+          "name": "rewards-cta",
+          "selector": "button:has-text('Rewards'), a:has-text('Rewards'), [data-testid='quick-action-rewards']",
+          "action": "click",
+          "expected": "Quick action CTA navigates to /rewards",
+          "test": "dashboard.quickActions.rewards"
+        },
+        {
+          "name": "upcoming-bookings-section",
+          "selector": "[data-testid='upcoming-bookings'], .upcoming-bookings",
+          "action": "assert-visible",
+          "expected": "Displays list of upcoming bookings with dates and service types",
+          "test": "dashboard.bookings.upcoming"
+        },
+        {
+          "name": "upcoming-booking-item",
+          "selector": "[data-testid='booking-item'], .booking-item",
+          "action": "click",
+          "expected": "Tapping a booking shows booking details or navigates to booking detail view",
+          "test": "dashboard.bookings.itemNavigation"
+        }
+      ]
+    },
+    "/book": {
+      "page": "BookingPage",
+      "auth": "protected",
+      "description": "7-step booking wizard for daycare, boarding, and grooming services",
+      "states": {
+        "step-1": {
+          "name": "Service Selection",
+          "description": "Choose service type: daycare, boarding, or grooming",
+          "elements": [
+            {
+              "name": "daycare-card",
+              "selector": "button:has-text('Daycare'), [data-testid='service-daycare'], .service-card:has-text('Daycare')",
+              "action": "click",
+              "expected": "Selects daycare service and advances to step 2 (dog selection)",
+              "test": "booking.step1.selectDaycare",
+              "critical": true
+            },
+            {
+              "name": "boarding-card",
+              "selector": "button:has-text('Boarding'), [data-testid='service-boarding'], .service-card:has-text('Boarding')",
+              "action": "click",
+              "expected": "Selects boarding service and advances to step 2 (dog selection)",
+              "test": "booking.step1.selectBoarding",
+              "critical": true
+            },
+            {
+              "name": "grooming-card",
+              "selector": "button:has-text('Grooming'), [data-testid='service-grooming'], .service-card:has-text('Grooming')",
+              "action": "click",
+              "expected": "Selects grooming service and advances to step 1.5 (grooming sub-service)",
+              "test": "booking.step1.selectGrooming",
+              "critical": true
+            }
+          ]
+        },
+        "step-1.5": {
+          "name": "Grooming Sub-Service Selection",
+          "description": "Choose specific grooming service (only shown when grooming is selected)",
+          "elements": [
+            {
+              "name": "grooming-sub-service-option",
+              "selector": "[data-testid='grooming-option'], .grooming-option, .sub-service-card",
+              "action": "click",
+              "expected": "Selects a specific grooming sub-service (e.g., bath, full groom, nail trim) and advances to step 2",
+              "test": "booking.step1_5.selectSubService",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 1 service selection",
+              "test": "booking.step1_5.back"
+            }
+          ]
+        },
+        "step-2": {
+          "name": "Dog Selection",
+          "description": "Select one or more dogs for the booking with inline add-dog capability",
+          "elements": [
+            {
+              "name": "dog-checkbox",
+              "selector": "[data-testid='dog-select'], .dog-select-item input[type='checkbox'], .dog-card",
+              "action": "click",
+              "expected": "Toggles dog selection. Multiple dogs can be selected.",
+              "test": "booking.step2.selectDog",
+              "critical": true
+            },
+            {
+              "name": "add-dog-button",
+              "selector": "button:has-text('Add Dog'), button:has-text('Add Pet'), button:has-text('Add a Dog'), [data-testid='add-dog-inline']",
+              "action": "click",
+              "expected": "Opens inline form or modal to add a new dog without leaving the wizard",
+              "test": "booking.step2.addDogInline"
+            },
+            {
+              "name": "add-dog-form",
+              "selector": "[data-testid='add-dog-form'], .add-dog-form, [role='dialog']",
+              "action": "assert-visible",
+              "expected": "Displays inline dog registration form with name, breed, weight, etc.",
+              "test": "booking.step2.addDogForm"
+            },
+            {
+              "name": "next-button",
+              "selector": "button:has-text('Next'), button:has-text('Continue'), [data-testid='wizard-next']",
+              "action": "click",
+              "expected": "Advances to step 3 (date selection) with at least one dog selected",
+              "test": "booking.step2.next",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 1 or step 1.5",
+              "test": "booking.step2.back"
+            }
+          ]
+        },
+        "step-3": {
+          "name": "Date Selection",
+          "description": "Select booking date(s) using a calendar component",
+          "elements": [
+            {
+              "name": "calendar",
+              "selector": "[data-testid='booking-calendar'], .calendar, [role='grid']",
+              "action": "assert-visible",
+              "expected": "Displays interactive calendar showing available dates",
+              "test": "booking.step3.calendarVisible",
+              "critical": true
+            },
+            {
+              "name": "calendar-date",
+              "selector": "[data-testid='calendar-date'], .calendar-day:not(.disabled), button[aria-label*='Select']",
+              "action": "click",
+              "expected": "Selects a date. Unavailable dates should be disabled/unclickable.",
+              "test": "booking.step3.selectDate",
+              "critical": true
+            },
+            {
+              "name": "next-button",
+              "selector": "button:has-text('Next'), button:has-text('Continue'), [data-testid='wizard-next']",
+              "action": "click",
+              "expected": "Advances to step 4 (time selection for grooming) or step 6 (bundle upsell for daycare/boarding)",
+              "test": "booking.step3.next",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 2 dog selection",
+              "test": "booking.step3.back"
+            }
+          ]
+        },
+        "step-4": {
+          "name": "Time Selection",
+          "description": "Select appointment time slot (grooming only)",
+          "elements": [
+            {
+              "name": "time-slot",
+              "selector": "[data-testid='time-slot'], .time-slot, button[aria-label*='time']",
+              "action": "click",
+              "expected": "Selects an available time slot for the grooming appointment",
+              "test": "booking.step4.selectTime",
+              "critical": true
+            },
+            {
+              "name": "next-button",
+              "selector": "button:has-text('Next'), button:has-text('Continue'), [data-testid='wizard-next']",
+              "action": "click",
+              "expected": "Advances to step 5 (photo upload for coat-related grooming) or step 6 (bundle upsell)",
+              "test": "booking.step4.next",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 3 date selection",
+              "test": "booking.step4.back"
+            }
+          ]
+        },
+        "step-5": {
+          "name": "Photo Upload",
+          "description": "Upload coat/style reference photo (coat-related grooming services only)",
+          "elements": [
+            {
+              "name": "photo-upload-input",
+              "selector": "input[type='file'], [data-testid='photo-upload']",
+              "action": "upload",
+              "expected": "Opens file picker for photo upload. Accepts image files.",
+              "test": "booking.step5.uploadPhoto"
+            },
+            {
+              "name": "photo-preview",
+              "selector": "[data-testid='photo-preview'], .photo-preview, img.upload-preview",
+              "action": "assert-visible",
+              "expected": "Shows thumbnail preview of uploaded photo",
+              "test": "booking.step5.photoPreview"
+            },
+            {
+              "name": "skip-button",
+              "selector": "button:has-text('Skip'), button:has-text('No Photo'), [data-testid='skip-photo']",
+              "action": "click",
+              "expected": "Skips photo upload and advances to step 6",
+              "test": "booking.step5.skip"
+            },
+            {
+              "name": "next-button",
+              "selector": "button:has-text('Next'), button:has-text('Continue'), [data-testid='wizard-next']",
+              "action": "click",
+              "expected": "Advances to step 6 (bundle upsell) with or without photo",
+              "test": "booking.step5.next"
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 4 time selection",
+              "test": "booking.step5.back"
+            }
+          ]
+        },
+        "step-6": {
+          "name": "Bundle Upsell",
+          "description": "Optional service bundle add-on offers",
+          "elements": [
+            {
+              "name": "bundle-option",
+              "selector": "[data-testid='bundle-option'], .bundle-card, .upsell-option",
+              "action": "click",
+              "expected": "Selects or deselects a bundle add-on offer",
+              "test": "booking.step6.selectBundle"
+            },
+            {
+              "name": "skip-button",
+              "selector": "button:has-text('Skip'), button:has-text('No Thanks'), [data-testid='skip-bundles']",
+              "action": "click",
+              "expected": "Skips bundle selection and advances to step 7 review",
+              "test": "booking.step6.skip"
+            },
+            {
+              "name": "next-button",
+              "selector": "button:has-text('Next'), button:has-text('Continue'), button:has-text('Review'), [data-testid='wizard-next']",
+              "action": "click",
+              "expected": "Advances to step 7 (review & confirm) with selected bundles",
+              "test": "booking.step6.next"
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to previous step",
+              "test": "booking.step6.back"
+            }
+          ]
+        },
+        "step-7": {
+          "name": "Review & Confirm",
+          "description": "Final review of all booking details before confirmation",
+          "elements": [
+            {
+              "name": "booking-summary",
+              "selector": "[data-testid='booking-summary'], .booking-summary, .review-details",
+              "action": "assert-visible",
+              "expected": "Displays full booking summary: service, dog(s), date, time, add-ons, and total price",
+              "test": "booking.step7.summaryVisible",
+              "critical": true
+            },
+            {
+              "name": "confirm-button",
+              "selector": "button:has-text('Confirm'), button:has-text('Book Now'), button:has-text('Complete'), [data-testid='confirm-booking']",
+              "action": "click",
+              "expected": "Confirms booking and redirects to /checkout/:bookingId for payment",
+              "test": "booking.step7.confirm",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), button:has-text('Edit'), [data-testid='wizard-back']",
+              "action": "click",
+              "expected": "Returns to step 6 to modify selections",
+              "test": "booking.step7.back"
+            }
+          ]
+        }
+      }
+    },
+    "/bookings": {
+      "page": "BookingsPage",
+      "auth": "protected",
+      "description": "List of all customer bookings (upcoming and past)",
+      "elements": [
+        {
+          "name": "bookings-list",
+          "selector": "[data-testid='bookings-list'], .bookings-list",
+          "action": "assert-visible",
+          "expected": "Displays list of all bookings with status, date, service type",
+          "test": "bookings.list.visible"
+        },
+        {
+          "name": "booking-item",
+          "selector": "[data-testid='booking-item'], .booking-item, .booking-card",
+          "action": "click",
+          "expected": "Shows booking details or expands inline detail view",
+          "test": "bookings.list.itemClick"
+        },
+        {
+          "name": "filter-upcoming",
+          "selector": "button:has-text('Upcoming'), [data-testid='filter-upcoming']",
+          "action": "click",
+          "expected": "Filters bookings list to show only upcoming bookings",
+          "test": "bookings.filter.upcoming"
+        },
+        {
+          "name": "filter-past",
+          "selector": "button:has-text('Past'), button:has-text('History'), [data-testid='filter-past']",
+          "action": "click",
+          "expected": "Filters bookings list to show only past/completed bookings",
+          "test": "bookings.filter.past"
+        },
+        {
+          "name": "cancel-booking-button",
+          "selector": "button:has-text('Cancel'), [data-testid='cancel-booking']",
+          "action": "click",
+          "expected": "Opens cancellation confirmation dialog",
+          "test": "bookings.actions.cancel"
+        },
+        {
+          "name": "new-booking-button",
+          "selector": "button:has-text('Book'), a:has-text('Book'), a[href='/book']",
+          "action": "click",
+          "expected": "Navigates to /book to start a new booking",
+          "test": "bookings.actions.newBooking"
+        }
+      ]
+    },
+    "/checkout/:bookingId": {
+      "page": "CheckoutPage",
+      "auth": "protected",
+      "description": "Payment checkout for a confirmed booking",
+      "elements": [
+        {
+          "name": "order-summary",
+          "selector": "[data-testid='order-summary'], .order-summary, .checkout-summary",
+          "action": "assert-visible",
+          "expected": "Displays booking details and total amount due",
+          "test": "checkout.summary.visible",
+          "critical": true
+        },
+        {
+          "name": "payment-form",
+          "selector": "[data-testid='payment-form'], .payment-form, #payment-element",
+          "action": "assert-visible",
+          "expected": "Displays payment form (Stripe elements or similar)",
+          "test": "checkout.payment.formVisible",
+          "critical": true
+        },
+        {
+          "name": "pay-button",
+          "selector": "button:has-text('Pay'), button:has-text('Complete Payment'), button:has-text('Submit Payment'), [data-testid='pay-button']",
+          "action": "click",
+          "expected": "Processes payment. On success, redirects to /checkout/confirmation/:paymentId. On failure, shows error.",
+          "test": "checkout.payment.submit",
+          "critical": true
+        },
+        {
+          "name": "payment-error",
+          "selector": "[role='alert'], .payment-error, [data-testid='payment-error']",
+          "action": "assert-visible",
+          "expected": "Displays payment error message on failure",
+          "test": "checkout.payment.error"
+        },
+        {
+          "name": "apply-points-toggle",
+          "selector": "[data-testid='apply-points'], input[name='usePoints'], button:has-text('Apply Points')",
+          "action": "click",
+          "expected": "Toggles loyalty points redemption against booking total",
+          "test": "checkout.points.apply"
+        }
+      ]
+    },
+    "/checkout/confirmation/:paymentId": {
+      "page": "CheckoutConfirmationPage",
+      "auth": "protected",
+      "description": "Payment confirmation and booking receipt page",
+      "elements": [
+        {
+          "name": "confirmation-message",
+          "selector": "[data-testid='confirmation'], .confirmation-message, text=/confirmed/i, text=/success/i",
+          "action": "assert-visible",
+          "expected": "Displays booking confirmation message with booking details",
+          "test": "checkoutConfirmation.message.visible",
+          "critical": true
+        },
+        {
+          "name": "booking-reference",
+          "selector": "[data-testid='booking-reference'], .booking-reference",
+          "action": "assert-visible",
+          "expected": "Displays unique booking reference number",
+          "test": "checkoutConfirmation.reference.visible"
+        },
+        {
+          "name": "return-to-dashboard",
+          "selector": "button:has-text('Dashboard'), a:has-text('Dashboard'), a[href='/dashboard']",
+          "action": "click",
+          "expected": "Navigates back to /dashboard",
+          "test": "checkoutConfirmation.navigation.dashboard"
+        },
+        {
+          "name": "view-bookings",
+          "selector": "button:has-text('Bookings'), a:has-text('My Bookings'), a[href='/bookings']",
+          "action": "click",
+          "expected": "Navigates to /bookings to see all bookings",
+          "test": "checkoutConfirmation.navigation.bookings"
+        }
+      ]
+    },
+    "/dogs/:dogId": {
+      "page": "DogProfilePage",
+      "auth": "protected",
+      "description": "Individual dog profile with details, history, and management",
+      "elements": [
+        {
+          "name": "dog-name",
+          "selector": "[data-testid='dog-name'], .dog-name, h1, h2",
+          "action": "assert-visible",
+          "expected": "Displays the dog's name prominently",
+          "test": "dogProfile.info.name"
+        },
+        {
+          "name": "dog-photo",
+          "selector": "[data-testid='dog-photo'], .dog-photo, img.dog-avatar",
+          "action": "assert-visible",
+          "expected": "Displays dog's profile photo",
+          "test": "dogProfile.info.photo"
+        },
+        {
+          "name": "dog-details",
+          "selector": "[data-testid='dog-details'], .dog-details",
+          "action": "assert-visible",
+          "expected": "Displays dog breed, weight, age, and other profile details",
+          "test": "dogProfile.info.details"
+        },
+        {
+          "name": "edit-button",
+          "selector": "button:has-text('Edit'), [data-testid='edit-dog']",
+          "action": "click",
+          "expected": "Enables editing of dog profile details",
+          "test": "dogProfile.actions.edit"
+        },
+        {
+          "name": "booking-history",
+          "selector": "[data-testid='dog-bookings'], .dog-booking-history",
+          "action": "assert-visible",
+          "expected": "Shows booking history for this specific dog",
+          "test": "dogProfile.history.bookings"
+        },
+        {
+          "name": "report-cards",
+          "selector": "[data-testid='dog-report-cards'], .dog-report-cards",
+          "action": "assert-visible",
+          "expected": "Shows report cards for this specific dog",
+          "test": "dogProfile.history.reportCards"
+        }
+      ]
+    },
+    "/messages": {
+      "page": "MessagingPage",
+      "auth": "protected",
+      "description": "AI-powered chat messaging interface for customer communication",
+      "states": {
+        "conversation-list": {
+          "name": "Conversation List",
+          "description": "Shows list of existing conversations with option to start a new one",
+          "elements": [
+            {
+              "name": "start-new-conversation",
+              "selector": "button:has-text('Start New Conversation'), button:has-text('New Message'), [data-testid='new-conversation']",
+              "action": "click",
+              "expected": "Creates a new conversation and navigates to chat view",
+              "test": "messages.conversationList.startNew",
+              "critical": true
+            },
+            {
+              "name": "conversation-item",
+              "selector": "[data-testid='conversation-item'], .conversation-item, .conversation-list-item",
+              "action": "click",
+              "expected": "Opens the selected conversation in chat view",
+              "test": "messages.conversationList.openConversation",
+              "critical": true
+            },
+            {
+              "name": "conversation-preview",
+              "selector": "[data-testid='conversation-preview'], .conversation-preview",
+              "action": "assert-visible",
+              "expected": "Shows preview snippet of last message in each conversation",
+              "test": "messages.conversationList.preview"
+            },
+            {
+              "name": "empty-state",
+              "selector": "[data-testid='no-conversations'], text=/no conversation/i, text=/no messages/i",
+              "action": "assert-visible",
+              "expected": "Shows empty state message when no conversations exist",
+              "test": "messages.conversationList.emptyState"
+            }
+          ]
+        },
+        "chat-view": {
+          "name": "Chat View",
+          "description": "Active conversation with AI assistant, showing messages and input",
+          "elements": [
+            {
+              "name": "message-input",
+              "selector": "textarea, [data-testid='message-input'], input[placeholder*='message'], input[placeholder*='type']",
+              "action": "type",
+              "expected": "Accepts text input for new message to send",
+              "test": "messages.chat.input",
+              "critical": true
+            },
+            {
+              "name": "send-button",
+              "selector": "button:has-text('Send'), button[aria-label='Send'], [data-testid='send-message']",
+              "action": "click",
+              "expected": "Sends the typed message. Message appears in thread. AI response follows.",
+              "test": "messages.chat.send",
+              "critical": true
+            },
+            {
+              "name": "back-button",
+              "selector": "button:has-text('Back'), button[aria-label='Back'], [data-testid='chat-back']",
+              "action": "click",
+              "expected": "Returns to conversation list view",
+              "test": "messages.chat.back"
+            },
+            {
+              "name": "quick-reply-buttons",
+              "selector": "[data-testid='quick-reply'], .quick-reply, button.quick-reply",
+              "action": "click",
+              "expected": "Inserts a predefined quick reply message and optionally auto-sends",
+              "test": "messages.chat.quickReply"
+            },
+            {
+              "name": "ai-thinking-indicator",
+              "selector": "[data-testid='ai-thinking'], .typing-indicator, .thinking-indicator, text=/thinking/i",
+              "action": "assert-visible",
+              "expected": "Shows animated thinking/typing indicator while AI generates response",
+              "test": "messages.chat.aiThinking"
+            },
+            {
+              "name": "message-bubble",
+              "selector": "[data-testid='message-bubble'], .message-bubble, .chat-message",
+              "action": "assert-visible",
+              "expected": "Displays sent and received messages in chat bubble format",
+              "test": "messages.chat.messageBubble"
+            }
+          ]
+        }
+      }
+    },
+    "/report-cards": {
+      "page": "ReportCardsPage",
+      "auth": "protected",
+      "description": "View report cards from daycare/boarding visits",
+      "elements": [
+        {
+          "name": "report-cards-list",
+          "selector": "[data-testid='report-cards-list'], .report-cards-list",
+          "action": "assert-visible",
+          "expected": "Displays list of report cards from recent visits",
+          "test": "reportCards.list.visible"
+        },
+        {
+          "name": "report-card-item",
+          "selector": "[data-testid='report-card'], .report-card, .report-card-item",
+          "action": "click",
+          "expected": "Opens detailed report card view with photos, notes, and activities",
+          "test": "reportCards.list.viewCard"
+        },
+        {
+          "name": "report-card-photo",
+          "selector": "[data-testid='report-card-photo'], .report-card img",
+          "action": "assert-visible",
+          "expected": "Shows photos from the visit included in the report card",
+          "test": "reportCards.detail.photo"
+        },
+        {
+          "name": "filter-by-dog",
+          "selector": "[data-testid='filter-dog'], select, button:has-text('All Dogs')",
+          "action": "click",
+          "expected": "Filters report cards by specific dog",
+          "test": "reportCards.filter.byDog"
+        }
+      ]
+    },
+    "/my-pets": {
+      "page": "MyPetsPage",
+      "auth": "protected",
+      "description": "Manage all registered pets",
+      "elements": [
+        {
+          "name": "pets-list",
+          "selector": "[data-testid='pets-list'], .pets-list, .my-pets-grid",
+          "action": "assert-visible",
+          "expected": "Displays all registered pets as cards or list items",
+          "test": "myPets.list.visible"
+        },
+        {
+          "name": "pet-card",
+          "selector": "[data-testid='pet-card'], .pet-card",
+          "action": "click",
+          "expected": "Navigates to /dogs/:dogId profile page for the selected pet",
+          "test": "myPets.list.petNavigation"
+        },
+        {
+          "name": "add-pet-button",
+          "selector": "button:has-text('Add'), button:has-text('Add Pet'), button:has-text('Add Dog'), [data-testid='add-pet']",
+          "action": "click",
+          "expected": "Opens add pet form or modal to register a new dog",
+          "test": "myPets.actions.addPet"
+        }
+      ]
+    },
+    "/rewards": {
+      "page": "RewardsPage",
+      "auth": "protected",
+      "description": "Loyalty rewards program with points balance, earn/redeem options",
+      "elements": [
+        {
+          "name": "points-balance",
+          "selector": "[data-testid='points-balance'], .points-balance, text=/\\d+\\s*points/i",
+          "action": "assert-visible",
+          "expected": "Displays current loyalty points balance prominently",
+          "test": "rewards.points.balance",
+          "critical": true
+        },
+        {
+          "name": "rewards-list",
+          "selector": "[data-testid='rewards-list'], .rewards-list, .rewards-catalog",
+          "action": "assert-visible",
+          "expected": "Shows available rewards that can be redeemed with points",
+          "test": "rewards.catalog.visible"
+        },
+        {
+          "name": "redeem-button",
+          "selector": "button:has-text('Redeem'), [data-testid='redeem-reward']",
+          "action": "click",
+          "expected": "Initiates redemption of selected reward, deducts points",
+          "test": "rewards.actions.redeem"
+        },
+        {
+          "name": "points-history",
+          "selector": "[data-testid='points-history'], .points-history",
+          "action": "assert-visible",
+          "expected": "Shows history of points earned and redeemed with dates",
+          "test": "rewards.history.visible"
+        },
+        {
+          "name": "tier-status",
+          "selector": "[data-testid='tier-status'], .tier-status, .loyalty-tier",
+          "action": "assert-visible",
+          "expected": "Shows current loyalty tier and progress to next tier",
+          "test": "rewards.tier.visible"
+        }
+      ]
+    },
+    "/settings": {
+      "page": "SettingsPage",
+      "auth": "protected",
+      "description": "Customer account settings and preferences",
+      "elements": [
+        {
+          "name": "profile-section",
+          "selector": "[data-testid='profile-settings'], .profile-section",
+          "action": "assert-visible",
+          "expected": "Displays profile information fields (name, email, phone)",
+          "test": "settings.profile.visible"
+        },
+        {
+          "name": "edit-profile-button",
+          "selector": "button:has-text('Edit'), button:has-text('Update Profile'), [data-testid='edit-profile']",
+          "action": "click",
+          "expected": "Enables editing of profile fields",
+          "test": "settings.profile.edit"
+        },
+        {
+          "name": "save-button",
+          "selector": "button:has-text('Save'), button[type='submit'], [data-testid='save-settings']",
+          "action": "click",
+          "expected": "Saves profile changes. Shows success confirmation.",
+          "test": "settings.profile.save"
+        },
+        {
+          "name": "notification-preferences",
+          "selector": "[data-testid='notification-settings'], .notification-preferences",
+          "action": "assert-visible",
+          "expected": "Displays notification preference toggles (email, push, SMS)",
+          "test": "settings.notifications.visible"
+        },
+        {
+          "name": "change-password",
+          "selector": "button:has-text('Change Password'), a:has-text('Change Password'), [data-testid='change-password']",
+          "action": "click",
+          "expected": "Opens change password form or modal",
+          "test": "settings.security.changePassword"
+        },
+        {
+          "name": "logout-button",
+          "selector": "button:has-text('Log Out'), button:has-text('Sign Out'), [data-testid='logout']",
+          "action": "click",
+          "expected": "Logs out user and redirects to /login",
+          "test": "settings.actions.logout"
+        }
+      ]
+    },
+    "/activity": {
+      "page": "ActivityFeedPage",
+      "auth": "protected",
+      "description": "Chronological feed of account activity and notifications",
+      "elements": [
+        {
+          "name": "activity-feed",
+          "selector": "[data-testid='activity-feed'], .activity-feed, .activity-list",
+          "action": "assert-visible",
+          "expected": "Displays chronological list of activity items (bookings, points, messages, etc.)",
+          "test": "activity.feed.visible"
+        },
+        {
+          "name": "activity-item",
+          "selector": "[data-testid='activity-item'], .activity-item",
+          "action": "click",
+          "expected": "Expands activity detail or navigates to related page",
+          "test": "activity.feed.itemClick"
+        },
+        {
+          "name": "filter-type",
+          "selector": "[data-testid='activity-filter'], .activity-filter, select",
+          "action": "click",
+          "expected": "Filters activity feed by type (bookings, rewards, messages, etc.)",
+          "test": "activity.filter.byType"
+        },
+        {
+          "name": "load-more",
+          "selector": "button:has-text('Load More'), button:has-text('Show More'), [data-testid='load-more']",
+          "action": "click",
+          "expected": "Loads older activity items (pagination or infinite scroll)",
+          "test": "activity.feed.loadMore"
+        }
+      ]
+    },
+    "/privacy": {
+      "page": "PrivacyPolicyPage",
+      "auth": "public",
+      "description": "Privacy policy page",
+      "elements": [
+        {
+          "name": "privacy-content",
+          "selector": "[data-testid='privacy-policy'], .privacy-policy, article, main",
+          "action": "assert-visible",
+          "expected": "Displays full privacy policy text content",
+          "test": "privacy.content.visible"
+        },
+        {
+          "name": "back-navigation",
+          "selector": "button:has-text('Back'), a:has-text('Back'), [data-testid='back']",
+          "action": "click",
+          "expected": "Navigates back to previous page",
+          "test": "privacy.navigation.back"
+        }
+      ]
+    },
+    "/terms": {
+      "page": "TermsPage",
+      "auth": "public",
+      "description": "Terms of service page",
+      "elements": [
+        {
+          "name": "terms-content",
+          "selector": "[data-testid='terms-of-service'], .terms-of-service, article, main",
+          "action": "assert-visible",
+          "expected": "Displays full terms of service text content",
+          "test": "terms.content.visible"
+        },
+        {
+          "name": "back-navigation",
+          "selector": "button:has-text('Back'), a:has-text('Back'), [data-testid='back']",
+          "action": "click",
+          "expected": "Navigates back to previous page",
+          "test": "terms.navigation.back"
+        }
+      ]
+    }
+  }
+}

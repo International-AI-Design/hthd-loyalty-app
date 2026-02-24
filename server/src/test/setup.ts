@@ -19,6 +19,8 @@ import v2AdminBookingsRoutes from '../modules/booking/admin-router';
 import v2AdminMessagingRoutes from '../modules/messaging/admin-router';
 import v2AdminDashboardRoutes from '../modules/dashboard/admin-router';
 import v2AdminAimRoutes from '../modules/aim/router';
+import v2MessagingRoutes from '../modules/messaging/router';
+import v2BookingsRoutes from '../routes/v2/bookings';
 import { pool } from '../lib/prisma';
 
 /**
@@ -69,11 +71,15 @@ export function createTestApp(): Express {
     }
   });
 
-  // Module routes under test
+  // Module routes under test (admin)
   app.use('/api/v2/admin/bookings', v2AdminBookingsRoutes);
   app.use('/api/v2/admin/messaging', v2AdminMessagingRoutes);
   app.use('/api/v2/admin/dashboard', v2AdminDashboardRoutes);
   app.use('/api/v2/admin/aim', v2AdminAimRoutes);
+
+  // Customer-facing routes under test
+  app.use('/api/v2/messaging', v2MessagingRoutes);
+  app.use('/api/v2/bookings', v2BookingsRoutes);
 
   // Global error handler (same as production)
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -90,6 +96,18 @@ export function createTestApp(): Express {
 export function generateTestToken(staffUser: { id: string; username: string; role: string }): string {
   return jwt.sign(
     { id: staffUser.id, username: staffUser.username, role: staffUser.role, type: 'staff' },
+    JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+}
+
+/**
+ * Generate a valid customer JWT for test requests.
+ * The authenticateCustomer middleware expects { id, email, type: 'customer' }.
+ */
+export function generateCustomerTestToken(customer: { id: string; email: string }): string {
+  return jwt.sign(
+    { id: customer.id, email: customer.email, type: 'customer' },
     JWT_SECRET,
     { expiresIn: '1h' }
   );
