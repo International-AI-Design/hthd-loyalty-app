@@ -146,6 +146,9 @@ export function BookingPage() {
       bookingApi.getGroomingSubServices().then(({ data }) => {
         if (data) setGroomingSubServices(data.subServices);
         setIsLoadingSubServices(false);
+      }).catch(() => {
+        setIsLoadingSubServices(false);
+        setError('Unable to load grooming services. Please try again.');
       });
     }
   }, [step, groomingSubServices.length]);
@@ -782,6 +785,13 @@ export function BookingPage() {
             {isLoadingSubServices ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary" />
+              </div>
+            ) : groomingSubServices.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+                <p className="text-brand-forest-muted mb-4">No grooming services available right now.</p>
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Choose a different service
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">

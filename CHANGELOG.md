@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.19] - Autonomous QA System (E2E Tests) - 2026-02-23
+
+### Added
+- **Playwright E2E test suite** — 83 behavioral tests across customer and admin apps running against production
+  - Customer desktop: 52 passed, 0 failed, 1 skipped
+  - Admin desktop: 31 passed, 0 failed, 5 skipped, 1 flaky (documents real bug)
+- **Feature registries** — `e2e/registry/customer-app.json` (1,041 lines) and `admin-app.json` (765 lines) — structured inventory of every page, interactive element, and expected behavior. Source of truth for functional audit.
+- **Auth fixtures** — Reusable Playwright fixtures with persistent login state for both customer and staff test accounts
+- **API contract tests** — Messaging and booking contract tests in server (`server/src/modules/messaging/contract.test.ts`, `booking/contract.test.ts`). Catches the Zod `.max(100)` class of bug at the API layer. Now runs in pre-push hook (50 server tests total).
+- **Functional audit test** — Auto-generated tests from feature registry. Clicks every registered element and verifies something happens (facade detector).
+- **Post-deploy smoke script** — `scripts/post-deploy-e2e.sh` for production verification after deploys
+- **Health monitor** — `scripts/health-monitor.ts` with macOS launchd plist for continuous 30-min health checks. Writes stress signals to Spine on failure.
+- **QA seed script** — `server/prisma/seed-qa-accounts.ts` for creating/resetting test data in production DB (2 dogs, 74-message conversation, daycare booking, staff account)
+
+### Production Bugs Detected by Tests
+- **AI Monitoring "View" button is a FACADE** — Navigates to `/messages?conv=ID` but MessagingPage doesn't parse the `conv` query param. Conversation never auto-selects.
+- **Dashboard shows `[object Object]` in Arrivals** — Dog names rendering as `[object Object]` in arrivals list
+- **Dashboard shows `NaN%` capacity** — Facility capacity calculation broken
+- **AIM button visible on `/messages`** — Code checks for `/messaging` route but actual route is `/messages`
+- **Grooming sub-service cards don't render** — Heading appears but no service cards displayed
+
+### Lessons Learned
+- **bcrypt hashes are platform-specific.** Hashes generated on macOS don't verify on Railway's Linux containers. Solution: generate hashes on the target platform (register via API or run scripts on server via `railway ssh`).
+- **Playwright `isVisible()` ignores the timeout parameter.** Unlike `expect().toBeVisible({ timeout })` which properly retries, `locator.isVisible({ timeout })` returns instantly. Using it with a retry-click pattern causes double-clicks that toggle UI state (e.g., closing a drawer you just opened).
+- **CSS transform animations don't affect Playwright visibility.** A drawer hidden with `translate-x-full` (off-screen) still has a non-zero bounding box. Playwright considers it "visible." Must check CSS class (`toHaveClass(/translate-x-full/)`) instead of `not.toBeVisible()`.
+- **`getByRole('button', { name: 'Chat' })` matches partial text.** "Chat" also matches "+ New Chat". Always use `exact: true` for short button names.
+- **Facade detection requires behavioral tests, not just rendering tests.** Code that compiles clean, types check out, and renders UI can still have buttons that navigate to pages that ignore URL params, forms with permanently disabled submit buttons, and empty states with no recovery path.
+
+### Infrastructure
+- QA test accounts created in production DB (customer: `qa-test@internationalaidesign.com`, staff: `qa-staff`)
+- `.gitignore` updated for `test-results/`, `playwright-report/`, `e2e/.env.test`
+- Root `package.json` added with `@playwright/test` dependency
+
+---
+
 ## [2.0.0-alpha.18] - Chat AI Response Fix + Date UX - 2026-02-23
 
 ### Fixed

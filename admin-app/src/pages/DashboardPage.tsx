@@ -48,7 +48,7 @@ interface FacilityData {
 interface ArrivalItem {
   id: string;
   customerName: string;
-  dogs: string[];
+  dogs: (string | { id: string; name: string })[];
   service: string;
   expectedTime: string | null;
   status: string;
@@ -57,10 +57,14 @@ interface ArrivalItem {
 interface DepartureItem {
   id: string;
   customerName: string;
-  dogs: string[];
+  dogs: (string | { id: string; name: string })[];
   service: string;
   expectedTime: string | null;
   status: string;
+}
+
+function formatDogNames(dogs: (string | { id: string; name: string })[]): string {
+  return dogs.map((d) => (typeof d === 'string' ? d : d.name)).join(', ');
 }
 
 interface StaffMember {
@@ -201,7 +205,7 @@ export function DashboardPage() {
     setSelectedDate(formatDate(new Date()));
   };
 
-  const capacityPct = facility ? Math.round((facility.totalDogs / facility.capacity) * 100) : 0;
+  const capacityPct = facility && facility.capacity > 0 ? Math.round((facility.totalDogs / facility.capacity) * 100) : 0;
 
   const staffDogRatio = facility && staffOnDuty.length > 0
     ? `1:${Math.round(facility.totalDogs / staffOnDuty.length)}`
@@ -491,7 +495,7 @@ export function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                     <p className="text-xs text-gray-500">
-                      {item.dogs.join(', ')} &middot; {item.service}
+                      {formatDogNames(item.dogs)} &middot; {item.service}
                     </p>
                     {item.expectedTime && (
                       <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
@@ -534,7 +538,7 @@ export function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                     <p className="text-xs text-gray-500">
-                      {item.dogs.join(', ')} &middot; {item.service}
+                      {formatDogNames(item.dogs)} &middot; {item.service}
                     </p>
                     {item.expectedTime && (
                       <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
@@ -568,7 +572,7 @@ export function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                     <p className="text-xs text-gray-500">
-                      {item.dogs.join(', ')} &middot; {item.service}
+                      {formatDogNames(item.dogs)} &middot; {item.service}
                     </p>
                     {item.expectedTime && (
                       <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>
@@ -599,7 +603,7 @@ export function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                     <p className="text-xs text-gray-500">
-                      {item.dogs.join(', ')} &middot; {item.service}
+                      {formatDogNames(item.dogs)} &middot; {item.service}
                     </p>
                     {item.expectedTime && (
                       <p className="text-xs text-gray-400 mt-0.5">{formatTime(item.expectedTime)}</p>

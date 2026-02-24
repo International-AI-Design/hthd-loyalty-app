@@ -100,6 +100,15 @@ export function MessagingPage() {
 
   const [mobileShowThread, setMobileShowThread] = useState(false);
 
+  // Auto-select conversation from ?conv= URL param (used by AIM "View" button)
+  useEffect(() => {
+    const convId = searchParams.get('conv');
+    if (convId && !selectedId) {
+      setSelectedId(convId);
+      setMobileShowThread(true);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchConversations = useCallback(async () => {
     const statusArg = activeFilter === 'all' ? undefined : activeFilter;
     const result = await adminMessagingApi.getConversations(statusArg);
