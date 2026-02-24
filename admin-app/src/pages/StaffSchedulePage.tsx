@@ -69,10 +69,10 @@ interface CoverageData {
 }
 
 const ROLES = [
-  { value: 'staff', label: 'Staff' },
+  { value: 'general', label: 'General Staff' },
   { value: 'manager', label: 'Manager' },
   { value: 'groomer', label: 'Groomer' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'kennel_tech', label: 'Kennel Tech' },
 ];
 
 export function StaffSchedulePage() {
@@ -92,7 +92,7 @@ export function StaffSchedulePage() {
   const [formDate, setFormDate] = useState('');
   const [formStartTime, setFormStartTime] = useState('08:00');
   const [formEndTime, setFormEndTime] = useState('17:00');
-  const [formRole, setFormRole] = useState('staff');
+  const [formRole, setFormRole] = useState('general');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -157,7 +157,7 @@ export function StaffSchedulePage() {
     setFormDate(date || formatDateISO(weekDays[0]));
     setFormStartTime('08:00');
     setFormEndTime('17:00');
-    setFormRole('staff');
+    setFormRole('general');
     setFormError(null);
     setShowAddModal(true);
   };
