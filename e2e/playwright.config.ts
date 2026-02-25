@@ -67,5 +67,12 @@ export default defineConfig({
       },
       testMatch: /shared\/functional-audit\.spec\.ts/,
     },
+    {
+      name: 'cross-module',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+      testMatch: /shared\/cross-module.+\.spec\.ts/,
+    },
   ],
 });
