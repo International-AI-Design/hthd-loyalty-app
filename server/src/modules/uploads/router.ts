@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { authenticateCustomer, AuthenticatedCustomerRequest } from '../../middleware/auth';
 import { singleImageUpload } from './middleware';
 import { uploadImage, deleteImage } from './cloudinary';
@@ -8,8 +9,27 @@ const router = Router();
 
 router.use(authenticateCustomer);
 
+// Wrapper to catch multer errors (file type, size) as 400 responses
+function handleMulterUpload(req: Request, res: Response, next: NextFunction): void {
+  singleImageUpload(req, res, (err?: any) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next();
+  });
+}
+
 // POST / — upload an image
-router.post('/', singleImageUpload, async (req: Request, res: Response): Promise<void> => {
+router.post('/', handleMulterUpload, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No image file provided' });
@@ -19,17 +39,14 @@ router.post('/', singleImageUpload, async (req: Request, res: Response): Promise
     const result = await uploadImage(req.file.buffer);
     res.status(201).json(result);
   } catch (error: any) {
-    if (error.message?.includes('Invalid file type')) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed' });
   }
 });
 
-// DELETE /:publicId(*) — delete an upload (only if owned by customer)
-router.delete('/:publicId(*)', async (req: Request, res: Response): Promise<void> => {
+// DELETE /:publicId — delete an upload (only if owned by customer)
+// Express 5 wildcard syntax captures path segments including slashes (e.g. hthd/abc123)
+router.delete('/{*publicId}', async (req: Request, res: Response): Promise<void> => {
   try {
     const customerReq = req as AuthenticatedCustomerRequest;
     const rawId = req.params.publicId;
