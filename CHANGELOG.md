@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Sprints A-D Rebuild
 
+### MS-7: Cross-Module Integration Tests
+- Customer full-journey tests (multi-page navigation, data consistency)
+- Admin navigation and dashboard integrity tests
+- Error resilience tests (invalid routes, bad IDs, console errors)
+- Mobile integration tests (bottom nav, scrolling, overflow)
+- Rate limiter bumped: login 100/15min, general 2000/15min (E2E-friendly)
+- Full regression suite verified across all sprints
+
 ### MS-6: Sprint D — Badges + Admin Intelligence
 - Customer badge system: 10 badges earned through visits, referrals, compliance
 - Badge evaluation engine checks booking count, grooming, boarding, referrals, points, vaccination compliance
