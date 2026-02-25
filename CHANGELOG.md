@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - Sprints A-D Rebuild
+
+### MS-1: Schema + Migration
+- Added Dog extended fields: allergies, specialNeeds, emergencyVetName/Phone, lastGroomDate
+- Added Vaccination cloudinaryPublicId for document uploads
+- New models: GroomingServicePrice, GroomingAddOn, BookingAddOn
+- New models: ServiceAgreement, AgreementSignature, BoardingDetail
+- New models: CustomerBadge, AimInsight
+- Migration: sprints_abcd_schema
+
 ## [2.0.0-alpha.21] - Multi-Agent Recovery + Micro-Sprint Plan - 2026-02-24
 
 ### Recovery

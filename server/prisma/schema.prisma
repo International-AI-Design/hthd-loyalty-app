@@ -39,6 +39,8 @@ model Customer {
   subscription  Subscription?
   conversations Conversation[]
   intakeForms   IntakeForm[]
+  agreementSignatures AgreementSignature[]
+  badges              CustomerBadge[]
 
   @@map("customers")
 }
@@ -60,6 +62,11 @@ model Dog {
   isNeutered       Boolean   @default(false) @map("is_neutered")
   photoUrl         String?   @map("photo_url")
   socialNotes      String?   @map("social_notes") // plays well with others, prefers small dogs, etc.
+  allergies          String?
+  specialNeeds       String?   @map("special_needs")
+  emergencyVetName   String?   @map("emergency_vet_name")
+  emergencyVetPhone  String?   @map("emergency_vet_phone")
+  lastGroomDate      DateTime? @map("last_groom_date") @db.Date
   customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // v2 relations
@@ -291,6 +298,8 @@ model Booking {
   payments      Payment[]
   reportCards   ReportCard[]
   notifications ScheduledNotification[]
+  addOns         BookingAddOn[]
+  boardingDetail BoardingDetail?
 
   @@index([customerId, date])
   @@index([serviceTypeId, date, status])
@@ -567,6 +576,7 @@ model GroomingSubService {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   bookings       Booking[]
+  prices     GroomingServicePrice[]
 
   @@map("grooming_sub_services")
 }
@@ -584,6 +594,40 @@ model GroomingPriceTier {
 
   @@unique([sizeCategory, conditionRating])
   @@map("grooming_price_tiers")
+}
+
+model GroomingServicePrice {
+  id           String             @id @default(uuid())
+  subServiceId String             @map("sub_service_id")
+  sizeCategory String?            @map("size_category")
+  priceCents   Int                @map("price_cents")
+  isActive     Boolean            @default(true) @map("is_active")
+  subService   GroomingSubService @relation(fields: [subServiceId], references: [id], onDelete: Cascade)
+  @@unique([subServiceId, sizeCategory])
+  @@map("grooming_service_prices")
+}
+
+model GroomingAddOn {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  displayName String       @map("display_name")
+  description String?
+  priceCents  Int          @map("price_cents")
+  isActive    Boolean      @default(true) @map("is_active")
+  sortOrder   Int          @default(0) @map("sort_order")
+  bookings    BookingAddOn[]
+  @@map("grooming_add_ons")
+}
+
+model BookingAddOn {
+  id         String        @id @default(uuid())
+  bookingId  String        @map("booking_id")
+  addOnId    String        @map("add_on_id")
+  priceCents Int           @map("price_cents")
+  booking    Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addOn      GroomingAddOn @relation(fields: [addOnId], references: [id])
+  @@unique([bookingId, addOnId])
+  @@map("booking_add_ons")
 }
 
 // --- Service Bundles ---
@@ -629,6 +673,7 @@ model Vaccination {
   verified    Boolean   @default(false)
   verifiedBy  String?   @map("verified_by")
   notes       String?
+  cloudinaryPublicId String?  @map("cloudinary_public_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -689,6 +734,51 @@ model VaccinationRequirement {
   @@map("vaccination_requirements")
 }
 
+model ServiceAgreement {
+  id          String               @id @default(uuid())
+  name        String               @unique
+  displayName String               @map("display_name")
+  content     String
+  version     Int                  @default(1)
+  isActive    Boolean              @default(true) @map("is_active")
+  requiredFor String[]             @map("required_for")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  signatures  AgreementSignature[]
+  @@map("service_agreements")
+}
+
+model AgreementSignature {
+  id            String           @id @default(uuid())
+  agreementId   String           @map("agreement_id")
+  customerId    String           @map("customer_id")
+  typedName     String           @map("typed_name")
+  agreedToTerms Boolean          @default(true) @map("agreed_to_terms")
+  ipAddress     String?          @map("ip_address")
+  userAgent     String?          @map("user_agent")
+  signedAt      DateTime         @default(now()) @map("signed_at")
+  agreement     ServiceAgreement @relation(fields: [agreementId], references: [id])
+  customer      Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@index([customerId, agreementId])
+  @@map("agreement_signatures")
+}
+
+model BoardingDetail {
+  id               String   @id @default(uuid())
+  bookingId        String   @unique @map("booking_id")
+  feedingSchedule  String?  @map("feeding_schedule")
+  foodType         String?  @map("food_type")
+  foodBrand        String?  @map("food_brand")
+  feedingNotes     String?  @map("feeding_notes")
+  dropOffTime      String?  @map("drop_off_time")
+  pickUpTime       String?  @map("pick_up_time")
+  specialItems     String?  @map("special_items")
+  emergencyContact String?  @map("emergency_contact")
+  createdAt        DateTime @default(now()) @map("created_at")
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  @@map("boarding_details")
+}
+
 // ============================================================
 // AIM (AI Manager) — Staff-Facing AI Assistant
 // ============================================================
@@ -737,6 +827,29 @@ model AimAlert {
   @@index([type, createdAt])
   @@index([readAt])
   @@map("aim_alerts")
+}
+
+model CustomerBadge {
+  id         String   @id @default(uuid())
+  customerId String   @map("customer_id")
+  badge      String
+  earnedAt   DateTime @default(now()) @map("earned_at")
+  notified   Boolean  @default(false)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@unique([customerId, badge])
+  @@map("customer_badges")
+}
+
+model AimInsight {
+  id          String   @id @default(uuid())
+  type        String
+  title       String
+  summary     String
+  data        Json?
+  generatedAt DateTime @default(now()) @map("generated_at")
+  expiresAt   DateTime @map("expires_at")
+  @@index([type, expiresAt])
+  @@map("aim_insights")
 }
 
 model StaffBreak {
