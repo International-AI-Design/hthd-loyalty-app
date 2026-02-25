@@ -1,42 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { dogProfileApi } from '../lib/api';
+import type { DogProfile, VaccinationRecord, MedicationRecord } from '../lib/api';
 import { AppShell } from '../components/AppShell';
 import { Button, Modal, Input, Alert } from '../components/ui';
-
-interface Vaccination {
-  id: string;
-  name: string;
-  dateGiven: string;
-  expiresAt: string | null;
-  verified: boolean;
-  notes: string | null;
-}
-
-interface Medication {
-  id: string;
-  name: string;
-  dosage: string | null;
-  frequency: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  isActive: boolean;
-  instructions: string | null;
-}
-
-interface BehaviorNote {
-  id: string;
-  category: string;
-  note: string;
-  severity: number;
-  reportedBy: string | null;
-  createdAt: string;
-  reporter?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  } | null;
-}
+import { PhotoUpload } from '../components/PhotoUpload';
+import { VaccinationUpload } from '../components/VaccinationUpload';
 
 interface ComplianceStatus {
   overall: 'current' | 'expiring_soon' | 'expired' | 'unknown';
@@ -45,21 +14,6 @@ interface ComplianceStatus {
     status: 'current' | 'expiring_soon' | 'expired';
     expiresAt: string | null;
   }>;
-}
-
-interface DogProfile {
-  id: string;
-  name: string;
-  breed: string | null;
-  birthDate: string | null;
-  sizeCategory: string | null;
-  weight: number | null;
-  temperament: string | null;
-  photoUrl: string | null;
-  notes: string | null;
-  vaccinations: Vaccination[];
-  medications: Medication[];
-  behaviorNotes: BehaviorNote[];
 }
 
 export function DogProfilePage() {
@@ -72,20 +26,23 @@ export function DogProfilePage() {
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', breed: '', sizeCategory: '', weight: '', temperament: '' });
+  const [editForm, setEditForm] = useState({
+    name: '', breed: '', sizeCategory: '', weight: '', temperament: '',
+    allergies: '', specialNeeds: '', emergencyVetName: '', emergencyVetPhone: '',
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Vaccination modal
   const [isVaxModalOpen, setIsVaxModalOpen] = useState(false);
-  const [editingVax, setEditingVax] = useState<Vaccination | null>(null);
+  const [editingVax, setEditingVax] = useState<VaccinationRecord | null>(null);
   const [vaxForm, setVaxForm] = useState({ name: '', dateGiven: '', expiresAt: '' });
   const [isSavingVax, setIsSavingVax] = useState(false);
   const [vaxError, setVaxError] = useState<string | null>(null);
 
   // Medication modal
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
-  const [editingMed, setEditingMed] = useState<Medication | null>(null);
+  const [editingMed, setEditingMed] = useState<MedicationRecord | null>(null);
   const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: '', startDate: '', endDate: '', notes: '' });
   const [isSavingMed, setIsSavingMed] = useState(false);
   const [medError, setMedError] = useState<string | null>(null);
@@ -100,10 +57,7 @@ export function DogProfilePage() {
     if (fetchErr) {
       setError(fetchErr);
     } else if (data) {
-      // Server wraps response as { dog: { ... } } — unwrap the nested object
-      const dogData: DogProfile = (data as Record<string, unknown>).dog
-        ? ((data as Record<string, unknown>).dog as DogProfile)
-        : (data as DogProfile);
+      const dogData = data.dog;
       setDog(dogData);
       setEditForm({
         name: dogData.name || '',
@@ -111,6 +65,10 @@ export function DogProfilePage() {
         sizeCategory: dogData.sizeCategory || '',
         weight: dogData.weight ? String(dogData.weight) : '',
         temperament: dogData.temperament || '',
+        allergies: dogData.allergies || '',
+        specialNeeds: dogData.specialNeeds || '',
+        emergencyVetName: dogData.emergencyVetName || '',
+        emergencyVetPhone: dogData.emergencyVetPhone || '',
       });
     }
     setIsLoading(false);
@@ -161,6 +119,10 @@ export function DogProfilePage() {
       sizeCategory: editForm.sizeCategory || null,
       weight: editForm.weight ? parseFloat(editForm.weight) : null,
       temperament: editForm.temperament || null,
+      allergies: editForm.allergies || null,
+      specialNeeds: editForm.specialNeeds || null,
+      emergencyVetName: editForm.emergencyVetName || null,
+      emergencyVetPhone: editForm.emergencyVetPhone || null,
     });
     if (saveErr) {
       setSaveError(saveErr);
@@ -179,7 +141,7 @@ export function DogProfilePage() {
     setIsVaxModalOpen(true);
   };
 
-  const openEditVax = (vax: Vaccination) => {
+  const openEditVax = (vax: VaccinationRecord) => {
     setEditingVax(vax);
     setVaxForm({
       name: vax.name,
@@ -223,7 +185,7 @@ export function DogProfilePage() {
     setIsMedModalOpen(true);
   };
 
-  const openEditMed = (med: Medication) => {
+  const openEditMed = (med: MedicationRecord) => {
     setEditingMed(med);
     setMedForm({
       name: med.name,
@@ -364,74 +326,117 @@ export function DogProfilePage() {
   return (
     <AppShell title={dog.name + "'s Profile"} showBack>
       <div className="px-4 py-6 space-y-6">
+        {/* Photo Upload */}
+        <div className="bg-white rounded-2xl shadow-lg p-4">
+          <PhotoUpload
+            dogId={dog.id}
+            currentPhotoUrl={dog.photoUrl}
+            onUploadComplete={() => fetchDog()}
+          />
+        </div>
+
         {/* Dog Identity Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-start gap-4">
-            {/* Photo or placeholder */}
-            <div className="flex-shrink-0">
-              {dog.photoUrl ? (
-                <img src={dog.photoUrl} alt={dog.name} className="w-20 h-20 rounded-2xl object-cover" />
-              ) : (
-                <div className="w-20 h-20 rounded-2xl bg-brand-cream flex items-center justify-center">
-                  <svg className="w-10 h-10 text-brand-blue" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M4.5 11.5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm11 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-7.5 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3.5-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-5 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
+          {isEditing ? (
+            <div className="space-y-3">
+              <Input label="Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              <Input label="Breed" value={editForm.breed} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} placeholder="e.g. Golden Retriever" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                <select
+                  value={editForm.sizeCategory}
+                  onChange={(e) => setEditForm({ ...editForm, sizeCategory: e.target.value })}
+                  className="w-full px-3 py-2 border border-brand-light-gray rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
+                >
+                  <option value="">Select size</option>
+                  <option value="small">Small (under 25 lbs)</option>
+                  <option value="medium">Medium (25-50 lbs)</option>
+                  <option value="large">Large (50-100 lbs)</option>
+                  <option value="xlarge">X-Large (100+ lbs)</option>
+                </select>
+              </div>
+              <Input label="Weight (lbs)" type="number" value={editForm.weight} onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })} placeholder="e.g. 65" />
+              <Input label="Temperament" value={editForm.temperament} onChange={(e) => setEditForm({ ...editForm, temperament: e.target.value })} placeholder="e.g. Friendly, energetic" />
+
+              <div className="border-t border-gray-200 pt-3 mt-3">
+                <p className="text-sm font-medium text-brand-navy mb-3">Health & Safety</p>
+                <div className="space-y-3">
+                  <Input label="Allergies" value={editForm.allergies} onChange={(e) => setEditForm({ ...editForm, allergies: e.target.value })} placeholder="e.g. Chicken, certain shampoos" />
+                  <Input label="Special Needs" value={editForm.specialNeeds} onChange={(e) => setEditForm({ ...editForm, specialNeeds: e.target.value })} placeholder="e.g. Needs extra bathroom breaks" />
+                  <Input label="Emergency Vet Name" value={editForm.emergencyVetName} onChange={(e) => setEditForm({ ...editForm, emergencyVetName: e.target.value })} placeholder="e.g. Dr. Smith" />
+                  <Input label="Emergency Vet Phone" value={editForm.emergencyVetPhone} onChange={(e) => setEditForm({ ...editForm, emergencyVetPhone: e.target.value })} placeholder="e.g. (555) 123-4567" type="tel" />
+                </div>
+              </div>
+
+              {saveError && <Alert variant="error">{saveError}</Alert>}
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                <Button className="flex-1" onClick={handleSaveProfile} isLoading={isSaving}>Save</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="font-heading text-2xl font-bold text-brand-navy">{dog.name}</h2>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-blue hover:bg-brand-cream transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
+                </button>
+              </div>
+              <div className="space-y-1 text-sm text-gray-600">
+                {dog.breed && <p><span className="font-medium text-brand-navy">Breed:</span> {dog.breed}</p>}
+                {dog.sizeCategory && <p><span className="font-medium text-brand-navy">Size:</span> <span className="capitalize">{dog.sizeCategory}</span></p>}
+                {dog.weight && <p><span className="font-medium text-brand-navy">Weight:</span> {dog.weight} lbs</p>}
+                {dog.temperament && <p><span className="font-medium text-brand-navy">Temperament:</span> {dog.temperament}</p>}
+                {dog.birthDate && <p><span className="font-medium text-brand-navy">Birthday:</span> {formatDate(dog.birthDate)}</p>}
+                {dog.lastGroomDate && <p><span className="font-medium text-brand-navy">Last Groom:</span> {formatDate(dog.lastGroomDate)}</p>}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Health & Safety Card (read-only summary) */}
+        {!isEditing && (dog.allergies || dog.specialNeeds || dog.emergencyVetName) && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="font-heading text-lg font-semibold text-brand-navy mb-3 flex items-center gap-2">
+              <svg className="w-5 h-5 text-brand-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              Health & Safety
+            </h3>
+            <div className="space-y-2 text-sm">
+              {dog.allergies && (
+                <div>
+                  <span className="font-medium text-brand-navy">Allergies:</span>
+                  <span className="ml-1 text-gray-600">{dog.allergies}</span>
                 </div>
               )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              {isEditing ? (
-                <div className="space-y-3">
-                  <Input label="Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  <Input label="Breed" value={editForm.breed} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} placeholder="e.g. Golden Retriever" />
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
-                    <select
-                      value={editForm.sizeCategory}
-                      onChange={(e) => setEditForm({ ...editForm, sizeCategory: e.target.value })}
-                      className="w-full px-3 py-2 border border-brand-light-gray rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-brand-blue min-h-[44px]"
-                    >
-                      <option value="">Select size</option>
-                      <option value="small">Small (under 25 lbs)</option>
-                      <option value="medium">Medium (25-50 lbs)</option>
-                      <option value="large">Large (50-100 lbs)</option>
-                      <option value="xlarge">X-Large (100+ lbs)</option>
-                    </select>
-                  </div>
-                  <Input label="Weight (lbs)" type="number" value={editForm.weight} onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })} placeholder="e.g. 65" />
-                  <Input label="Temperament" value={editForm.temperament} onChange={(e) => setEditForm({ ...editForm, temperament: e.target.value })} placeholder="e.g. Friendly, energetic" />
-                  {saveError && <Alert variant="error">{saveError}</Alert>}
-                  <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
-                    <Button className="flex-1" onClick={handleSaveProfile} isLoading={isSaving}>Save</Button>
-                  </div>
+              {dog.specialNeeds && (
+                <div>
+                  <span className="font-medium text-brand-navy">Special Needs:</span>
+                  <span className="ml-1 text-gray-600">{dog.specialNeeds}</span>
                 </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-heading text-2xl font-bold text-brand-navy">{dog.name}</h2>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-blue hover:bg-brand-cream transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    {dog.breed && <p><span className="font-medium text-brand-navy">Breed:</span> {dog.breed}</p>}
-                    {dog.sizeCategory && <p><span className="font-medium text-brand-navy">Size:</span> <span className="capitalize">{dog.sizeCategory}</span></p>}
-                    {dog.weight && <p><span className="font-medium text-brand-navy">Weight:</span> {dog.weight} lbs</p>}
-                    {dog.temperament && <p><span className="font-medium text-brand-navy">Temperament:</span> {dog.temperament}</p>}
-                    {dog.birthDate && <p><span className="font-medium text-brand-navy">Birthday:</span> {formatDate(dog.birthDate)}</p>}
-                  </div>
-                </>
+              )}
+              {dog.emergencyVetName && (
+                <div className="flex items-start gap-1">
+                  <span className="font-medium text-brand-navy">Emergency Vet:</span>
+                  <span className="text-gray-600">
+                    {dog.emergencyVetName}
+                    {dog.emergencyVetPhone && (
+                      <a href={`tel:${dog.emergencyVetPhone}`} className="ml-1 text-brand-blue hover:underline">
+                        {dog.emergencyVetPhone}
+                      </a>
+                    )}
+                  </span>
+                </div>
               )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Vaccination Compliance Bar */}
         {compliance && (
@@ -513,6 +518,12 @@ export function DogProfilePage() {
                         Given: {formatDate(vax.dateGiven)}
                         {vax.expiresAt && ` | Expires: ${formatDate(vax.expiresAt)}`}
                       </p>
+                      <VaccinationUpload
+                        dogId={dog.id}
+                        vaccinationId={vax.id}
+                        currentDocUrl={vax.documentUrl}
+                        onUploadComplete={() => fetchDog()}
+                      />
                     </div>
                     <div className="flex gap-1">
                       <button

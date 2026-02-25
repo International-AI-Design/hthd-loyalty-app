@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { customerApi } from '../lib/api';
-import type { Dog } from '../lib/api';
+import { customerApi, dogProfileApi } from '../lib/api';
+import type { DogProfile } from '../lib/api';
 import { AppShell } from '../components/AppShell';
 import { Button, Modal, Input, Alert } from '../components/ui';
 
@@ -55,7 +55,7 @@ export function MyPetsPage() {
   const { customer } = useAuth();
   const navigate = useNavigate();
 
-  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [dogs, setDogs] = useState<DogProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Add Pet modal state
@@ -65,7 +65,7 @@ export function MyPetsPage() {
   const [addPetError, setAddPetError] = useState<string | null>(null);
 
   const fetchDogs = useCallback(async () => {
-    const { data } = await customerApi.getDogs();
+    const { data } = await dogProfileApi.getDogs();
     if (data) {
       setDogs(data.dogs);
     }
@@ -183,15 +183,24 @@ export function MyPetsPage() {
                 style={{ animationDelay: `${index * 75}ms` }}
               >
                 <div className="flex items-center gap-4">
-                  {/* Avatar with first letter */}
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getAvatarGradient(dog.name)}
-                    flex items-center justify-center flex-shrink-0 shadow-warm-sm
-                    group-hover:shadow-glow transition-shadow duration-200`}
-                  >
-                    <span className="text-white font-heading font-bold text-xl">
-                      {dog.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  {/* Photo thumbnail or letter avatar */}
+                  {dog.photoUrl ? (
+                    <img
+                      src={dog.photoUrl}
+                      alt={dog.name}
+                      className="w-14 h-14 rounded-2xl object-cover flex-shrink-0 shadow-warm-sm
+                        group-hover:shadow-glow transition-shadow duration-200"
+                    />
+                  ) : (
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getAvatarGradient(dog.name)}
+                      flex items-center justify-center flex-shrink-0 shadow-warm-sm
+                      group-hover:shadow-glow transition-shadow duration-200`}
+                    >
+                      <span className="text-white font-heading font-bold text-xl">
+                        {dog.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Pet info */}
                   <div className="flex-1 min-w-0">
@@ -204,12 +213,12 @@ export function MyPetsPage() {
                           {dog.breed}
                         </span>
                       )}
-                      {dog.breed && (dog.size_category || dog.birth_date) && (
+                      {dog.breed && (dog.sizeCategory || dog.birthDate) && (
                         <span className="text-brand-forest-muted/40">|</span>
                       )}
-                      {dog.birth_date && (
+                      {dog.birthDate && (
                         <span className="text-sm text-brand-forest-muted">
-                          {calculateAge(dog.birth_date)}
+                          {calculateAge(dog.birthDate)}
                         </span>
                       )}
                     </div>
@@ -217,14 +226,14 @@ export function MyPetsPage() {
 
                   {/* Size badge + chevron */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {dog.size_category && (
+                    {dog.sizeCategory && (
                       <div className="flex flex-col items-center">
                         <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl
                           bg-brand-sand/60 text-brand-forest-light text-xs font-bold">
-                          {SIZE_ICONS[dog.size_category] || dog.size_category.charAt(0).toUpperCase()}
+                          {SIZE_ICONS[dog.sizeCategory] || dog.sizeCategory.charAt(0).toUpperCase()}
                         </span>
                         <span className="text-[10px] text-brand-forest-muted mt-0.5">
-                          {SIZE_LABELS[dog.size_category] || dog.size_category}
+                          {SIZE_LABELS[dog.sizeCategory] || dog.sizeCategory}
                         </span>
                       </div>
                     )}

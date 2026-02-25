@@ -272,6 +272,68 @@ export interface Dog {
   birth_date: string | null;
   notes: string | null;
   size_category: string | null;
+  photoUrl?: string | null;
+}
+
+// V2 Dog Profile types (expanded)
+export interface DogProfile {
+  id: string;
+  name: string;
+  breed: string | null;
+  birthDate: string | null;
+  weight: number | null;
+  temperament: string | null;
+  careInstructions: string | null;
+  isNeutered: boolean;
+  photoUrl: string | null;
+  socialNotes: string | null;
+  sizeCategory: string | null;
+  allergies: string | null;
+  specialNeeds: string | null;
+  emergencyVetName: string | null;
+  emergencyVetPhone: string | null;
+  lastGroomDate: string | null;
+  notes: string | null;
+  vaccinations: VaccinationRecord[];
+  medications: MedicationRecord[];
+  behaviorNotes?: BehaviorNote[];
+}
+
+export interface VaccinationRecord {
+  id: string;
+  name: string;
+  dateGiven: string;
+  expiresAt: string | null;
+  vetName: string | null;
+  documentUrl: string | null;
+  cloudinaryPublicId: string | null;
+  verified: boolean;
+  notes: string | null;
+}
+
+export interface MedicationRecord {
+  id: string;
+  name: string;
+  dosage: string | null;
+  frequency: string | null;
+  instructions: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isActive: boolean;
+}
+
+export interface BehaviorNote {
+  id: string;
+  category: string;
+  note: string;
+  severity: number;
+  reportedBy: string | null;
+  createdAt: string;
+  reporter?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface DogsResponse {
@@ -399,17 +461,46 @@ export const passwordResetApi = {
 };
 
 // Dog Profile APIs (V2 - expanded)
+export interface UploadResponse {
+  url: string;
+  publicId: string;
+}
+
 export const dogProfileApi = {
-  getDogs: () => api.get<any[]>('/v2/dogs'),
-  getDog: (dogId: string) => api.get<any>(`/v2/dogs/${dogId}`),
-  updateDog: (dogId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}`, data),
-  addVaccination: (dogId: string, data: any) => api.post<any>(`/v2/dogs/${dogId}/vaccinations`, data),
-  updateVaccination: (dogId: string, vaccinationId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`, data),
-  deleteVaccination: (dogId: string, vaccinationId: string) => api.delete<any>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`),
-  addMedication: (dogId: string, data: any) => api.post<any>(`/v2/dogs/${dogId}/medications`, data),
-  updateMedication: (dogId: string, medicationId: string, data: any) => api.put<any>(`/v2/dogs/${dogId}/medications/${medicationId}`, data),
-  deleteMedication: (dogId: string, medicationId: string) => api.delete<any>(`/v2/dogs/${dogId}/medications/${medicationId}`),
-  getCompliance: (dogId: string) => api.get<any>(`/v2/dogs/${dogId}/compliance`),
+  getDogs: () => api.get<{ dogs: Array<DogProfile & { vaccinationCount: number; activeMedicationCount: number }> }>('/v2/dogs'),
+  getDog: (dogId: string) => api.get<{ dog: DogProfile }>(`/v2/dogs/${dogId}`),
+  updateDog: (dogId: string, data: Partial<Omit<DogProfile, 'id' | 'vaccinations' | 'medications' | 'behaviorNotes'>>) =>
+    api.put<{ dog: DogProfile }>(`/v2/dogs/${dogId}`, data),
+  addVaccination: (dogId: string, data: { name: string; dateGiven: string; expiresAt?: string | null; vetName?: string; documentUrl?: string; cloudinaryPublicId?: string }) =>
+    api.post<VaccinationRecord>(`/v2/dogs/${dogId}/vaccinations`, data),
+  updateVaccination: (dogId: string, vaccinationId: string, data: Partial<{ name: string; dateGiven: string; expiresAt: string | null; vetName: string; documentUrl: string | null; cloudinaryPublicId: string | null }>) =>
+    api.put<VaccinationRecord>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`, data),
+  deleteVaccination: (dogId: string, vaccinationId: string) =>
+    api.delete<{ success: boolean }>(`/v2/dogs/${dogId}/vaccinations/${vaccinationId}`),
+  addMedication: (dogId: string, data: { name: string; dosage?: string; frequency?: string; instructions?: string; startDate?: string; endDate?: string }) =>
+    api.post<MedicationRecord>(`/v2/dogs/${dogId}/medications`, data),
+  updateMedication: (dogId: string, medicationId: string, data: Partial<{ name: string; dosage: string; frequency: string; instructions: string; startDate: string; endDate: string; isActive: boolean }>) =>
+    api.put<MedicationRecord>(`/v2/dogs/${dogId}/medications/${medicationId}`, data),
+  deleteMedication: (dogId: string, medicationId: string) =>
+    api.delete<{ success: boolean }>(`/v2/dogs/${dogId}/medications/${medicationId}`),
+  getCompliance: (dogId: string) => api.get<{ dogId: string; isFullyCompliant: boolean; compliance: Array<{ requirement: string; description: string; status: string; lastGiven: string | null; expiresAt: string | null }> }>(`/v2/dogs/${dogId}/compliance`),
+  uploadPhoto: async (file: File): Promise<ApiResponse<UploadResponse>> => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_BASE}/v2/uploads`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) return { error: json.error || 'Upload failed' };
+      return { data: json as UploadResponse };
+    } catch {
+      return { error: 'Upload failed. Please check your connection and try again.' };
+    }
+  },
 };
 
 // Messaging APIs
