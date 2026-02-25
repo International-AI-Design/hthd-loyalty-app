@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Sprints A-D Rebuild
 
+### MS-5: Sprint C — Agreements + Boarding
+- Service agreements system: create, sign, track compliance
+- Type-to-sign agreement flow for customers
+- Eligibility checker: vaccinations + agreements before booking
+- Boarding intake form: feeding schedule, drop-off/pick-up times, special items
+- AgreementsPage for customers to view and manage signed agreements
+- Admin agreement CRUD with signature viewing and filters
+- Boarding detail endpoints (GET/PUT) for customer booking flow
+- Login rate limit raised from 5 to 15 per 15 min (secure, E2E-friendly)
+- E2E tests for agreements and boarding flow
+
 ### MS-4: Sprint B — Grooming Pricing (Full-Stack)
 - New architecture patterns adopted: neverthrow Result types, ts-pattern exhaustive matching, discriminated unions
 - Server: PricingService with Result-returning methods (getServicePrices, createServicePrice, updateServicePrice, getAddOns, createAddOn, updateAddOn, deleteAddOn, getFullPricingSheet)
