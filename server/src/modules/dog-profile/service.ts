@@ -103,6 +103,11 @@ export class DogProfileService {
     if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
     if (data.socialNotes !== undefined) updateData.socialNotes = data.socialNotes;
     if (data.sizeCategory !== undefined) updateData.sizeCategory = data.sizeCategory;
+    if (data.allergies !== undefined) updateData.allergies = data.allergies;
+    if (data.specialNeeds !== undefined) updateData.specialNeeds = data.specialNeeds;
+    if (data.emergencyVetName !== undefined) updateData.emergencyVetName = data.emergencyVetName;
+    if (data.emergencyVetPhone !== undefined) updateData.emergencyVetPhone = data.emergencyVetPhone;
+    if (data.lastGroomDate !== undefined) updateData.lastGroomDate = new Date(data.lastGroomDate);
 
     const dog = await prisma.dog.update({
       where: { id: dogId },
@@ -127,6 +132,7 @@ export class DogProfileService {
         vetName: data.vetName ?? null,
         documentUrl: data.documentUrl ?? null,
         notes: data.notes ?? null,
+        cloudinaryPublicId: data.cloudinaryPublicId ?? null,
       },
     });
 
@@ -158,6 +164,7 @@ export class DogProfileService {
     if (data.vetName !== undefined) updateData.vetName = data.vetName;
     if (data.documentUrl !== undefined) updateData.documentUrl = data.documentUrl;
     if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.cloudinaryPublicId !== undefined) updateData.cloudinaryPublicId = data.cloudinaryPublicId;
 
     return (prisma as any).vaccination.update({
       where: { id: vaccinationId },

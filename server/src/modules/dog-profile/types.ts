@@ -11,6 +11,11 @@ export const DogProfileUpdateSchema = z.object({
   photoUrl: z.string().url().optional(),
   socialNotes: z.string().optional(),
   sizeCategory: z.enum(['small', 'medium', 'large', 'xl']).optional(),
+  allergies: z.string().optional(),
+  specialNeeds: z.string().optional(),
+  emergencyVetName: z.string().optional(),
+  emergencyVetPhone: z.string().optional(),
+  lastGroomDate: z.string().optional(),
 });
 
 export const VaccinationCreateSchema = z.object({
@@ -20,6 +25,7 @@ export const VaccinationCreateSchema = z.object({
   vetName: z.string().optional(),
   documentUrl: z.string().optional(),
   notes: z.string().optional(),
+  cloudinaryPublicId: z.string().optional(),
 });
 
 export const VaccinationUpdateSchema = VaccinationCreateSchema.partial();
