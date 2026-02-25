@@ -1,9 +1,16 @@
 # MS-2: Sprint A Server — Uploads + Dog Profile Enhancements
 
+## Session Protocol
+> **One micro-sprint per session.** Each session: execute this sprint only, pass build gates, commit, push, then shut down. Do NOT start the next sprint in the same session. Fresh context prevents compaction disasters.
+>
+> **Startup:** Ensure Docker Postgres (`happy-tail-postgres`) is running on port 5432 — tests need it.
+>
+> **Shutdown sequence:** After push succeeds → update CHANGELOG.md with MS-2 entry → archive session to `archive/sessions/YYYY-MM-DD_HH-MM_session.md` → update memory files → verify all logs written → confirm ready to exit.
+
 ## Context
 This is micro-sprint 2 of 8. MS-1 added the schema (new Dog fields, Vaccination cloudinaryPublicId, and 8 new tables). The Prisma client is regenerated and TypeScript compiles.
 
-**Prior sprints completed:** MS-1 (schema + migration)
+**Prior sprints completed:** MS-1 (schema + migration) — commit `c0392bf`
 
 ## Read First (for patterns)
 - `server/src/modules/dog-profile/types.ts` — Zod schema pattern

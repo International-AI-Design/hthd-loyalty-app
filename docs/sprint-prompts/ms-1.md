@@ -1,4 +1,11 @@
-# MS-1: Schema + Migration
+# MS-1: Schema + Migration — COMPLETE
+
+**Status: DONE** — Completed 2026-02-24. Commit `c0392bf`.
+
+## Session Protocol
+> **One micro-sprint per session.** Each session: execute the sprint, pass build gates, commit, push, then shut down. Do NOT start the next sprint in the same session. Fresh context prevents compaction disasters.
+>
+> **Shutdown sequence:** After push succeeds → update CHANGELOG.md → archive session to `archive/sessions/` → update memory files → verify all logs written → confirm ready to exit.
 
 ## Context
 This is micro-sprint 1 of 8 for the HTHD feature expansion. The codebase is clean (all prior uncommitted work was wiped). You are adding new models and fields to the Prisma schema, then generating a migration.
@@ -217,6 +224,12 @@ Add to `CHANGELOG.md` under a new section:
 - New models: CustomerBadge, AimInsight
 - Migration: sprints_abcd_schema
 ```
+
+## Completion Notes
+- Migration applied to both Railway prod DB and local Docker Postgres (`happy-tail-postgres`)
+- Used `prisma migrate diff` + `prisma migrate deploy` (not `migrate dev`) due to prod DB drift
+- Docker Postgres container must be running for pre-push hook tests to pass
+- All 50 server tests pass, all 3 apps type-check clean
 
 ## Next Session
 Proceed to MS-2 (Sprint A Server — uploads + dog-profile enhancements).

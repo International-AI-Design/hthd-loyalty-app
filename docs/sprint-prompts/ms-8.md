@@ -1,5 +1,12 @@
 # MS-8: Integration Verification + Deploy
 
+## Session Protocol
+> **One micro-sprint per session.** Each session: execute this sprint only, pass build gates, commit, push, then shut down. Do NOT start the next sprint in the same session. Fresh context prevents compaction disasters.
+>
+> **Startup:** Ensure Docker Postgres (`happy-tail-postgres`) is running on port 5432 — tests need it.
+>
+> **Shutdown sequence (FINAL):** After deploy succeeds → finalize CHANGELOG.md with unified release entry → archive session → update memory files → verify all logs → confirm ready to exit. This is the last sprint — celebrate!
+
 ## Context
 This is micro-sprint 8 of 8 — the final sprint. All features are built and tested. This sprint verifies everything works together, fixes any integration issues, and deploys.
 

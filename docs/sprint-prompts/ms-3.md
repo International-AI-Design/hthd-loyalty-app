@@ -1,5 +1,12 @@
 # MS-3: Sprint A Frontend — Cloudinary, Dog Profile UI, Vaccination Upload
 
+## Session Protocol
+> **One micro-sprint per session.** Each session: execute this sprint only, pass build gates, commit, push, then shut down. Do NOT start the next sprint in the same session. Fresh context prevents compaction disasters.
+>
+> **Startup:** Ensure Docker Postgres (`happy-tail-postgres`) is running on port 5432 — tests need it.
+>
+> **Shutdown sequence:** After push succeeds → update CHANGELOG.md with MS-3 entry → archive session to `archive/sessions/YYYY-MM-DD_HH-MM_session.md` → update memory files → verify all logs written → confirm ready to exit.
+
 ## Context
 This is micro-sprint 3 of 8. MS-1 added the schema, MS-2 added the server upload module and extended dog profile endpoints.
 
