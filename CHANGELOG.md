@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Sprints A-D Rebuild
 
+### MS-4: Sprint B — Grooming Pricing (Full-Stack)
+- New architecture patterns adopted: neverthrow Result types, ts-pattern exhaustive matching, discriminated unions
+- Server: PricingService with Result-returning methods (getServicePrices, createServicePrice, updateServicePrice, getAddOns, createAddOn, updateAddOn, deleteAddOn, getFullPricingSheet)
+- Server: Pure function `calculateGroomingTotal` for price calculation (functional core)
+- Server: Admin grooming router with staff auth + RBAC (owner/admin/manager)
+- Server: Customer-facing endpoints GET /pricing-sheet and GET /add-ons
+- Customer app: GroomingPriceGrid component (sub-service × size pricing display)
+- Customer app: AddOnSelector component (toggle-able add-on cards)
+- Customer app: GroomingQuoteSummary component (price breakdown with total)
+- Customer app: Booking wizard step 1.5 now shows pricing, add-ons, and quote before continuing
+- Admin app: Tabbed grooming pricing page (Condition Matrix, Service Prices, Add-Ons)
+- Admin app: Add-on CRUD with create form and activate/deactivate toggle
+- E2E: 4 admin tests (pricing page, condition matrix, add-ons tab, service prices tab)
+- E2E: 5 customer tests (booking loads grooming, prices display, sub-service + add-ons, no NaN/undefined, back navigation)
+- All 50 server unit tests pass, TypeScript clean across all 3 apps
+
+### MS-3.1: Retroactive E2E Verification
+- Fixed server crash on startup: Express 5 wildcard route syntax (`/:publicId(*)` → `/{*publicId}`)
+- Fixed upload endpoint returning 500 for invalid file types (now returns 400 with clear message)
+- Added 13 desktop E2E tests: dog profile page load, photo upload, vaccinations, health/safety, edit form, navigation
+- Added 4 mobile viewport E2E tests: scrolling, touch targets (44px min), card tappability
+- Verified API response shapes match frontend expectations (all fields camelCase, nullable fields present)
+- All 50 server unit tests pass, 17 new E2E tests pass
+
 ### MS-3: Sprint A Frontend
 - Dog profile now supports photo upload via Cloudinary
 - Vaccination records can have uploaded document photos
