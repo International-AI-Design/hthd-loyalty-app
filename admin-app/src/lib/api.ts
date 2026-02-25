@@ -976,6 +976,61 @@ export interface AimAlert {
   createdAt: string;
 }
 
+// Analytics Types & APIs
+
+export interface RevenueSnapshot {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  todayChange: number;
+  weekChange: number;
+  monthChange: number;
+}
+
+export interface CustomerSegments {
+  new: number;
+  active: number;
+  atRisk: number;
+  churned: number;
+}
+
+export interface CapacityService {
+  name: string;
+  displayName: string;
+  booked: number;
+  capacity: number;
+  utilizationPct: number;
+}
+
+export interface CapacityData {
+  services: CapacityService[];
+  weekStart: string;
+  weekEnd: string;
+}
+
+export interface AimInsight {
+  id: string;
+  type: string;
+  title: string;
+  summary: string;
+  data: unknown;
+  generatedAt: string;
+  expiresAt: string;
+}
+
+export const adminAnalyticsApi = {
+  getInsights: (type?: string) =>
+    api.get<{ insights: AimInsight[] }>(`/v2/admin/analytics/insights${type ? `?type=${type}` : ''}`),
+  generateInsights: () =>
+    api.post<{ generated: number }>('/v2/admin/analytics/insights/generate', {}),
+  getRevenue: () =>
+    api.get<RevenueSnapshot>('/v2/admin/analytics/revenue'),
+  getSegments: () =>
+    api.get<CustomerSegments>('/v2/admin/analytics/segments'),
+  getCapacity: () =>
+    api.get<CapacityData>('/v2/admin/analytics/capacity'),
+};
+
 // AIM Admin APIs
 export const adminAimApi = {
   chat: (message: string, conversationId?: string) =>

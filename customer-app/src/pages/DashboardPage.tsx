@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { customerApi, bookingApi } from '../lib/api';
-import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking } from '../lib/api';
+import { customerApi, bookingApi, badgeApi } from '../lib/api';
+import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking, CustomerBadge } from '../lib/api';
 import { Button, Modal, Alert, Toast } from '../components/ui';
 import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
 import { AppShell } from '../components/AppShell';
+import { NextBadgeProgress } from '../components/NextBadgeProgress';
+import { BadgeUnlockAnimation } from '../components/BadgeUnlockAnimation';
 import { useNavigate } from 'react-router-dom';
 
 const POINTS_CAP = 500;
@@ -77,6 +79,10 @@ export function DashboardPage() {
     setIsToastVisible(true);
   }, []);
 
+  // Badge unlock animation
+  const [newBadges, setNewBadges] = useState<CustomerBadge[]>([]);
+  const [showBadgeUnlock, setShowBadgeUnlock] = useState(false);
+
   // Walkthrough
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
@@ -143,6 +149,19 @@ export function DashboardPage() {
     fetchDogs();
     fetchVisits();
     fetchBookings();
+
+    // Evaluate badges on dashboard load
+    badgeApi.evaluate().then((result) => {
+      if (result.data && result.data.newBadges.length > 0) {
+        const unnotified = result.data.allBadges.filter(
+          (b) => result.data!.newBadges.includes(b.badge) && !b.notified,
+        );
+        if (unnotified.length > 0) {
+          setNewBadges(unnotified);
+          setShowBadgeUnlock(true);
+        }
+      }
+    });
   }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits, fetchBookings]);
 
   // --- Scroll to top + first visit ---
@@ -498,6 +517,13 @@ export function DashboardPage() {
             </button>
           </section>
         )}
+
+        {/* ============================================================
+            SECTION 2.5: Next Badge Progress
+            ============================================================ */}
+        <section className="animate-slide-up">
+          <NextBadgeProgress />
+        </section>
 
         {/* ============================================================
             SECTION 3: Quick Actions Grid
@@ -1051,6 +1077,17 @@ export function DashboardPage() {
           ]}
           onComplete={handleWalkthroughComplete}
           onSkip={handleWalkthroughSkip}
+        />
+      )}
+
+      {/* Badge Unlock Animation */}
+      {showBadgeUnlock && newBadges.length > 0 && (
+        <BadgeUnlockAnimation
+          badges={newBadges}
+          onDismiss={() => {
+            setShowBadgeUnlock(false);
+            setNewBadges([]);
+          }}
         />
       )}
 

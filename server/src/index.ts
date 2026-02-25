@@ -42,6 +42,8 @@ import v2UploadsRoutes from './modules/uploads/router';
 import v2AdminGroomingRoutes from './modules/grooming/admin-router';
 import v2AgreementsRoutes from './modules/agreements/router';
 import v2AdminAgreementsRoutes from './modules/agreements/admin-router';
+import v2BadgesRoutes from './modules/badges/router';
+import v2AdminAnalyticsRoutes from './modules/analytics/router';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -145,6 +147,8 @@ app.use('/api/v2/uploads', v2UploadsRoutes);
 app.use('/api/v2/admin/grooming', v2AdminGroomingRoutes);
 app.use('/api/v2/agreements', v2AgreementsRoutes);
 app.use('/api/v2/admin/agreements', v2AdminAgreementsRoutes);
+app.use('/api/v2/badges', v2BadgesRoutes);
+app.use('/api/v2/admin/analytics', v2AdminAnalyticsRoutes);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

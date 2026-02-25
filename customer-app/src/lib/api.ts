@@ -646,6 +646,41 @@ export const groomingApi = {
   getAddOns: () => api.get<{ addOns: GroomingAddOn[] }>('/v2/grooming/add-ons'),
 };
 
+// === V2 Badges Types ===
+
+export interface CustomerBadge {
+  id: string;
+  badge: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  earnedAt: string;
+  notified: boolean;
+}
+
+export interface NextBadgeProgress {
+  badge: string | null;
+  displayName: string;
+  description: string;
+  icon: string;
+  progress: number;
+  target: number;
+  progressPct: number;
+  message?: string;
+}
+
+export interface EvaluationResult {
+  newBadges: string[];
+  allBadges: CustomerBadge[];
+}
+
+export const badgeApi = {
+  getBadges: () => api.get<{ badges: CustomerBadge[] }>('/v2/badges'),
+  getNextBadge: () => api.get<NextBadgeProgress>('/v2/badges/next'),
+  evaluate: () => api.post<EvaluationResult>('/v2/badges/evaluate', {}),
+  markNotified: (id: string) => api.put<{ success: boolean }>(`/v2/badges/${id}/notified`, {}),
+};
+
 // === V2 Booking Types ===
 
 export interface GroomingSubService {

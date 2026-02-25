@@ -17,3 +17,4 @@ export { RewardsPage } from './RewardsPage';
 export { SettingsPage } from './SettingsPage';
 export { ActivityFeedPage } from './ActivityFeedPage';
 export { AgreementsPage } from './AgreementsPage';
+export { BadgesPage } from './BadgesPage';

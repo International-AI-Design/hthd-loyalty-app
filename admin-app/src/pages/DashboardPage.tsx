@@ -4,6 +4,9 @@ import { adminDashboardApi, adminBookingApi } from '../lib/api';
 import { ServiceDrilldownModal } from '../components/dashboard/ServiceDrilldownModal';
 import { WeatherWidget } from '../components/dashboard/WeatherWidget';
 import { QuickBookModal } from '../components/booking/QuickBookModal';
+import { RevenueChart } from '../components/dashboard/RevenueChart';
+import { SegmentCards } from '../components/dashboard/SegmentCards';
+import { InsightsPanel } from '../components/dashboard/InsightsPanel';
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
@@ -734,6 +737,20 @@ export function DashboardPage() {
           </div>
           <span className="text-sm font-medium text-[#1B365D]">Report Cards</span>
         </button>
+      </div>
+
+      {/* Revenue + Customer Segments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <RevenueChart />
+        <div className="space-y-4">
+          <h2 className="font-heading text-lg font-semibold text-[#1B365D]">Customer Segments</h2>
+          <SegmentCards />
+        </div>
+      </div>
+
+      {/* Insights */}
+      <div className="mb-6">
+        <InsightsPanel />
       </div>
 
       {/* Drilldown Modal */}
