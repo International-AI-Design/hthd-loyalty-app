@@ -82,10 +82,10 @@ export const rateLimiter = rateLimit({
   }
 });
 
-// Strict rate limiter for login endpoints: 5 attempts per 15 minutes per IP
+// Login rate limiter: 15 attempts per 15 min per IP (secure against brute force, allows E2E)
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 15,
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,

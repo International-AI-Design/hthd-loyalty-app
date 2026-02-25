@@ -554,6 +554,60 @@ export const referralApi = {
     api.get<ReferralValidation>(`/referrals/validate/${code}`),
 };
 
+// === V2 Agreements Types ===
+
+export interface ServiceAgreement {
+  id: string;
+  name: string;
+  displayName: string;
+  content: string;
+  version: number;
+}
+
+export interface AgreementCompliance {
+  compliant: boolean;
+  missing: ServiceAgreement[];
+  signed: ServiceAgreement[];
+}
+
+export interface AgreementSignature {
+  id: string;
+  agreementId: string;
+  typedName: string;
+  signedAt: string;
+  agreement: { displayName: string; version: number };
+}
+
+export interface BoardingDetail {
+  id: string;
+  bookingId: string;
+  feedingSchedule: string | null;
+  foodType: string | null;
+  foodBrand: string | null;
+  feedingNotes: string | null;
+  dropOffTime: string | null;
+  pickUpTime: string | null;
+  specialItems: string | null;
+  emergencyContact: string | null;
+}
+
+export const agreementApi = {
+  getRequired: (serviceType: string) =>
+    api.get<{ agreements: ServiceAgreement[] }>(`/v2/agreements?serviceType=${serviceType}`),
+  getAll: () =>
+    api.get<{ agreements: ServiceAgreement[] }>('/v2/agreements'),
+  getMySignatures: () =>
+    api.get<{ signatures: AgreementSignature[] }>('/v2/agreements/my-signatures'),
+  checkCompliance: (serviceType: string) =>
+    api.get<AgreementCompliance>(`/v2/agreements/compliance?serviceType=${serviceType}`),
+  sign: (agreementId: string, typedName: string) =>
+    api.post<{ signature: AgreementSignature }>('/v2/agreements/sign', { agreementId, typedName, agreedToTerms: true }),
+  getBoardingDetail: (bookingId: string) =>
+    api.get<{ boardingDetail: BoardingDetail }>(`/v2/agreements/boarding-detail/${bookingId}`),
+  saveBoardingDetail: (bookingId: string, data: Partial<Omit<BoardingDetail, 'id' | 'bookingId'>>) =>
+    api.put<{ boardingDetail: BoardingDetail }>(`/v2/agreements/boarding-detail/${bookingId}`, data),
+};
+
 // === V2 Grooming Pricing Types ===
 
 export interface GroomingServicePriceItem {
