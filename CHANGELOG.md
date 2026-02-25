@@ -2,89 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - Sprints A-D Rebuild
+## [3.2.0] - 2026-02-25 — Sprints A-D Feature Expansion
 
-### MS-7: Cross-Module Integration Tests
-- Customer full-journey tests (multi-page navigation, data consistency)
-- Admin navigation and dashboard integrity tests
-- Error resilience tests (invalid routes, bad IDs, console errors)
-- Mobile integration tests (bottom nav, scrolling, overflow)
-- Rate limiter bumped: login 100/15min, general 2000/15min (E2E-friendly)
-- Full regression suite verified across all sprints
+### Added
+- **Photo Uploads**: Dog profile photos and vaccination document uploads via Cloudinary (10MB limit, JPEG/PNG/WebP)
+- **Extended Dog Profiles**: Allergies, special needs, emergency vet contact, last groom date, photo thumbnails on pet cards
+- **Grooming Pricing**: Sub-service pricing by dog size with condition-based tier matrix, grooming add-ons with real-time quote summary in booking flow
+- **Service Agreements**: Digital agreement signing with type-to-sign, compliance tracking, eligibility checker (vaccinations + agreements before booking)
+- **Boarding Intake**: Feeding schedule, food details, drop-off/pick-up times, special items, emergency contact
+- **Customer Badges**: 10 achievement badges earned through visits, referrals, grooming, boarding, points, and compliance — with unlock animations and progress tracking
+- **Admin Intelligence**: Revenue snapshots (daily/weekly/monthly with % change), customer segments (New/Active/At-Risk/Churned), AI-generated business insights with refresh
+- **Admin Pricing Management**: Inline editing for grooming condition matrix, service prices by size, and add-on CRUD
+- **Admin Agreement Management**: Server-side CRUD for service agreements with signature viewing and filters
+- **E2E Test Suite**: ~200 new test cases across customer and admin apps covering all Sprints A-D features, cross-module integration, error resilience, and mobile viewports
 
-### MS-6: Sprint D — Badges + Admin Intelligence
-- Customer badge system: 10 badges earned through visits, referrals, compliance
-- Badge evaluation engine checks booking count, grooming, boarding, referrals, points, vaccination compliance
-- Badge unlock animation on customer dashboard (CSS-only confetti, no new deps)
-- Next badge progress bar showing path to next achievement
-- Dedicated /badges page with full badge grid (earned + locked display)
-- Admin intelligence: revenue snapshot (today, this week, this month with % change)
-- Admin intelligence: customer segments (New, Active, At-Risk, Churned)
-- Admin intelligence: AI-generated insights with refresh capability
-- Admin dashboard enriched with revenue chart, segment cards, insights panel
-- Server: badges module with neverthrow ResultAsync + ts-pattern exhaustive matching
-- Server: analytics module with revenue, segments, capacity, insights generation
-- E2E tests for badges (customer) and analytics (admin)
-- All 50 server unit tests pass, TypeScript clean across all 3 apps
+### Architecture
+- Adopted **neverthrow** Result types and **ts-pattern** exhaustive matching in new server modules (grooming pricing, agreements, badges, analytics)
+- Pure function `calculateGroomingTotal` for price calculation (functional core, imperative shell)
+- Rate limiters tuned: login 100/15min, general 2000/15min (E2E-friendly while maintaining security)
 
-### MS-5: Sprint C — Agreements + Boarding
-- Service agreements system: create, sign, track compliance
-- Type-to-sign agreement flow for customers
-- Eligibility checker: vaccinations + agreements before booking
-- Boarding intake form: feeding schedule, drop-off/pick-up times, special items
-- AgreementsPage for customers to view and manage signed agreements
-- Admin agreement CRUD with signature viewing and filters
-- Boarding detail endpoints (GET/PUT) for customer booking flow
-- Login rate limit raised from 5 to 15 per 15 min (secure, E2E-friendly)
-- E2E tests for agreements and boarding flow
-
-### MS-4: Sprint B — Grooming Pricing (Full-Stack)
-- New architecture patterns adopted: neverthrow Result types, ts-pattern exhaustive matching, discriminated unions
-- Server: PricingService with Result-returning methods (getServicePrices, createServicePrice, updateServicePrice, getAddOns, createAddOn, updateAddOn, deleteAddOn, getFullPricingSheet)
-- Server: Pure function `calculateGroomingTotal` for price calculation (functional core)
-- Server: Admin grooming router with staff auth + RBAC (owner/admin/manager)
-- Server: Customer-facing endpoints GET /pricing-sheet and GET /add-ons
-- Customer app: GroomingPriceGrid component (sub-service × size pricing display)
-- Customer app: AddOnSelector component (toggle-able add-on cards)
-- Customer app: GroomingQuoteSummary component (price breakdown with total)
-- Customer app: Booking wizard step 1.5 now shows pricing, add-ons, and quote before continuing
-- Admin app: Tabbed grooming pricing page (Condition Matrix, Service Prices, Add-Ons)
-- Admin app: Add-on CRUD with create form and activate/deactivate toggle
-- E2E: 4 admin tests (pricing page, condition matrix, add-ons tab, service prices tab)
-- E2E: 5 customer tests (booking loads grooming, prices display, sub-service + add-ons, no NaN/undefined, back navigation)
-- All 50 server unit tests pass, TypeScript clean across all 3 apps
-
-### MS-3.1: Retroactive E2E Verification
-- Fixed server crash on startup: Express 5 wildcard route syntax (`/:publicId(*)` → `/{*publicId}`)
-- Fixed upload endpoint returning 500 for invalid file types (now returns 400 with clear message)
-- Added 13 desktop E2E tests: dog profile page load, photo upload, vaccinations, health/safety, edit form, navigation
-- Added 4 mobile viewport E2E tests: scrolling, touch targets (44px min), card tappability
-- Verified API response shapes match frontend expectations (all fields camelCase, nullable fields present)
-- All 50 server unit tests pass, 17 new E2E tests pass
-
-### MS-3: Sprint A Frontend
-- Dog profile now supports photo upload via Cloudinary
-- Vaccination records can have uploaded document photos
-- Dog profile shows allergies, special needs, emergency vet info
-- Pet list cards show dog photo thumbnails (switched to v2 API)
-- Extended API client with typed DogProfile, VaccinationRecord, MedicationRecord interfaces
-- New components: PhotoUpload, VaccinationUpload
-
-### MS-2: Sprint A Server
-- Added Cloudinary upload module with image optimization (upload, delete, signed URL)
-- Extended dog profile API with allergies, specialNeeds, emergencyVet fields
-- Vaccination records now support Cloudinary document uploads (cloudinaryPublicId)
-- New endpoint: POST /api/v2/uploads for authenticated image uploads
-- New endpoint: DELETE /api/v2/uploads/:publicId for ownership-verified deletion
-- Multer middleware: 10MB limit, JPEG/PNG/WebP only
-
-### MS-1: Schema + Migration
-- Added Dog extended fields: allergies, specialNeeds, emergencyVetName/Phone, lastGroomDate
-- Added Vaccination cloudinaryPublicId for document uploads
-- New models: GroomingServicePrice, GroomingAddOn, BookingAddOn
-- New models: ServiceAgreement, AgreementSignature, BoardingDetail
-- New models: CustomerBadge, AimInsight
-- Migration: sprints_abcd_schema
+### Database
+- Migration: `sprints_abcd_schema` — 5 new Dog fields, 1 new Vaccination field, 8 new tables (GroomingServicePrice, GroomingAddOn, BookingAddOn, ServiceAgreement, AgreementSignature, BoardingDetail, CustomerBadge, AimInsight)
 
 ## [2.0.0-alpha.21] - Multi-Agent Recovery + Micro-Sprint Plan - 2026-02-24
 
