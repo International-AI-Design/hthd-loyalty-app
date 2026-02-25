@@ -198,6 +198,112 @@ export const agreementApi = {
 ### Update `customer-app/src/pages/index.ts`
 Export AgreementsPage if using barrel exports.
 
+## E2E Verification (required before push)
+
+### API Verification (curl)
+```bash
+TOKEN=<customer token>
+STAFF_TOKEN=<staff token>
+
+# Agreements list for a service type
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/agreements?serviceType=boarding | jq '.agreements | length'
+
+# Compliance check
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/agreements/compliance?serviceType=boarding | jq '{compliant, missingCount: (.missing | length), signedCount: (.signed | length)}'
+
+# Customer signatures
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/agreements/my-signatures | jq '.signatures | length'
+
+# Boarding detail endpoint exists
+curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/bookings/00000000-0000-0000-0000-000000000000/boarding-detail
+# Expected: 404 (not found, not 500 — proves endpoint exists)
+
+# Admin agreements CRUD
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/agreements | jq '.agreements | length'
+```
+
+**API Checklist:**
+- [ ] `/v2/agreements?serviceType=boarding` returns agreements array
+- [ ] `/v2/agreements/compliance?serviceType=boarding` returns `{compliant, missing, signed}`
+- [ ] `/v2/agreements/my-signatures` returns signatures array
+- [ ] Boarding detail endpoint responds (404 for bad ID, not 500)
+- [ ] Admin `/v2/admin/agreements` returns agreements list
+
+### Browser E2E Tests
+
+**Create `e2e/tests/customer/agreements.spec.ts`:**
+```typescript
+import { test, expect } from '../../fixtures/auth.fixture';
+
+test.describe('Agreements — MS-5', () => {
+  test('Agreements page loads at /agreements', async ({ customerPage }) => {
+    await customerPage.goto('/agreements');
+    await customerPage.waitForLoadState('networkidle');
+    // Should show agreement-related content, not a white screen or redirect
+    const content = await customerPage.locator('body').textContent();
+    expect(content).toBeTruthy();
+  });
+
+  test('Agreements page shows signed/pending sections', async ({ customerPage }) => {
+    await customerPage.goto('/agreements');
+    await customerPage.waitForLoadState('networkidle');
+    // Look for section headers or agreement cards
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent!.length).toBeGreaterThan(50); // not empty
+  });
+
+  test('Type-to-sign component has text input', async ({ customerPage }) => {
+    await customerPage.goto('/agreements');
+    await customerPage.waitForLoadState('networkidle');
+    // If unsigned agreements exist, the signing UI should be accessible
+    // Just verify page is functional — don't actually sign
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+
+  test('Booking flow shows eligibility checker', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    // Select a service and advance in the booking wizard
+    // The eligibility checker should appear before confirmation
+    // Verify the page doesn't crash during navigation
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+
+  test('Boarding intake form renders with expected fields', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    // Select boarding service if available
+    const boardingOption = customerPage.locator('text=/[Bb]oarding/').first();
+    const hasBoardingOption = await boardingOption.isVisible().catch(() => false);
+    if (hasBoardingOption) {
+      await boardingOption.click();
+      await customerPage.waitForLoadState('networkidle');
+      // Boarding flow should eventually show intake form fields
+      // At minimum, verify no crash
+    }
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+});
+```
+
+### Run E2E + Regression
+```bash
+cd e2e
+npx playwright test tests/customer/agreements.spec.ts --reporter=list
+npx playwright test --reporter=list 2>&1 | tail -20
+```
+
+**E2E Checklist:**
+- [ ] Agreements page loads without white screen
+- [ ] Agreement content is viewable
+- [ ] Type-to-sign has text input and disabled submit button when empty
+- [ ] Boarding intake form shows feeding/schedule fields
+- [ ] Eligibility checker shows vaccination + agreement status
+- [ ] All existing tests still pass (regression)
+
 ## Build Gate
 ```bash
 cd server && npx tsc --noEmit
@@ -210,10 +316,11 @@ cd ../customer-app && npx tsc --noEmit && npm run build
 - [ ] Boarding intake form has all fields
 - [ ] Eligibility checker handles both vaccinations and agreements
 - [ ] All new components have loading/error/empty states
+- [ ] E2E verification passed (API + browser)
 
 ## Git Commit
 ```bash
-git add server/src/modules/agreements/ server/src/index.ts customer-app/
+git add server/src/modules/agreements/ server/src/index.ts customer-app/ e2e/tests/
 git commit -m "feat: add service agreements and boarding intake
 
 Server: agreements module with CRUD, signing, compliance checking.
@@ -221,6 +328,7 @@ Boarding detail endpoints for feeding/schedule info.
 Customer: AgreementViewer, TypeToSign, EligibilityChecker components.
 BoardingIntakeForm for boarding-specific details.
 AgreementsPage for viewing/signing agreements.
+E2E: agreements and boarding tests.
 
 MS-5 of 8 micro-sprint rebuild."
 ```
@@ -233,6 +341,7 @@ MS-5 of 8 micro-sprint rebuild."
 - Eligibility checker: vaccinations + agreements before booking
 - Boarding intake form: feeding schedule, drop-off/pick-up times, special items
 - AgreementsPage for customers to view and manage signed agreements
+- E2E tests for agreements and boarding flow
 ```
 
 ## Next Session

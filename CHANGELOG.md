@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Sprints A-D Rebuild
 
+### MS-3: Sprint A Frontend
+- Dog profile now supports photo upload via Cloudinary
+- Vaccination records can have uploaded document photos
+- Dog profile shows allergies, special needs, emergency vet info
+- Pet list cards show dog photo thumbnails (switched to v2 API)
+- Extended API client with typed DogProfile, VaccinationRecord, MedicationRecord interfaces
+- New components: PhotoUpload, VaccinationUpload
+
+### MS-2: Sprint A Server
+- Added Cloudinary upload module with image optimization (upload, delete, signed URL)
+- Extended dog profile API with allergies, specialNeeds, emergencyVet fields
+- Vaccination records now support Cloudinary document uploads (cloudinaryPublicId)
+- New endpoint: POST /api/v2/uploads for authenticated image uploads
+- New endpoint: DELETE /api/v2/uploads/:publicId for ownership-verified deletion
+- Multer middleware: 10MB limit, JPEG/PNG/WebP only
+
 ### MS-1: Schema + Migration
 - Added Dog extended fields: allergies, specialNeeds, emergencyVetName/Phone, lastGroomDate
 - Added Vaccination cloudinaryPublicId for document uploads

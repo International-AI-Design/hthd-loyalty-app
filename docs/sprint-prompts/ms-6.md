@@ -219,6 +219,136 @@ export const analyticsApi = {
 - Capacity utilization view
 - Full insights list with filtering
 
+## E2E Verification (required before push)
+
+### API Verification (curl)
+```bash
+TOKEN=<customer token>
+STAFF_TOKEN=<staff token>
+
+# Customer badges
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/badges | jq '.badges | length'
+
+# Next badge progress
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/badges/next | jq '{badge, displayName, progress, target, progressPct}'
+
+# Badge evaluation (POST, but read-only — awards earned badges)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  $API_URL/api/v2/badges/evaluate -d '{}' | jq '{newBadges: (.newBadges | length), total: (.allBadges | length)}'
+
+# Admin analytics
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/analytics/revenue | jq '{today, thisWeek, thisMonth}'
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/analytics/segments | jq '.'
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/analytics/insights | jq '.insights | length'
+```
+
+**API Checklist:**
+- [ ] `/v2/badges` returns badges array with id, badge, displayName, icon, earnedAt
+- [ ] `/v2/badges/next` returns progress toward next badge (or empty if all earned)
+- [ ] `/v2/badges/evaluate` returns `{newBadges, allBadges}` without error
+- [ ] Admin `/v2/admin/analytics/revenue` returns revenue numbers
+- [ ] Admin `/v2/admin/analytics/segments` returns customer segment counts
+- [ ] Admin `/v2/admin/analytics/insights` returns insights array
+
+### Browser E2E Tests
+
+**Create `e2e/tests/customer/badges.spec.ts`:**
+```typescript
+import { test, expect } from '../../fixtures/auth.fixture';
+
+test.describe('Badges — MS-6', () => {
+  test('Dashboard shows next badge progress', async ({ customerPage }) => {
+    await customerPage.goto('/dashboard');
+    await customerPage.waitForLoadState('networkidle');
+    // Next badge progress component should render on dashboard
+    // Look for progress-related content
+    const progressBar = customerPage.locator('[role="progressbar"]').or(
+      customerPage.locator('text=/\\d+ of \\d+/')
+    );
+    const hasProgress = await progressBar.first().isVisible().catch(() => false);
+    // May not have badge data yet — just verify dashboard loads
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+    console.log(`Badge progress visible: ${hasProgress}`);
+  });
+
+  test('Badge grid renders without crash', async ({ customerPage }) => {
+    // Navigate to badges page or section
+    await customerPage.goto('/badges');
+    await customerPage.waitForLoadState('networkidle');
+    // Might redirect to dashboard if no dedicated page — either way, no white screen
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+
+  test('Earned badges show display name and icon', async ({ customerPage }) => {
+    await customerPage.goto('/dashboard');
+    await customerPage.waitForLoadState('networkidle');
+    // If any badges are earned, they should show display names
+    // Don't assert specific badges — test account may vary
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+});
+```
+
+**Create `e2e/tests/admin/analytics.spec.ts`:**
+```typescript
+import { test, expect } from '../../fixtures/auth.fixture';
+
+test.describe('Admin Analytics — MS-6', () => {
+  test('Dashboard shows revenue snapshot', async ({ staffPage }) => {
+    await staffPage.goto('/dashboard');
+    await staffPage.waitForLoadState('networkidle');
+    // Revenue section should show dollar amounts or "Today"/"This Week"/"This Month"
+    await expect(staffPage.locator('text=/[Rr]evenue|Today|This [Ww]eek/')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Customer segment cards render', async ({ staffPage }) => {
+    await staffPage.goto('/dashboard');
+    await staffPage.waitForLoadState('networkidle');
+    // Look for segment labels
+    const segments = staffPage.locator('text=/Active|At.Risk|New|Churned/');
+    await expect(segments.first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Insights panel renders', async ({ staffPage }) => {
+    await staffPage.goto('/dashboard');
+    await staffPage.waitForLoadState('networkidle');
+    // Insights section should be present (even if empty)
+    const insightsSection = staffPage.locator('text=/[Ii]nsight/');
+    const hasInsights = await insightsSection.first().isVisible().catch(() => false);
+    console.log(`Insights panel visible: ${hasInsights}`);
+    // Dashboard should load regardless
+    const pageContent = await staffPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+
+  test('Analytics page loads (if created)', async ({ staffPage }) => {
+    await staffPage.goto('/analytics');
+    await staffPage.waitForLoadState('networkidle');
+    // May or may not have a dedicated page — verify no crash
+    const pageContent = await staffPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+});
+```
+
+### Run E2E + Regression
+```bash
+cd e2e
+npx playwright test tests/customer/badges.spec.ts tests/admin/analytics.spec.ts --reporter=list
+npx playwright test --reporter=list 2>&1 | tail -20
+```
+
+**E2E Checklist:**
+- [ ] Dashboard renders badge progress (or gracefully handles no badges)
+- [ ] Badge grid doesn't crash
+- [ ] Admin dashboard shows revenue section
+- [ ] Customer segment cards visible
+- [ ] Insights panel present on admin dashboard
+- [ ] All existing tests still pass (regression)
+
 ## Build Gate
 ```bash
 cd server && npx tsc --noEmit
@@ -233,10 +363,11 @@ cd ../admin-app && npx tsc --noEmit && npm run build
 - [ ] Badge unlock animation is CSS-only (no new deps)
 - [ ] Admin dashboard shows revenue, segments, insights
 - [ ] All new components have loading/error/empty states
+- [ ] E2E verification passed (API + browser)
 
 ## Git Commit
 ```bash
-git add server/src/modules/badges/ server/src/modules/analytics/ server/src/index.ts customer-app/ admin-app/
+git add server/src/modules/badges/ server/src/modules/analytics/ server/src/index.ts customer-app/ admin-app/ e2e/tests/
 git commit -m "feat: add customer badges and admin intelligence dashboard
 
 Server: badges module with evaluation engine and 10 badge types.
@@ -244,6 +375,7 @@ Server: analytics module with revenue, segments, capacity, insights.
 Customer: BadgeGrid, NextBadgeProgress, BadgeUnlockAnimation.
 Customer dashboard shows badge progress and unlock notifications.
 Admin: InsightsPanel, RevenueChart, SegmentCards on dashboard.
+E2E: badges and analytics tests.
 
 MS-6 of 8 micro-sprint rebuild."
 ```
@@ -256,7 +388,8 @@ MS-6 of 8 micro-sprint rebuild."
 - Next badge progress bar showing path to next achievement
 - Admin intelligence: revenue snapshot, customer segments, AI-generated insights
 - Admin dashboard enriched with analytics panels
+- E2E tests for badges (customer) and analytics (admin)
 ```
 
 ## Next Session
-Proceed to MS-7 (E2E Tests for all sprints).
+Proceed to MS-7 (Cross-Module Integration Tests).

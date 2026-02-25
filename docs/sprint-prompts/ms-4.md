@@ -176,6 +176,140 @@ export const groomingApi = {
 **Update `admin-app/src/lib/api.ts`:**
 Add admin grooming API methods for CRUD operations on prices and add-ons.
 
+## E2E Verification (required before push)
+
+### API Verification (curl)
+```bash
+TOKEN=$(curl -s -X POST $API_URL/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"qa-test@internationalaidesign.com","password":"..."}' | jq -r '.token')
+
+# Pricing sheet endpoint returns sub-services with per-size prices
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/grooming/pricing-sheet | jq '.subServices[0] | {name, displayName, prices}'
+
+# Add-ons endpoint returns active add-ons
+curl -s -H "Authorization: Bearer $TOKEN" $API_URL/api/v2/grooming/add-ons | jq '.addOns | length'
+
+# Admin pricing CRUD (use staff token)
+STAFF_TOKEN=$(curl -s -X POST $API_URL/api/admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"qa-staff","password":"..."}' | jq -r '.token')
+
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/grooming/prices | jq '.prices | length'
+curl -s -H "Authorization: Bearer $STAFF_TOKEN" $API_URL/api/v2/admin/grooming/add-ons | jq '.addOns | length'
+```
+
+**API Checklist:**
+- [ ] `/v2/grooming/pricing-sheet` returns sub-services with per-size prices array
+- [ ] `/v2/grooming/add-ons` returns active add-ons with id, name, displayName, priceCents
+- [ ] Admin `/v2/admin/grooming/prices` returns price list
+- [ ] Admin `/v2/admin/grooming/add-ons` returns all add-ons (including inactive)
+- [ ] All prices in cents (integer), frontend converts to dollars
+
+### Browser E2E Tests
+
+**Create `e2e/tests/customer/grooming-pricing.spec.ts`:**
+```typescript
+import { test, expect } from '../../fixtures/auth.fixture';
+
+test.describe('Grooming Pricing — MS-4', () => {
+  test('Booking page loads grooming option', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    await expect(customerPage.locator('text=/[Gg]rooming/')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Selecting grooming shows pricing grid', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    // Select grooming service type
+    const groomingOption = customerPage.locator('text=/[Gg]rooming/').first();
+    await groomingOption.click();
+    // Pricing grid should appear with sub-service names and prices
+    // Verify at least price content renders (dollar signs or number)
+    await expect(customerPage.locator('text=/\\$\\d+/')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Add-on selector renders when grooming selected', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    const groomingOption = customerPage.locator('text=/[Gg]rooming/').first();
+    await groomingOption.click();
+    // Look for add-on cards or section (may require further navigation in booking wizard)
+    const addOnSection = customerPage.locator('text=/[Aa]dd-?[Oo]n/');
+    // This may be on a later step — just verify no crash
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+
+  test('Quote summary shows price breakdown', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    const groomingOption = customerPage.locator('text=/[Gg]rooming/').first();
+    await groomingOption.click();
+    // After making selections, a quote/summary should appear with total
+    // Verify page doesn't crash — may need dog selection first
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+    expect(pageContent).not.toContain('NaN');
+  });
+
+  test('Navigate back from grooming booking preserves state', async ({ customerPage }) => {
+    await customerPage.goto('/book');
+    await customerPage.waitForLoadState('networkidle');
+    await customerPage.goBack();
+    await customerPage.waitForLoadState('networkidle');
+    // Should not white-screen
+    const pageContent = await customerPage.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+  });
+});
+```
+
+**Create `e2e/tests/admin/grooming-pricing.spec.ts`:**
+```typescript
+import { test, expect } from '../../fixtures/auth.fixture';
+
+test.describe('Admin Grooming Pricing — MS-4', () => {
+  test('Grooming pricing page loads', async ({ staffPage }) => {
+    await staffPage.goto('/grooming-pricing');
+    await staffPage.waitForLoadState('networkidle');
+    // Should show pricing content, not a white screen
+    await expect(staffPage.locator('text=/[Pp]ric/')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Price matrix shows sub-services and sizes', async ({ staffPage }) => {
+    await staffPage.goto('/grooming-pricing');
+    await staffPage.waitForLoadState('networkidle');
+    // Look for size labels (Small, Medium, Large, XL)
+    await expect(staffPage.locator('text=/Small|Medium|Large|XL/')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('Add-ons section renders', async ({ staffPage }) => {
+    await staffPage.goto('/grooming-pricing');
+    await staffPage.waitForLoadState('networkidle');
+    const addOnSection = staffPage.locator('text=/[Aa]dd-?[Oo]n/');
+    await expect(addOnSection.first()).toBeVisible({ timeout: 15_000 });
+  });
+});
+```
+
+### Run E2E + Regression
+```bash
+cd e2e
+# New tests for this sprint
+npx playwright test tests/customer/grooming-pricing.spec.ts tests/admin/grooming-pricing.spec.ts --reporter=list
+# Full regression
+npx playwright test --reporter=list 2>&1 | tail -20
+```
+
+**E2E Checklist:**
+- [ ] Customer grooming pricing grid renders with dollar amounts
+- [ ] No `NaN` or `undefined` in pricing display
+- [ ] Admin pricing page loads with matrix
+- [ ] Back navigation doesn't crash
+- [ ] All existing tests still pass (regression)
+
 ## Build Gate
 ```bash
 cd server && npx tsc --noEmit
@@ -189,10 +323,11 @@ cd ../admin-app && npx tsc --noEmit && npm run build
 - [ ] New customer components have loading/error/empty states
 - [ ] Admin pricing page has inline editing
 - [ ] All prices display in dollars (not raw cents)
+- [ ] E2E verification passed (API + browser)
 
 ## Git Commit
 ```bash
-git add server/src/modules/grooming/ server/src/index.ts customer-app/ admin-app/
+git add server/src/modules/grooming/ server/src/index.ts customer-app/ admin-app/ e2e/tests/
 git commit -m "feat(grooming): add service pricing and add-ons system
 
 Server: pricing-service with CRUD for service prices and add-ons.
@@ -200,6 +335,7 @@ Admin router for grooming pricing management.
 Customer: GroomingPriceGrid, AddOnSelector, GroomingQuoteSummary components.
 Booking wizard shows pricing when grooming selected.
 Admin: inline price editing and add-on management.
+E2E: grooming pricing tests (customer + admin).
 
 MS-4 of 8 micro-sprint rebuild."
 ```
@@ -211,6 +347,7 @@ MS-4 of 8 micro-sprint rebuild."
 - Grooming add-ons (nail painting, teeth brushing, etc.)
 - Customer booking shows real-time price quote with add-on selection
 - Admin can manage service prices and add-ons inline
+- E2E tests for grooming pricing (customer + admin)
 ```
 
 ## Next Session

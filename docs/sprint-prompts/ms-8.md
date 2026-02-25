@@ -10,7 +10,7 @@
 ## Context
 This is micro-sprint 8 of 8 — the final sprint. All features are built and tested. This sprint verifies everything works together, fixes any integration issues, and deploys.
 
-**Prior sprints completed:** MS-1 (schema), MS-2 (uploads), MS-3 (frontend dog profile), MS-4 (grooming pricing), MS-5 (agreements + boarding), MS-6 (badges + analytics), MS-7 (E2E tests)
+**Prior sprints completed:** MS-1 (schema), MS-2 (uploads), MS-3 (frontend dog profile), MS-3.1 (retroactive E2E), MS-4 (grooming pricing + E2E), MS-5 (agreements + boarding + E2E), MS-6 (badges + analytics + E2E), MS-7 (cross-module integration tests)
 
 ## Read First
 - `CHANGELOG.md` — verify all MS entries are present
@@ -106,12 +106,12 @@ npx prisma migrate status
 
 ### 6. E2E Test Suite
 
-Run the full test suite:
+Run the full test suite (includes per-sprint tests from MS-3.1/4/5/6 + cross-module tests from MS-7):
 ```bash
 cd e2e && npx playwright test --reporter=list
 ```
 
-Target: 83 existing + ~35-40 new = ~120 total tests.
+Target: 83 existing + ~15 (MS-3.1) + ~8 (MS-4) + ~5 (MS-5) + ~7 (MS-6) + ~15 (MS-7) = ~130+ total tests.
 
 If tests fail:
 - Fix actual bugs (wrong selector, missing route, broken component)
