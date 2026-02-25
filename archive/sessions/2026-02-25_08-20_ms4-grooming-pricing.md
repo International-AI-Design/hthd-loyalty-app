@@ -43,6 +43,11 @@
 - Server tests: 50/50 pass
 - Pre-push hook: All checks green
 
-## Pending
-- Vercel manual deploy (customer-app + admin-app)
-- E2E tests against production after deploy
+## Deployment
+- Server: Railway auto-deployed on push (commit `127666a`)
+- Customer app: Vercel production deploy complete
+- Admin app: Vercel production deploy complete
+- All three tiers live with MS-4 features
+
+## Next Sprint
+- MS-5: Sprint prompt at `docs/sprint-prompts/ms-5.md`
