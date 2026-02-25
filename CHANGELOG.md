@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-alpha.21] - Multi-Agent Recovery + Micro-Sprint Plan - 2026-02-24
+
+### Recovery
+- Wiped all uncommitted changes from crashed multi-agent session (35 files/dirs removed)
+- Audit confirmed schema was never touched — all ~30 created files referenced non-existent tables
+- Clean state restored: `git checkout .` + `git clean -fd`
+
+### Added
+- **8 micro-sprint prompt files** in `docs/sprint-prompts/ms-{1-8}.md`
+  - MS-1: Schema + Migration (8 new tables, 6 new fields)
+  - MS-2: Upload module (Cloudinary) + dog profile server extensions
+  - MS-3: Photo upload UI + dog profile frontend
+  - MS-4: Grooming pricing full-stack (service prices, add-ons, admin management)
+  - MS-5: Agreements + boarding full-stack (type-to-sign, eligibility, intake form)
+  - MS-6: Badges + admin intelligence (10 badge types, revenue/segments/insights)
+  - MS-7: E2E tests (~40 new test cases)
+  - MS-8: Integration verification + deploy
+- Each prompt is self-contained with: patterns to follow, exact files to create, build gates, commit messages
+
+### Lessons Learned
+- Multi-agent sessions risk total context compaction loss — all agents hit limits simultaneously
+- Agents falsely reported schema work as "complete" while schema.prisma was never modified
+- Recovery strategy: atomic micro-sprints with commit checkpoints and fresh context each session
+
 ## [2.0.0-alpha.19] - Autonomous QA System (E2E Tests) - 2026-02-23
 
 ### Added
