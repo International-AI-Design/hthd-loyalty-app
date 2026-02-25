@@ -664,6 +664,25 @@ export interface GroomingMatrixResponse {
   matrix: GroomingPriceTier[];
 }
 
+export interface GroomingServicePrice {
+  id: string;
+  subServiceId: string;
+  sizeCategory: string | null;
+  priceCents: number;
+  isActive: boolean;
+  subService: { name: string; displayName: string; isCoatRelated: boolean };
+}
+
+export interface GroomingAddOnAdmin {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  priceCents: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface RateConditionResponse {
   bookingDog: BookingDog;
   priceTier: GroomingPriceTier;
@@ -764,6 +783,22 @@ export const adminGroomingApi = {
     api.get<GroomingMatrixResponse>('/v2/grooming/matrix'),
   updatePrice: (tierId: string, data: { priceCents?: number; estimatedMinutes?: number }) =>
     api.put<GroomingPriceTier>(`/v2/grooming/matrix/${tierId}`, data),
+  // Service pricing (per sub-service × size)
+  getServicePrices: () =>
+    api.get<{ prices: GroomingServicePrice[] }>('/v2/admin/grooming/prices'),
+  createServicePrice: (data: { subServiceId: string; sizeCategory?: string; priceCents: number }) =>
+    api.post<{ price: GroomingServicePrice }>('/v2/admin/grooming/prices', data),
+  updateServicePrice: (id: string, data: { priceCents?: number; isActive?: boolean }) =>
+    api.put<{ price: GroomingServicePrice }>(`/v2/admin/grooming/prices/${id}`, data),
+  // Add-ons
+  getAddOns: () =>
+    api.get<{ addOns: GroomingAddOnAdmin[] }>('/v2/admin/grooming/add-ons'),
+  createAddOn: (data: { name: string; displayName: string; description?: string; priceCents: number; sortOrder?: number }) =>
+    api.post<{ addOn: GroomingAddOnAdmin }>('/v2/admin/grooming/add-ons', data),
+  updateAddOn: (id: string, data: { name?: string; displayName?: string; description?: string; priceCents?: number; isActive?: boolean; sortOrder?: number }) =>
+    api.put<{ addOn: GroomingAddOnAdmin }>(`/v2/admin/grooming/add-ons/${id}`, data),
+  deleteAddOn: (id: string) =>
+    api.delete<void>(`/v2/admin/grooming/add-ons/${id}`),
 };
 
 export const adminStaffApi = {

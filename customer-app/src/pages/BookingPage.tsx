@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { bookingApi, customerApi, dogProfileApi, multiDayBookingApi } from '../lib/api';
+import { bookingApi, customerApi, dogProfileApi, multiDayBookingApi, groomingApi } from '../lib/api';
 import { Calendar } from "../components/Calendar";
 import { BottomNav } from '../components/BottomNav';
 import { Input } from '../components/ui';
@@ -15,8 +15,11 @@ import type {
   Booking,
   DateAvailability,
   GroomingSubService,
+  GroomingAddOn,
 } from '../lib/api';
 import { Button, Alert } from '../components/ui';
+import { AddOnSelector } from '../components/AddOnSelector';
+import { GroomingQuoteSummary } from '../components/GroomingQuoteSummary';
 
 interface VaxWarning {
   dogId: string;
@@ -91,6 +94,11 @@ export function BookingPage() {
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [showPricePendingMessage, setShowPricePendingMessage] = useState(false);
 
+  // Grooming add-ons and pricing
+  const [groomingAddOns, setGroomingAddOns] = useState<GroomingAddOn[]>([]);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
+  const [groomingBasePriceCents, setGroomingBasePriceCents] = useState<number | null>(null);
+
   // Vaccination warnings
   const [vaxWarnings, setVaxWarnings] = useState<VaxWarning[]>([]);
 
@@ -139,7 +147,7 @@ export function BookingPage() {
     loadDogs();
   }, []);
 
-  // Load grooming sub-services when step 1.5 is reached
+  // Load grooming sub-services and add-ons when step 1.5 is reached
   useEffect(() => {
     if (step === 1.5 && groomingSubServices.length === 0) {
       setIsLoadingSubServices(true);
@@ -151,7 +159,12 @@ export function BookingPage() {
         setError('Unable to load grooming services. Please try again.');
       });
     }
-  }, [step, groomingSubServices.length]);
+    if (step === 1.5 && groomingAddOns.length === 0) {
+      groomingApi.getAddOns().then(({ data }) => {
+        if (data) setGroomingAddOns(data.addOns);
+      }).catch(() => { /* non-critical */ });
+    }
+  }, [step, groomingSubServices.length, groomingAddOns.length]);
 
   // Check vaccination compliance when dogs are selected
   useEffect(() => {
@@ -334,6 +347,8 @@ export function BookingPage() {
     setSelectedBundle(null);
     setBundleCalc(null);
     setSelectedSubService(null);
+    setSelectedAddOnIds([]);
+    setGroomingBasePriceCents(null);
     setNotes('');
     setError(null);
     if (service.name === 'grooming') {
@@ -794,43 +809,86 @@ export function BookingPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {groomingSubServices.map((ss) => {
-                  const isSelected = selectedSubService?.id === ss.id;
-                  return (
-                    <button
-                      key={ss.id}
-                      onClick={() => {
-                        setSelectedSubService(ss);
-                        directionRef.current = 'forward';
-                        setStep(2);
-                      }}
-                      className={`w-full rounded-2xl p-5 text-left transition-all min-h-[80px] ${
-                        isSelected
-                          ? 'bg-brand-primary/10 ring-2 ring-brand-primary shadow-md'
-                          : 'bg-white shadow-md hover:shadow-lg hover:ring-2 hover:ring-brand-primary/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-heading text-base font-bold text-brand-forest">{ss.displayName}</h3>
-                          {ss.description && (
-                            <p className="text-sm text-brand-forest-muted mt-0.5">{ss.description}</p>
-                          )}
+              <>
+                <div className="space-y-3">
+                  {groomingSubServices.map((ss) => {
+                    const isSelected = selectedSubService?.id === ss.id;
+                    return (
+                      <button
+                        key={ss.id}
+                        onClick={() => {
+                          setSelectedSubService(ss);
+                          setGroomingBasePriceCents(ss.basePriceCents);
+                        }}
+                        className={`w-full rounded-2xl p-5 text-left transition-all min-h-[80px] ${
+                          isSelected
+                            ? 'bg-brand-primary/10 ring-2 ring-brand-primary shadow-md'
+                            : 'bg-white shadow-md hover:shadow-lg hover:ring-2 hover:ring-brand-primary/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-heading text-base font-bold text-brand-forest">{ss.displayName}</h3>
+                            {ss.description && (
+                              <p className="text-sm text-brand-forest-muted mt-0.5">{ss.description}</p>
+                            )}
+                          </div>
+                          <div className="ml-4 text-right flex-shrink-0">
+                            <p className="text-lg font-bold text-brand-primary">
+                              {ss.isCoatRelated ? `From $${(ss.basePriceCents / 100).toFixed(0)}+` : `$${(ss.basePriceCents / 100).toFixed(0)}`}
+                            </p>
+                            {ss.isCoatRelated && (
+                              <p className="text-xs text-brand-forest-muted">Price set by groomer</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="ml-4 text-right flex-shrink-0">
-                          <p className="text-lg font-bold text-brand-primary">
-                            {ss.isCoatRelated ? `From $${(ss.basePriceCents / 100).toFixed(0)}+` : `$${(ss.basePriceCents / 100).toFixed(0)}`}
-                          </p>
-                          {ss.isCoatRelated && (
-                            <p className="text-xs text-brand-forest-muted">Price set by groomer</p>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Add-Ons Selection — shown after sub-service selected */}
+                {selectedSubService && groomingAddOns.length > 0 && (
+                  <div className="mt-4">
+                    <AddOnSelector
+                      addOns={groomingAddOns}
+                      selectedIds={selectedAddOnIds}
+                      onToggle={(id) =>
+                        setSelectedAddOnIds((prev) =>
+                          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                        )
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Grooming Quote Summary */}
+                {selectedSubService && groomingBasePriceCents != null && (
+                  <div className="mt-4">
+                    <GroomingQuoteSummary
+                      basePriceCents={groomingBasePriceCents}
+                      serviceName={selectedSubService.displayName}
+                      selectedAddOns={groomingAddOns
+                        .filter((a) => selectedAddOnIds.includes(a.id))
+                        .map((a) => ({ name: a.displayName, priceCents: a.priceCents }))}
+                    />
+                  </div>
+                )}
+
+                {/* Continue button */}
+                {selectedSubService && (
+                  <Button
+                    className="w-full mt-4"
+                    size="lg"
+                    onClick={() => {
+                      directionRef.current = 'forward';
+                      setStep(2);
+                    }}
+                  >
+                    Continue
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1455,13 +1513,29 @@ export function BookingPage() {
               <div className="flex justify-between py-2">
                 <span className="text-brand-forest-muted">Estimated Total</span>
                 <span className="text-xl font-bold text-brand-forest">
-                  {bundleCalc
+                  {isGrooming && groomingBasePriceCents != null
+                    ? formatPrice(groomingBasePriceCents + groomingAddOns
+                        .filter((a) => selectedAddOnIds.includes(a.id))
+                        .reduce((sum, a) => sum + a.priceCents, 0))
+                    : bundleCalc
                     ? formatPrice(bundleCalc.finalTotalCents)
                     : selectedService
                     ? formatPrice(selectedService.basePriceCents * Math.max(selectedDogIds.length, 1) * Math.max(isMultiDay ? selectedDates.length : 1, 1))
                     : '--'}
                 </span>
               </div>
+              {selectedAddOnIds.length > 0 && (
+                <div className="border-t border-gray-100 pt-2 mt-1 space-y-1">
+                  {groomingAddOns
+                    .filter((a) => selectedAddOnIds.includes(a.id))
+                    .map((a) => (
+                      <div key={a.id} className="flex justify-between text-sm">
+                        <span className="text-brand-forest-muted">{a.displayName}</span>
+                        <span className="text-brand-forest">+{formatPrice(a.priceCents)}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
 
             {/* Show all selected dates for multi-day */}

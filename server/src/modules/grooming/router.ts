@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
+import { match } from 'ts-pattern';
 import { authenticateCustomer, AuthenticatedCustomerRequest, authenticateStaff, AuthenticatedStaffRequest } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { GroomingService, GroomingError } from './service';
+import * as pricingService from './pricing-service';
 import { prisma } from '../../lib/prisma';
 
 const router = Router();
@@ -111,6 +113,33 @@ router.put('/matrix/:id', authenticateStaff, requireRole('owner', 'admin'), asyn
     console.error('Update grooming price error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// GET /pricing-sheet — full pricing sheet with sub-services, per-size prices, and add-ons
+router.get('/pricing-sheet', authenticateCustomer, async (_req: Request, res: Response): Promise<void> => {
+  const result = await pricingService.getFullPricingSheet();
+  result.match(
+    (sheet) => { res.json(sheet); },
+    (error) => match(error)
+      .with({ type: 'DB_ERROR' }, () => { res.status(500).json({ error: 'Internal error' }); })
+      .with({ type: 'NOT_FOUND' }, (e) => { res.status(404).json(e); })
+      .with({ type: 'DUPLICATE_PRICE' }, (e) => { res.status(409).json(e); })
+      .with({ type: 'VALIDATION_ERROR' }, (e) => { res.status(400).json(e); })
+      .exhaustive(),
+  );
+});
+
+// GET /add-ons — customer-facing active add-ons list
+router.get('/add-ons', authenticateCustomer, async (_req: Request, res: Response): Promise<void> => {
+  const result = await pricingService.getAddOns();
+  result.match(
+    (addOns) => { res.json({ addOns }); },
+    (error) => match(error)
+      .with({ type: 'DB_ERROR' }, () => { res.status(500).json({ error: 'Internal error' }); })
+      .with({ type: 'NOT_FOUND' }, (e) => { res.status(404).json(e); })
+      .with({ type: 'DUPLICATE_NAME' }, (e) => { res.status(409).json(e); })
+      .exhaustive(),
+  );
 });
 
 export default router;

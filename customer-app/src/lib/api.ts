@@ -554,6 +554,44 @@ export const referralApi = {
     api.get<ReferralValidation>(`/referrals/validate/${code}`),
 };
 
+// === V2 Grooming Pricing Types ===
+
+export interface GroomingServicePriceItem {
+  id: string;
+  subServiceId: string;
+  sizeCategory: string | null;
+  priceCents: number;
+  isActive: boolean;
+  subService: { name: string; displayName: string; isCoatRelated: boolean };
+}
+
+export interface GroomingAddOn {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  priceCents: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface PricingSheet {
+  subServices: Array<{
+    id: string;
+    name: string;
+    displayName: string;
+    description: string | null;
+    isCoatRelated: boolean;
+    prices: Array<{ sizeCategory: string | null; priceCents: number }>;
+  }>;
+  addOns: GroomingAddOn[];
+}
+
+export const groomingApi = {
+  getPricingSheet: () => api.get<PricingSheet>('/v2/grooming/pricing-sheet'),
+  getAddOns: () => api.get<{ addOns: GroomingAddOn[] }>('/v2/grooming/add-ons'),
+};
+
 // === V2 Booking Types ===
 
 export interface GroomingSubService {

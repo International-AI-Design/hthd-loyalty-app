@@ -39,6 +39,7 @@ import v2NotificationsRoutes from './modules/notifications/router';
 import v2ActivitiesRoutes from './modules/activities/router';
 import v2AdminAimRoutes from './modules/aim/router';
 import v2UploadsRoutes from './modules/uploads/router';
+import v2AdminGroomingRoutes from './modules/grooming/admin-router';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -139,6 +140,7 @@ app.use('/api/v2/notifications', v2NotificationsRoutes);
 app.use('/api/v2/activities', v2ActivitiesRoutes);
 app.use('/api/v2/admin/aim', v2AdminAimRoutes);
 app.use('/api/v2/uploads', v2UploadsRoutes);
+app.use('/api/v2/admin/grooming', v2AdminGroomingRoutes);
 
 // Global error handler - catches unhandled errors to prevent crashes
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
