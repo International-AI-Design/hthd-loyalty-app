@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Sprints A-D Rebuild
 
+### MS-6: Sprint D — Badges + Admin Intelligence
+- Customer badge system: 10 badges earned through visits, referrals, compliance
+- Badge evaluation engine checks booking count, grooming, boarding, referrals, points, vaccination compliance
+- Badge unlock animation on customer dashboard (CSS-only confetti, no new deps)
+- Next badge progress bar showing path to next achievement
+- Dedicated /badges page with full badge grid (earned + locked display)
+- Admin intelligence: revenue snapshot (today, this week, this month with % change)
+- Admin intelligence: customer segments (New, Active, At-Risk, Churned)
+- Admin intelligence: AI-generated insights with refresh capability
+- Admin dashboard enriched with revenue chart, segment cards, insights panel
+- Server: badges module with neverthrow ResultAsync + ts-pattern exhaustive matching
+- Server: analytics module with revenue, segments, capacity, insights generation
+- E2E tests for badges (customer) and analytics (admin)
+- All 50 server unit tests pass, TypeScript clean across all 3 apps
+
 ### MS-5: Sprint C — Agreements + Boarding
 - Service agreements system: create, sign, track compliance
 - Type-to-sign agreement flow for customers
