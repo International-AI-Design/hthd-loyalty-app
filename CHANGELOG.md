@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0-alpha.2] - 2026-03-03 — Stripe Phase 2: Customer Checkout Frontend
+
+### Added
+- **Stripe Elements**: Card tab in checkout now renders Stripe `CardElement` when `VITE_STRIPE_PUBLISHABLE_KEY` is set
+- **PaymentIntent Endpoint**: `POST /api/v2/checkout/create-payment-intent` creates server-side PaymentIntents
+- **StripeCardForm Component**: Handles card input, validation errors, processing state, and `confirmCardPayment`
+- **Split Tab Support**: Card portion of split payments also uses Stripe Elements when configured
+
+### Architecture
+- Stripe provider setup at `customer-app/src/lib/stripe.ts` — `loadStripe` with conditional `isStripeConfigured` flag
+- `<Elements>` provider wraps `StripeCardForm` with `clientSecret` from server
+- Backward-compatible: simulated card form shown when Stripe publishable key is not set
+- PaymentIntent created once per booking on card/split tab selection, re-used across tab switches
+
 ## [3.3.0-alpha.1] - 2026-03-03 — Stripe Phase 1: Server Infrastructure
 
 ### Added

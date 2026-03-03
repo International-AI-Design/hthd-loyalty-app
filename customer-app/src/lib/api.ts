@@ -936,12 +936,15 @@ export const checkoutApi = {
   getPointsBalance: () => api.get<CustomerProfile>('/customers/me'),
   loadWalletFunds: (amountCents: number) =>
     api.post<WalletResponse>('/v2/wallet/load', { amount_cents: amountCents }),
+  createPaymentIntent: (amountCents: number, bookingIds: string[]) =>
+    api.post<{ clientSecret: string }>('/v2/checkout/create-payment-intent', { amountCents, bookingIds }),
   checkout: (data: {
     bookingIds: string[];
     paymentMethod: 'wallet' | 'card' | 'split' | 'points';
     walletAmountCents?: number;
     pointsToRedeem?: number;
     tipCents?: number;
+    stripePaymentIntentId?: string;
   }) => api.post<CheckoutResult>('/v2/checkout', data),
   getReceipt: (paymentId: string) => api.get<ReceiptData>(`/v2/checkout/${paymentId}/receipt`),
 };

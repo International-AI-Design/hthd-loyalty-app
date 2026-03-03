@@ -1,13 +1,52 @@
 import { Router, Request, Response } from 'express';
+import { z, ZodError } from 'zod';
 import { authenticateCustomer } from '../../middleware/auth';
 import { checkoutSchema, CheckoutInput } from './types';
 import { checkoutService } from './service';
-import { ZodError } from 'zod';
+import { stripeService } from '../stripe';
 
 const router = Router();
 
 // Middleware: Require authentication for all checkout routes
 router.use(authenticateCustomer as any);
+
+/**
+ * POST /create-payment-intent
+ * Create a Stripe PaymentIntent for card payment
+ */
+const createPaymentIntentSchema = z.object({
+  amountCents: z.number().int().min(50, 'Amount must be at least 50 cents'),
+  bookingIds: z.array(z.string().uuid()).min(1),
+});
+
+router.post('/create-payment-intent', async (req: Request, res: Response) => {
+  try {
+    const customerId = (req as any).customer?.id;
+    if (!customerId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { amountCents, bookingIds } = createPaymentIntentSchema.parse(req.body);
+
+    const result = await stripeService.createPaymentIntent(amountCents, {
+      bookingIds: bookingIds.join(','),
+      customerId,
+    });
+
+    if (result.isErr()) {
+      const status = result.error.type === 'not_configured' ? 503 : 400;
+      return res.status(status).json({ error: result.error.message });
+    }
+
+    return res.status(200).json({ clientSecret: result.value.client_secret });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Validation error', details: error.issues });
+    }
+    console.error('Create PaymentIntent error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 /**
  * POST /

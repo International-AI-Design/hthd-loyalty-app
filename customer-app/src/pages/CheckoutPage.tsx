@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Elements } from '@stripe/react-stripe-js';
 import { checkoutApi } from '../lib/api';
 import type { Booking, WalletResponse } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { BottomNav } from '../components/BottomNav';
 import { Button, Alert } from '../components/ui';
+import { stripePromise, isStripeConfigured } from '../lib/stripe';
+import { StripeCardForm } from '../components/StripeCardForm';
 
 /** 1 point = $0.10 */
 const POINTS_VALUE_CENTS = 10;
@@ -50,6 +53,11 @@ export function CheckoutPage() {
   // Points state
   const [pointsBalance, setPointsBalance] = useState(0);
   const [pointsToUse, setPointsToUse] = useState(0);
+
+  // Stripe PaymentIntent state
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isCreatingIntent, setIsCreatingIntent] = useState(false);
+  const intentCreatedForRef = useRef<string | null>(null);
 
   // Wallet top-up state
   const [showAddFunds, setShowAddFunds] = useState(false);
@@ -120,6 +128,25 @@ export function CheckoutPage() {
   useEffect(() => { loadWallet(); }, [loadWallet]);
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
+  // Create PaymentIntent when card/split tab is active and Stripe is configured
+  useEffect(() => {
+    if (!isStripeConfigured || !bookingId || totalCents < 50) return;
+    if (activeTab !== 'card' && activeTab !== 'split') return;
+    // Only create once per bookingId
+    if (intentCreatedForRef.current === bookingId) return;
+
+    intentCreatedForRef.current = bookingId;
+    setIsCreatingIntent(true);
+    checkoutApi.createPaymentIntent(totalCents, [bookingId]).then(({ data, error: err }) => {
+      if (data?.clientSecret) {
+        setClientSecret(data.clientSecret);
+      } else if (err) {
+        setError(typeof err === 'string' ? err : 'Could not initialize payment. Using simulated form.');
+      }
+      setIsCreatingIntent(false);
+    });
+  }, [activeTab, bookingId, totalCents]);
+
   const handleCardNumberChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 16);
     setCardNumber(digits.replace(/(\d{4})(?=\d)/g, '$1 '));
@@ -135,18 +162,62 @@ export function CheckoutPage() {
   const isCardFormValid = cardNumber.replace(/\s/g, '').length === 16 && cardExpiry.length === 5 && cardCvv.length >= 3 && cardName.trim().length > 0;
   const splitCardCents = totalCents - splitWalletCents;
 
+  // When Stripe is handling card payment, the StripeCardForm manages its own submission
+  const stripeHandlesCard = isStripeConfigured && !!clientSecret;
+
   const canPay = (() => {
     if (totalCents === 0) return false;
     if (activeTab === 'wallet') return walletCoversTotal;
-    if (activeTab === 'card') return isCardFormValid;
+    if (activeTab === 'card') {
+      // Stripe mode: payment button is inside StripeCardForm, not the main button
+      if (stripeHandlesCard) return false;
+      return isCardFormValid;
+    }
     if (activeTab === 'points') {
-      if (pointsCoversTotal) return true; // Full points payment
-      // Partial points + card
+      if (pointsCoversTotal) return true;
       return pointsToUse > 0 && pointsCardRemainder > 0 && isCardFormValid;
     }
-    if (activeTab === 'split') return splitWalletCents > 0 && splitWalletCents <= walletBalanceCents && isCardFormValid;
+    if (activeTab === 'split') {
+      if (stripeHandlesCard) return false;
+      return splitWalletCents > 0 && splitWalletCents <= walletBalanceCents && isCardFormValid;
+    }
     return false;
   })();
+
+  // Called when Stripe card payment confirms successfully
+  const handleStripeSuccess = async (paymentIntentId: string) => {
+    if (!bookingId) return;
+    setError(null);
+
+    const payload: {
+      bookingIds: string[];
+      paymentMethod: 'wallet' | 'card' | 'split' | 'points';
+      walletAmountCents?: number;
+      stripePaymentIntentId?: string;
+    } = {
+      bookingIds: [bookingId],
+      paymentMethod: activeTab === 'split' ? 'split' : 'card',
+      stripePaymentIntentId: paymentIntentId,
+    };
+
+    if (activeTab === 'split') {
+      payload.walletAmountCents = splitWalletCents;
+    }
+
+    const { data, error: err } = await checkoutApi.checkout(payload);
+    if (data) {
+      refreshProfile();
+      navigate(`/checkout/confirmation/${data.paymentId}`, { state: { checkoutResult: data, booking } });
+    } else if (err) {
+      setError(typeof err === 'string' ? err : 'Checkout failed after payment.');
+    }
+    setIsProcessing(false);
+  };
+
+  const handleStripeError = (msg: string) => {
+    setError(msg);
+    setIsProcessing(false);
+  };
 
   const handlePay = async () => {
     if (!bookingId || !canPay) return;
@@ -167,10 +238,8 @@ export function CheckoutPage() {
       payload.walletAmountCents = splitWalletCents;
     } else if (activeTab === 'points') {
       if (pointsCoversTotal) {
-        // Full points payment
         payload.pointsToRedeem = pointsNeededForTotal;
       } else {
-        // Partial points + card = split with points
         payload.paymentMethod = 'split';
         payload.pointsToRedeem = pointsToUse;
       }
@@ -178,11 +247,10 @@ export function CheckoutPage() {
 
     const { data, error: err } = await checkoutApi.checkout(payload);
     if (data) {
-      // Refresh profile so points balance is updated
       refreshProfile();
       navigate(`/checkout/confirmation/${data.paymentId}`, { state: { checkoutResult: data, booking } });
     } else if (err) {
-      setError(err);
+      setError(typeof err === 'string' ? err : 'Checkout failed.');
     }
     setIsProcessing(false);
   };
@@ -466,7 +534,27 @@ export function CheckoutPage() {
             </div>
           )}
 
-          {activeTab === 'card' && renderCardForm()}
+          {activeTab === 'card' && (
+            stripeHandlesCard ? (
+              <Elements stripe={stripePromise} options={{ clientSecret: clientSecret! }}>
+                <StripeCardForm
+                  clientSecret={clientSecret!}
+                  amountCents={totalCents}
+                  onSuccess={handleStripeSuccess}
+                  onError={handleStripeError}
+                  isProcessing={isProcessing}
+                  setIsProcessing={setIsProcessing}
+                  submitLabel={`Pay ${formatPrice(totalCents)}`}
+                />
+              </Elements>
+            ) : isCreatingIntent ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
+              </div>
+            ) : (
+              renderCardForm()
+            )
+          )}
 
           {/* Points Payment Tab */}
           {activeTab === 'points' && (
@@ -600,14 +688,37 @@ export function CheckoutPage() {
                   <span className="text-lg font-bold text-brand-forest">{formatPrice(splitCardCents)}</span>
                 </div>
               </div>
-              {splitCardCents > 0 && renderCardForm()}
+              {splitCardCents > 0 && (
+                stripeHandlesCard ? (
+                  <Elements stripe={stripePromise} options={{ clientSecret: clientSecret! }}>
+                    <StripeCardForm
+                      clientSecret={clientSecret!}
+                      amountCents={totalCents}
+                      onSuccess={handleStripeSuccess}
+                      onError={handleStripeError}
+                      isProcessing={isProcessing}
+                      setIsProcessing={setIsProcessing}
+                      submitLabel={`Pay ${formatPrice(totalCents)} (${formatPrice(splitWalletCents)} Wallet + ${formatPrice(splitCardCents)} Card)`}
+                    />
+                  </Elements>
+                ) : isCreatingIntent ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
+                  </div>
+                ) : (
+                  renderCardForm()
+                )
+              )}
             </div>
           )}
         </div>
 
-        <Button className="w-full" size="lg" onClick={handlePay} disabled={!canPay || isProcessing} isLoading={isProcessing}>
-          {payButtonLabel()}
-        </Button>
+        {/* Hide main pay button when Stripe handles payment (button is inside StripeCardForm) */}
+        {!(stripeHandlesCard && (activeTab === 'card' || (activeTab === 'split' && splitCardCents > 0))) && (
+          <Button className="w-full" size="lg" onClick={handlePay} disabled={!canPay || isProcessing} isLoading={isProcessing}>
+            {payButtonLabel()}
+          </Button>
+        )}
       </main>
       <BottomNav />
     </div>
