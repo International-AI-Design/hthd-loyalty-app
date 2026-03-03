@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0-alpha.3] - 2026-03-03 — Stripe Phase 3: Saved Cards + Wallet Wiring
+
+### Added
+- **Stripe Customer Creation**: Auto-creates Stripe Customer on first card payment, persists `stripeCustomerId` on Wallet record
+- **Saved Payment Methods**: Customers can save cards for faster checkout; saved cards appear as selectable radio options
+- **Delete Saved Cards**: Remove saved cards via trash icon in checkout
+- **Save Card Checkbox**: "Save this card for future purchases" checkbox when entering new card details
+- **Wallet Add Funds via Stripe**: Add Funds flow uses Stripe Elements when configured; falls back to simulation otherwise
+- **Payment Methods API**: `GET /api/v2/checkout/payment-methods`, `DELETE /api/v2/checkout/payment-methods/:id`
+- **Enhanced PaymentIntent**: `create-payment-intent` now accepts `paymentMethodId` (saved card) and `saveCard` (setup_future_usage)
+
+### Architecture
+- `StripeService` expanded: `getOrCreateCustomer`, `savePaymentMethod`, `listPaymentMethods`, `detachPaymentMethod`, `createPaymentIntentWithParams`
+- PaymentIntent created with `customer` field for all card payments (enables Stripe saved cards)
+- `setup_future_usage: 'on_session'` set when `saveCard` is true — Stripe automatically saves the card after payment
+- Saved card checkout flow: creates PaymentIntent with `payment_method` pre-attached, confirms client-side via `stripe.confirmCardPayment`
+- Wallet top-up gets separate PaymentIntent when Stripe is configured
+- Full backward compatibility: simulation mode works identically without Stripe keys
+
 ## [3.3.0-alpha.2] - 2026-03-03 — Stripe Phase 2: Customer Checkout Frontend
 
 ### Added

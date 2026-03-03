@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { Result, ok, err } from 'neverthrow';
 import { logger } from '../../middleware/security';
+import { prisma } from '../../lib/prisma';
 
 // --- StripeError discriminated union ---
 
@@ -54,6 +55,27 @@ export class StripeService {
     }
   }
 
+  /**
+   * Create a PaymentIntent with full params (supports customer, payment_method, setup_future_usage).
+   */
+  async createPaymentIntentWithParams(
+    params: Record<string, unknown>
+  ): Promise<Result<Stripe.PaymentIntent, StripeError>> {
+    if (!this.stripe) {
+      return err({ type: 'not_configured', message: 'Stripe is not configured. Set STRIPE_SECRET_KEY to enable.' });
+    }
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.create(
+        params as unknown as Stripe.PaymentIntentCreateParams
+      );
+      return ok(paymentIntent);
+    } catch (e) {
+      const mapped = mapStripeError(e);
+      logger.error('Stripe createPaymentIntentWithParams failed', { error: mapped });
+      return err(mapped);
+    }
+  }
+
   async confirmPaymentIntent(
     paymentIntentId: string
   ): Promise<Result<Stripe.PaymentIntent, StripeError>> {
@@ -83,6 +105,120 @@ export class StripeService {
     } catch (e) {
       const mapped = mapStripeError(e);
       logger.error('Stripe createCustomer failed', { error: mapped });
+      return err(mapped);
+    }
+  }
+
+  /**
+   * Get or create a Stripe Customer for an HTHD customer.
+   * Checks Wallet for existing stripeCustomerId; creates one in Stripe if not found.
+   */
+  async getOrCreateCustomer(
+    customerId: string,
+    email: string,
+    name: string
+  ): Promise<Result<string, StripeError>> {
+    if (!this.stripe) {
+      return err({ type: 'not_configured', message: 'Stripe is not configured. Set STRIPE_SECRET_KEY to enable.' });
+    }
+
+    try {
+      // Check for existing Stripe Customer on the wallet
+      const wallet = await (prisma as any).wallet.findUnique({
+        where: { customerId },
+        select: { stripeCustomerId: true },
+      });
+
+      if (wallet?.stripeCustomerId) {
+        return ok(wallet.stripeCustomerId);
+      }
+
+      // Create Stripe Customer
+      const stripeCustomer = await this.stripe.customers.create({
+        email,
+        name,
+        metadata: { hthd_customer_id: customerId },
+      });
+
+      // Ensure wallet exists, then save the Stripe Customer ID
+      await (prisma as any).wallet.upsert({
+        where: { customerId },
+        update: { stripeCustomerId: stripeCustomer.id },
+        create: {
+          customerId,
+          balanceCents: 0,
+          tier: 'basic',
+          stripeCustomerId: stripeCustomer.id,
+        },
+      });
+
+      return ok(stripeCustomer.id);
+    } catch (e) {
+      const mapped = mapStripeError(e);
+      logger.error('Stripe getOrCreateCustomer failed', { error: mapped });
+      return err(mapped);
+    }
+  }
+
+  /**
+   * Attach a payment method to a Stripe Customer (saving the card).
+   */
+  async savePaymentMethod(
+    stripeCustomerId: string,
+    paymentMethodId: string
+  ): Promise<Result<Stripe.PaymentMethod, StripeError>> {
+    if (!this.stripe) {
+      return err({ type: 'not_configured', message: 'Stripe is not configured. Set STRIPE_SECRET_KEY to enable.' });
+    }
+    try {
+      const pm = await this.stripe.paymentMethods.attach(paymentMethodId, {
+        customer: stripeCustomerId,
+      });
+      return ok(pm);
+    } catch (e) {
+      const mapped = mapStripeError(e);
+      logger.error('Stripe savePaymentMethod failed', { error: mapped });
+      return err(mapped);
+    }
+  }
+
+  /**
+   * List saved card payment methods for a Stripe Customer.
+   */
+  async listPaymentMethods(
+    stripeCustomerId: string
+  ): Promise<Result<Stripe.PaymentMethod[], StripeError>> {
+    if (!this.stripe) {
+      return err({ type: 'not_configured', message: 'Stripe is not configured. Set STRIPE_SECRET_KEY to enable.' });
+    }
+    try {
+      const methods = await this.stripe.paymentMethods.list({
+        customer: stripeCustomerId,
+        type: 'card',
+      });
+      return ok(methods.data);
+    } catch (e) {
+      const mapped = mapStripeError(e);
+      logger.error('Stripe listPaymentMethods failed', { error: mapped });
+      return err(mapped);
+    }
+  }
+
+  /**
+   * Detach a payment method from a customer (remove saved card).
+   */
+  async detachPaymentMethod(
+    paymentMethodId: string
+  ): Promise<Result<Stripe.PaymentMethod, StripeError>> {
+    if (!this.stripe) {
+      return err({ type: 'not_configured', message: 'Stripe is not configured. Set STRIPE_SECRET_KEY to enable.' });
+    }
+    try {
+      const pm = await this.stripe.paymentMethods.detach(paymentMethodId);
+      return ok(pm);
+    } catch (e) {
+      const mapped = mapStripeError(e);
+      logger.error('Stripe detachPaymentMethod failed', { error: mapped });
       return err(mapped);
     }
   }

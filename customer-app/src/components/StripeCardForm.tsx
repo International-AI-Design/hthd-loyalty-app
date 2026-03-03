@@ -10,6 +10,7 @@ interface StripeCardFormProps {
   isProcessing: boolean;
   setIsProcessing: (v: boolean) => void;
   submitLabel: string;
+  saveCard?: boolean;
 }
 
 const CARD_ELEMENT_OPTIONS = {
@@ -35,6 +36,7 @@ export function StripeCardForm({
   isProcessing,
   setIsProcessing,
   submitLabel,
+  saveCard: _saveCard,
 }: StripeCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();

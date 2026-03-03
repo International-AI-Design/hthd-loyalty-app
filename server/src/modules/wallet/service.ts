@@ -35,7 +35,8 @@ export class WalletService {
    */
   async loadFunds(
     customerId: string,
-    amountCents: number
+    amountCents: number,
+    options?: { stripePaymentIntentId?: string }
   ): Promise<{ wallet: Wallet; transaction: WalletTransaction }> {
     if (amountCents < 500 || amountCents > 50_000) {
       throw new WalletError('Load amount must be between $5.00 and $500.00', 400);
@@ -79,6 +80,7 @@ export class WalletService {
           amountCents,
           balanceAfterCents: updatedWallet.balanceCents,
           description: `Loaded $${(amountCents / 100).toFixed(2)}`,
+          stripePaymentIntentId: options?.stripePaymentIntentId ?? null,
         },
       });
 

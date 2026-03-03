@@ -931,13 +931,29 @@ export const multiDayBookingApi = {
     api.post<MultiDayBookingResponse>('/v2/bookings/multi-day', data),
 };
 
+export interface SavedPaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
 export const checkoutApi = {
   getWallet: () => api.get<WalletResponse>('/v2/wallet'),
   getPointsBalance: () => api.get<CustomerProfile>('/customers/me'),
   loadWalletFunds: (amountCents: number) =>
     api.post<WalletResponse>('/v2/wallet/load', { amount_cents: amountCents }),
-  createPaymentIntent: (amountCents: number, bookingIds: string[]) =>
-    api.post<{ clientSecret: string }>('/v2/checkout/create-payment-intent', { amountCents, bookingIds }),
+  createPaymentIntent: (amountCents: number, bookingIds: string[], options?: { paymentMethodId?: string; saveCard?: boolean }) =>
+    api.post<{ clientSecret: string }>('/v2/checkout/create-payment-intent', {
+      amountCents,
+      bookingIds,
+      ...options,
+    }),
+  getPaymentMethods: () =>
+    api.get<{ paymentMethods: SavedPaymentMethod[] }>('/v2/checkout/payment-methods'),
+  deletePaymentMethod: (id: string) =>
+    api.delete<{ success: boolean }>(`/v2/checkout/payment-methods/${id}`),
   checkout: (data: {
     bookingIds: string[];
     paymentMethod: 'wallet' | 'card' | 'split' | 'points';

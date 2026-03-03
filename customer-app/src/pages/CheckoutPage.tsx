@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Elements } from '@stripe/react-stripe-js';
 import { checkoutApi } from '../lib/api';
-import type { Booking, WalletResponse } from '../lib/api';
+import type { Booking, WalletResponse, SavedPaymentMethod } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { BottomNav } from '../components/BottomNav';
 import { Button, Alert } from '../components/ui';
@@ -13,6 +13,14 @@ import { StripeCardForm } from '../components/StripeCardForm';
 const POINTS_VALUE_CENTS = 10;
 
 type PaymentTab = 'wallet' | 'card' | 'points' | 'split';
+
+const BRAND_DISPLAY: Record<string, string> = {
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  amex: 'Amex',
+  discover: 'Discover',
+  unknown: 'Card',
+};
 
 export function CheckoutPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -59,12 +67,23 @@ export function CheckoutPage() {
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const intentCreatedForRef = useRef<string | null>(null);
 
+  // Saved cards state
+  const [savedCards, setSavedCards] = useState<SavedPaymentMethod[]>([]);
+  const [isLoadingSavedCards, setIsLoadingSavedCards] = useState(false);
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
+  const [useNewCard, setUseNewCard] = useState(false);
+  const [saveCard, setSaveCard] = useState(false);
+  const [isDeletingCard, setIsDeletingCard] = useState<string | null>(null);
+
   // Wallet top-up state
   const [showAddFunds, setShowAddFunds] = useState(false);
   const [topUpAmountCents, setTopUpAmountCents] = useState(0);
   const [isTopUpProcessing, setIsTopUpProcessing] = useState(false);
   const [topUpSuccess, setTopUpSuccess] = useState<string | null>(null);
   const [customTopUpValue, setCustomTopUpValue] = useState('');
+  // Top-up Stripe state (separate intent for wallet loads)
+  const [topUpClientSecret, setTopUpClientSecret] = useState<string | null>(null);
+  const [isCreatingTopUpIntent, setIsCreatingTopUpIntent] = useState(false);
 
   const totalCents = booking?.totalCents ?? 0;
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -86,6 +105,23 @@ export function CheckoutPage() {
   const pointsCoversTotal = pointsBalance >= pointsNeededForTotal;
   const pointsCardRemainder = Math.max(0, totalCents - pointsValueCents);
 
+  // Load saved cards
+  const loadSavedCards = useCallback(async () => {
+    if (!isStripeConfigured) return;
+    setIsLoadingSavedCards(true);
+    const { data } = await checkoutApi.getPaymentMethods();
+    if (data?.paymentMethods) {
+      setSavedCards(data.paymentMethods);
+      if (data.paymentMethods.length > 0) {
+        setSelectedSavedCardId(data.paymentMethods[0].id);
+        setUseNewCard(false);
+      } else {
+        setUseNewCard(true);
+      }
+    }
+    setIsLoadingSavedCards(false);
+  }, []);
+
   const loadWallet = useCallback(async () => {
     setIsLoadingWallet(true);
     const { data } = await checkoutApi.getWallet();
@@ -96,6 +132,26 @@ export function CheckoutPage() {
     }
     setIsLoadingWallet(false);
   }, [totalCents]);
+
+  const handleDeleteCard = async (cardId: string) => {
+    setIsDeletingCard(cardId);
+    const { error: err } = await checkoutApi.deletePaymentMethod(cardId);
+    if (!err) {
+      setSavedCards(prev => prev.filter(c => c.id !== cardId));
+      if (selectedSavedCardId === cardId) {
+        const remaining = savedCards.filter(c => c.id !== cardId);
+        if (remaining.length > 0) {
+          setSelectedSavedCardId(remaining[0].id);
+        } else {
+          setSelectedSavedCardId(null);
+          setUseNewCard(true);
+        }
+      }
+    } else {
+      setError(typeof err === 'string' ? err : 'Failed to remove card.');
+    }
+    setIsDeletingCard(null);
+  };
 
   const handleTopUp = async () => {
     if (topUpAmountCents <= 0) return;
@@ -109,6 +165,7 @@ export function CheckoutPage() {
       setShowAddFunds(false);
       setTopUpAmountCents(0);
       setCustomTopUpValue('');
+      setTopUpClientSecret(null);
       setTimeout(() => setTopUpSuccess(null), 3000);
     } else if (err) {
       setError(err);
@@ -116,28 +173,62 @@ export function CheckoutPage() {
     setIsTopUpProcessing(false);
   };
 
+  // Handle top-up via Stripe (when Stripe Elements confirm succeeds for wallet load)
+  const handleTopUpStripeSuccess = async (_paymentIntentId: string) => {
+    // Payment confirmed via Stripe — now credit the wallet server-side
+    await handleTopUp();
+  };
+
+  const handleTopUpStripeError = (msg: string) => {
+    setError(msg);
+    setIsTopUpProcessing(false);
+  };
+
+  // Create top-up PaymentIntent when amount changes and Stripe is configured
+  useEffect(() => {
+    if (!isStripeConfigured || !showAddFunds || topUpAmountCents < 500) {
+      setTopUpClientSecret(null);
+      return;
+    }
+    setIsCreatingTopUpIntent(true);
+    // Use a dummy bookingId for wallet loads — the server accepts any valid UUID
+    checkoutApi.createPaymentIntent(topUpAmountCents, [bookingId || '00000000-0000-0000-0000-000000000000'])
+      .then(({ data, error: err }) => {
+        if (data?.clientSecret) {
+          setTopUpClientSecret(data.clientSecret);
+        } else if (err) {
+          // Fall back to simulation mode silently
+          setTopUpClientSecret(null);
+        }
+        setIsCreatingTopUpIntent(false);
+      });
+  }, [topUpAmountCents, showAddFunds, bookingId]);
+
   // Load points balance from customer profile
   useEffect(() => {
     if (customer) {
       setPointsBalance(customer.points_balance);
-      // Default: use all points up to the total needed
       setPointsToUse(Math.min(customer.points_balance, pointsNeededForTotal));
     }
   }, [customer, pointsNeededForTotal]);
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
+  useEffect(() => { loadSavedCards(); }, [loadSavedCards]);
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   // Create PaymentIntent when card/split tab is active and Stripe is configured
   useEffect(() => {
     if (!isStripeConfigured || !bookingId || totalCents < 50) return;
     if (activeTab !== 'card' && activeTab !== 'split') return;
-    // Only create once per bookingId
     if (intentCreatedForRef.current === bookingId) return;
 
     intentCreatedForRef.current = bookingId;
     setIsCreatingIntent(true);
-    checkoutApi.createPaymentIntent(totalCents, [bookingId]).then(({ data, error: err }) => {
+
+    const opts: { saveCard?: boolean; paymentMethodId?: string } = {};
+    if (saveCard) opts.saveCard = true;
+
+    checkoutApi.createPaymentIntent(totalCents, [bookingId], opts).then(({ data, error: err }) => {
       if (data?.clientSecret) {
         setClientSecret(data.clientSecret);
       } else if (err) {
@@ -145,7 +236,7 @@ export function CheckoutPage() {
       }
       setIsCreatingIntent(false);
     });
-  }, [activeTab, bookingId, totalCents]);
+  }, [activeTab, bookingId, totalCents, saveCard]);
 
   const handleCardNumberChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 16);
@@ -165,11 +256,15 @@ export function CheckoutPage() {
   // When Stripe is handling card payment, the StripeCardForm manages its own submission
   const stripeHandlesCard = isStripeConfigured && !!clientSecret;
 
+  // A saved card is selected (not "use new card")
+  const usingSavedCard = stripeHandlesCard && !useNewCard && !!selectedSavedCardId;
+
   const canPay = (() => {
     if (totalCents === 0) return false;
     if (activeTab === 'wallet') return walletCoversTotal;
     if (activeTab === 'card') {
-      // Stripe mode: payment button is inside StripeCardForm, not the main button
+      if (usingSavedCard) return true;
+      if (stripeHandlesCard && useNewCard) return false; // StripeCardForm handles submit
       if (stripeHandlesCard) return false;
       return isCardFormValid;
     }
@@ -206,6 +301,8 @@ export function CheckoutPage() {
 
     const { data, error: err } = await checkoutApi.checkout(payload);
     if (data) {
+      // Refresh saved cards if we saved a new one
+      if (saveCard) loadSavedCards();
       refreshProfile();
       navigate(`/checkout/confirmation/${data.paymentId}`, { state: { checkoutResult: data, booking } });
     } else if (err) {
@@ -219,8 +316,58 @@ export function CheckoutPage() {
     setIsProcessing(false);
   };
 
+  // Pay with saved card — create a new intent with paymentMethodId attached, then confirm client-side
+  const handlePayWithSavedCard = async () => {
+    if (!bookingId || !selectedSavedCardId) return;
+    setIsProcessing(true);
+    setError(null);
+
+    // Create a PaymentIntent with the saved card attached
+    const { data: intentData, error: intentErr } = await checkoutApi.createPaymentIntent(
+      totalCents,
+      [bookingId],
+      { paymentMethodId: selectedSavedCardId }
+    );
+
+    if (!intentData?.clientSecret) {
+      setError(typeof intentErr === 'string' ? intentErr : 'Could not process payment.');
+      setIsProcessing(false);
+      return;
+    }
+
+    // Confirm the PaymentIntent using Stripe.js (no card element needed for saved cards)
+    const stripe = await stripePromise;
+    if (!stripe) {
+      setError('Payment system not available.');
+      setIsProcessing(false);
+      return;
+    }
+
+    const { error: confirmErr, paymentIntent } = await stripe.confirmCardPayment(
+      intentData.clientSecret,
+      { payment_method: selectedSavedCardId }
+    );
+
+    if (confirmErr) {
+      setError(confirmErr.message ?? 'Payment failed. Please try again.');
+      setIsProcessing(false);
+      return;
+    }
+
+    if (paymentIntent) {
+      await handleStripeSuccess(paymentIntent.id);
+    }
+  };
+
   const handlePay = async () => {
     if (!bookingId || !canPay) return;
+
+    // Saved card flow
+    if (activeTab === 'card' && usingSavedCard) {
+      await handlePayWithSavedCard();
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
 
@@ -317,6 +464,119 @@ export function CheckoutPage() {
     </div>
   );
 
+  const renderSavedCards = () => {
+    if (!isStripeConfigured) return null;
+    if (isLoadingSavedCards) {
+      return (
+        <div className="flex items-center justify-center py-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
+        </div>
+      );
+    }
+    if (savedCards.length === 0) return null;
+
+    return (
+      <div className="space-y-2 mb-4">
+        {savedCards.map((card) => (
+          <label
+            key={card.id}
+            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all min-h-[52px] ${
+              selectedSavedCardId === card.id && !useNewCard
+                ? 'border-brand-primary bg-brand-primary/5'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <input
+              type="radio"
+              name="savedCard"
+              checked={selectedSavedCardId === card.id && !useNewCard}
+              onChange={() => {
+                setSelectedSavedCardId(card.id);
+                setUseNewCard(false);
+              }}
+              className="w-4 h-4 text-brand-primary focus:ring-brand-primary"
+            />
+            <div className="flex-1">
+              <span className="font-medium text-brand-forest">
+                {BRAND_DISPLAY[card.brand] ?? card.brand} ending in {card.last4}
+              </span>
+              <span className="text-sm text-gray-500 ml-2">
+                {String(card.expMonth).padStart(2, '0')}/{card.expYear}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteCard(card.id);
+              }}
+              disabled={isDeletingCard === card.id}
+              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+              aria-label="Remove card"
+            >
+              {isDeletingCard === card.id ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              )}
+            </button>
+          </label>
+        ))}
+
+        {/* Use a different card option */}
+        <label
+          className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all min-h-[52px] ${
+            useNewCard
+              ? 'border-brand-primary bg-brand-primary/5'
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <input
+            type="radio"
+            name="savedCard"
+            checked={useNewCard}
+            onChange={() => setUseNewCard(true)}
+            className="w-4 h-4 text-brand-primary focus:ring-brand-primary"
+          />
+          <span className="font-medium text-brand-forest">Use a different card</span>
+        </label>
+      </div>
+    );
+  };
+
+  const renderNewCardWithSaveOption = () => {
+    if (!stripeHandlesCard || !useNewCard) return null;
+
+    return (
+      <div className="space-y-3">
+        <Elements stripe={stripePromise} options={{ clientSecret: clientSecret! }}>
+          <StripeCardForm
+            clientSecret={clientSecret!}
+            amountCents={totalCents}
+            onSuccess={handleStripeSuccess}
+            onError={handleStripeError}
+            isProcessing={isProcessing}
+            setIsProcessing={setIsProcessing}
+            submitLabel={`Pay ${formatPrice(totalCents)}`}
+            saveCard={saveCard}
+          />
+        </Elements>
+        <label className="flex items-center gap-2 px-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={saveCard}
+            onChange={(e) => setSaveCard(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+          />
+          <span className="text-sm text-gray-600">Save this card for future purchases</span>
+        </label>
+      </div>
+    );
+  };
+
   const tabLabel = (tab: PaymentTab) => {
     switch (tab) {
       case 'wallet': return 'Wallet';
@@ -328,12 +588,23 @@ export function CheckoutPage() {
 
   const payButtonLabel = () => {
     if (activeTab === 'wallet') return `Pay ${formatPrice(totalCents)} with Wallet`;
+    if (activeTab === 'card' && usingSavedCard) {
+      const card = savedCards.find(c => c.id === selectedSavedCardId);
+      if (card) return `Pay ${formatPrice(totalCents)} with ${BRAND_DISPLAY[card.brand] ?? card.brand} ****${card.last4}`;
+    }
     if (activeTab === 'points') {
       if (pointsCoversTotal) return `Pay ${formatPrice(totalCents)} with Points`;
       return `Pay ${formatPrice(totalCents)} (Points + Card)`;
     }
     return `Pay ${formatPrice(totalCents)}`;
   };
+
+  // Whether the main pay button should be hidden (Stripe Elements has its own submit)
+  const hideMainPayButton = (() => {
+    if (activeTab === 'card' && stripeHandlesCard && useNewCard) return true;
+    if (activeTab === 'split' && stripeHandlesCard && splitCardCents > 0) return true;
+    return false;
+  })();
 
   return (
     <div className="min-h-screen bg-brand-cream">
@@ -470,7 +741,7 @@ export function CheckoutPage() {
                     ))}
                   </div>
 
-                  {/* Custom amount input — show when Custom is selected (topUpAmountCents is 0 and no preset match) or customTopUpValue has content */}
+                  {/* Custom amount input */}
                   {(topUpAmountCents === 0 || customTopUpValue !== '') && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Custom Amount</label>
@@ -507,24 +778,44 @@ export function CheckoutPage() {
                   {topUpAmountCents > 0 && (
                     <>
                       <div className="border-t border-gray-200 pt-4">
-                        {renderCardForm()}
+                        {isStripeConfigured && topUpClientSecret ? (
+                          <Elements stripe={stripePromise} options={{ clientSecret: topUpClientSecret }}>
+                            <StripeCardForm
+                              clientSecret={topUpClientSecret}
+                              amountCents={topUpAmountCents}
+                              onSuccess={handleTopUpStripeSuccess}
+                              onError={handleTopUpStripeError}
+                              isProcessing={isTopUpProcessing}
+                              setIsProcessing={setIsTopUpProcessing}
+                              submitLabel={`Add ${formatPrice(topUpAmountCents)} to Wallet`}
+                            />
+                          </Elements>
+                        ) : isStripeConfigured && isCreatingTopUpIntent ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
+                          </div>
+                        ) : (
+                          <>
+                            {renderCardForm()}
+                            <button
+                              onClick={handleTopUp}
+                              disabled={!isCardFormValid || isTopUpProcessing || topUpAmountCents <= 0}
+                              className={`w-full mt-3 py-3 px-4 rounded-xl font-semibold text-white min-h-[44px] transition-opacity ${
+                                isCardFormValid && !isTopUpProcessing && topUpAmountCents > 0
+                                  ? 'bg-brand-primary hover:opacity-90'
+                                  : 'bg-gray-300 cursor-not-allowed'
+                              }`}
+                            >
+                              {isTopUpProcessing ? 'Processing...' : `Add ${formatPrice(topUpAmountCents)} to Wallet`}
+                            </button>
+                          </>
+                        )}
                       </div>
-                      <button
-                        onClick={handleTopUp}
-                        disabled={!isCardFormValid || isTopUpProcessing || topUpAmountCents <= 0}
-                        className={`w-full py-3 px-4 rounded-xl font-semibold text-white min-h-[44px] transition-opacity ${
-                          isCardFormValid && !isTopUpProcessing && topUpAmountCents > 0
-                            ? 'bg-brand-primary hover:opacity-90'
-                            : 'bg-gray-300 cursor-not-allowed'
-                        }`}
-                      >
-                        {isTopUpProcessing ? 'Processing...' : `Add ${formatPrice(topUpAmountCents)} to Wallet`}
-                      </button>
                     </>
                   )}
 
                   <button
-                    onClick={() => { setShowAddFunds(false); setTopUpAmountCents(0); setCustomTopUpValue(''); }}
+                    onClick={() => { setShowAddFunds(false); setTopUpAmountCents(0); setCustomTopUpValue(''); setTopUpClientSecret(null); }}
                     className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
                   >
                     Cancel
@@ -535,25 +826,40 @@ export function CheckoutPage() {
           )}
 
           {activeTab === 'card' && (
-            stripeHandlesCard ? (
-              <Elements stripe={stripePromise} options={{ clientSecret: clientSecret! }}>
-                <StripeCardForm
-                  clientSecret={clientSecret!}
-                  amountCents={totalCents}
-                  onSuccess={handleStripeSuccess}
-                  onError={handleStripeError}
-                  isProcessing={isProcessing}
-                  setIsProcessing={setIsProcessing}
-                  submitLabel={`Pay ${formatPrice(totalCents)}`}
-                />
-              </Elements>
-            ) : isCreatingIntent ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
-              </div>
-            ) : (
-              renderCardForm()
-            )
+            <div>
+              {/* Saved cards selection */}
+              {renderSavedCards()}
+
+              {/* New card via Stripe or saved card selected */}
+              {stripeHandlesCard ? (
+                usingSavedCard ? null : // Saved card — no form needed, main button handles it
+                useNewCard ? (
+                  renderNewCardWithSaveOption()
+                ) : isCreatingIntent ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
+                  </div>
+                ) : (
+                  <Elements stripe={stripePromise} options={{ clientSecret: clientSecret! }}>
+                    <StripeCardForm
+                      clientSecret={clientSecret!}
+                      amountCents={totalCents}
+                      onSuccess={handleStripeSuccess}
+                      onError={handleStripeError}
+                      isProcessing={isProcessing}
+                      setIsProcessing={setIsProcessing}
+                      submitLabel={`Pay ${formatPrice(totalCents)}`}
+                    />
+                  </Elements>
+                )
+              ) : isCreatingIntent ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
+                </div>
+              ) : (
+                renderCardForm()
+              )}
+            </div>
           )}
 
           {/* Points Payment Tab */}
@@ -713,8 +1019,8 @@ export function CheckoutPage() {
           )}
         </div>
 
-        {/* Hide main pay button when Stripe handles payment (button is inside StripeCardForm) */}
-        {!(stripeHandlesCard && (activeTab === 'card' || (activeTab === 'split' && splitCardCents > 0))) && (
+        {/* Hide main pay button when Stripe Elements form has its own submit button */}
+        {!hideMainPayButton && (
           <Button className="w-full" size="lg" onClick={handlePay} disabled={!canPay || isProcessing} isLoading={isProcessing}>
             {payButtonLabel()}
           </Button>
