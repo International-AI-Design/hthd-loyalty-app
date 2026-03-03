@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.1] - 2026-03-03 — Sprint 3A: Pet Profile Crash Fix
+
+### Fixed
+- **P0: Pet profile white screen crash** — Loading spinner in DogProfilePage now renders inside AppShell (was bare div with no navigation chrome)
+- **ReportCardsPage** loading state wrapped in AppShell (was bare div)
+- **CheckoutConfirmationPage** loading state wrapped in AppShell (was bare div)
+
+### Added
+- **PageErrorBoundary component** — Page-level React error boundary that renders inside AppShell with brand-consistent error UI, Try Again + Go Back buttons
+- Error boundaries on pet profile, my pets, bookings, checkout, and checkout confirmation routes
+- Sprint 3 prompt docs (`docs/sprint-prompts/sprint-3-orchestrator.md`, `sprint-3a-pet-profile-fix.md`, `sprint-3b-welcome-onboarding.md`)
+
 ## [3.3.0-alpha.3] - 2026-03-03 — Stripe Phase 3: Saved Cards + Wallet Wiring
 
 ### Added

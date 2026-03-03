@@ -96,9 +96,12 @@ export function CheckoutConfirmationPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-brand-cream flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
-      </div>
+      <AppShell title="Payment Receipt" showBack>
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+          <p className="text-sm text-gray-500 mt-4">Loading receipt...</p>
+        </div>
+      </AppShell>
     );
   }
 

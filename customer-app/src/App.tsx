@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { PageErrorBoundary } from './components/PageErrorBoundary';
 import { RegisterPage, LoginPage, ClaimPage, DashboardPage, ForgotPasswordPage, BookingPage, BookingsPage, CheckoutPage, CheckoutConfirmationPage, PrivacyPolicyPage, TermsPage, DogProfilePage, MessagingPage, ReportCardsPage, MyPetsPage, RewardsPage, SettingsPage, ActivityFeedPage, AgreementsPage, BadgesPage } from './pages';
 
 function App() {
@@ -34,7 +35,9 @@ function App() {
             path="/bookings"
             element={
               <ProtectedRoute>
-                <BookingsPage />
+                <PageErrorBoundary title="Bookings">
+                  <BookingsPage />
+                </PageErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -42,7 +45,9 @@ function App() {
             path="/checkout/confirmation/:paymentId"
             element={
               <ProtectedRoute>
-                <CheckoutConfirmationPage />
+                <PageErrorBoundary title="Confirmation">
+                  <CheckoutConfirmationPage />
+                </PageErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -50,7 +55,9 @@ function App() {
             path="/checkout/:bookingId"
             element={
               <ProtectedRoute>
-                <CheckoutPage />
+                <PageErrorBoundary title="Checkout">
+                  <CheckoutPage />
+                </PageErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -58,7 +65,9 @@ function App() {
             path="/dogs/:dogId"
             element={
               <ProtectedRoute>
-                <DogProfilePage />
+                <PageErrorBoundary title="Pet Profile">
+                  <DogProfilePage />
+                </PageErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -82,7 +91,9 @@ function App() {
             path="/my-pets"
             element={
               <ProtectedRoute>
-                <MyPetsPage />
+                <PageErrorBoundary title="My Pets">
+                  <MyPetsPage />
+                </PageErrorBoundary>
               </ProtectedRoute>
             }
           />
