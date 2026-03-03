@@ -1,7 +1,14 @@
 import { prisma } from '../../lib/prisma';
 import { WalletService } from '../wallet/service';
 import { CheckoutInput, CheckoutResult, ReceiptData, POINTS_VALUE_CENTS } from './types';
+import { stripeService } from '../stripe';
+import { logger } from '../../middleware/security';
 import { randomUUID } from 'crypto';
+
+type StripeMode = 'live' | 'test' | 'simulation';
+const STRIPE_MODE: StripeMode = (['live', 'test', 'simulation'].includes(process.env.STRIPE_MODE || '')
+  ? process.env.STRIPE_MODE as StripeMode
+  : 'simulation');
 
 const walletService = new WalletService();
 
@@ -136,8 +143,24 @@ export class CheckoutService {
       }
     }
 
-    // Simulated transaction ID (replace with Stripe later)
-    const transactionId = `sim_${randomUUID()}`;
+    // Determine transaction ID: real Stripe or simulated
+    let transactionId: string;
+    const useStripe = STRIPE_MODE !== 'simulation' && stripeService.isConfigured() && cardChargeCents > 0;
+
+    if (useStripe) {
+      const piResult = await stripeService.createPaymentIntent(cardChargeCents, {
+        customerId,
+        bookingIds: bookingIds.join(','),
+        paymentMethod,
+      });
+      if (piResult.isErr()) {
+        throw new CheckoutError(`Payment failed: ${piResult.error.message}`);
+      }
+      transactionId = piResult.value.id;
+      logger.info('Stripe PaymentIntent created', { id: transactionId, amountCents: cardChargeCents });
+    } else {
+      transactionId = `sim_${randomUUID()}`;
+    }
 
     // Atomic transaction: payment + wallet deduction + booking status updates
     const result = await prisma.$transaction(async (tx: any) => {

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0-alpha.1] - 2026-03-03 — Stripe Phase 1: Server Infrastructure
+
+### Added
+- **StripeService**: Wraps all Stripe SDK calls with neverthrow `Result<T, StripeError>` types — no thrown errors
+- **Webhook Handler**: `POST /api/v2/webhooks/stripe` with raw body signature verification, handles `payment_intent.succeeded` and `payment_intent.payment_failed`
+- **Conditional Stripe in Checkout**: `CheckoutService.processCheckout()` creates real PaymentIntents when `STRIPE_MODE` is `test` or `live` and `STRIPE_SECRET_KEY` is set; falls back to simulated `sim_*` IDs otherwise
+- **STRIPE_MODE env var**: Controls payment behavior — `simulation` (default), `test`, or `live`
+
+### Architecture
+- Stripe module at `server/src/modules/stripe/` with service, singleton, and webhook router
+- Webhook route mounted before `express.json()` to preserve raw body for signature verification
+- Backward-compatible: simulation mode is the default; existing checkout flow unchanged without Stripe keys
+
 ## [3.2.0] - 2026-02-25 — Sprints A-D Feature Expansion
 
 ### Added

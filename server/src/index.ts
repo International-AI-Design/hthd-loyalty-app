@@ -44,6 +44,7 @@ import v2AgreementsRoutes from './modules/agreements/router';
 import v2AdminAgreementsRoutes from './modules/agreements/admin-router';
 import v2BadgesRoutes from './modules/badges/router';
 import v2AdminAnalyticsRoutes from './modules/analytics/router';
+import stripeWebhookRouter from './modules/stripe/webhook-router';
 import {
   helmetMiddleware,
   rateLimiter,
@@ -65,6 +66,10 @@ app.use(helmetMiddleware);
 app.use(rateLimiter);
 app.use(requestLogger);
 app.use(cors(getCorsOptions()));
+
+// Stripe webhook needs raw body for signature verification — mount BEFORE express.json()
+app.use('/api/v2/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
