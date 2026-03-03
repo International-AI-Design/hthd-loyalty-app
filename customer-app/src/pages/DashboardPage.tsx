@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { customerApi, bookingApi, badgeApi } from '../lib/api';
-import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking, CustomerBadge } from '../lib/api';
+import { customerApi, bookingApi, badgeApi, dogProfileApi } from '../lib/api';
+import type { PointsTransaction, Redemption, ReferredCustomer, Dog, Visit, Booking, CustomerBadge, DogProfile } from '../lib/api';
 import { Button, Modal, Alert, Toast } from '../components/ui';
 import { ReferralModal } from '../components/ReferralModal';
 import { Walkthrough } from '../components/Walkthrough';
+import { WelcomeModal } from '../components/WelcomeModal';
 import { AppShell } from '../components/AppShell';
 import { NextBadgeProgress } from '../components/NextBadgeProgress';
 import { BadgeUnlockAnimation } from '../components/BadgeUnlockAnimation';
@@ -83,6 +84,19 @@ export function DashboardPage() {
   const [newBadges, setNewBadges] = useState<CustomerBadge[]>([]);
   const [showBadgeUnlock, setShowBadgeUnlock] = useState(false);
 
+  // Welcome modal
+  const WELCOME_KEY = 'hthd_welcomed';
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try {
+      return !localStorage.getItem(WELCOME_KEY);
+    } catch {
+      return false; // Safari private browsing fallback
+    }
+  });
+
+  // Service reminders
+  const [dogProfiles, setDogProfiles] = useState<DogProfile[]>([]);
+
   // Walkthrough
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
@@ -128,6 +142,20 @@ export function DashboardPage() {
     setIsLoadingVisits(false);
   }, []);
 
+  const fetchDogProfiles = useCallback(async () => {
+    const { data } = await dogProfileApi.getDogs();
+    if (data) setDogProfiles(data.dogs);
+  }, []);
+
+  const handleWelcomeDismiss = () => {
+    try {
+      localStorage.setItem(WELCOME_KEY, 'true');
+    } catch {
+      // Safari private browsing — silently continue
+    }
+    setShowWelcome(false);
+  };
+
   const fetchBookings = useCallback(async () => {
     const [pendingRes, confirmedRes] = await Promise.all([
       bookingApi.getBookings({ status: 'pending', limit: 2 }),
@@ -149,6 +177,7 @@ export function DashboardPage() {
     fetchDogs();
     fetchVisits();
     fetchBookings();
+    fetchDogProfiles();
 
     // Evaluate badges on dashboard load
     badgeApi.evaluate().then((result) => {
@@ -162,7 +191,7 @@ export function DashboardPage() {
         }
       }
     });
-  }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits, fetchBookings]);
+  }, [fetchTransactions, fetchRedemptions, fetchReferralStats, fetchDogs, fetchVisits, fetchBookings, fetchDogProfiles]);
 
   // --- Scroll to top + first visit ---
 
@@ -213,6 +242,7 @@ export function DashboardPage() {
       fetchDogs(),
       fetchVisits(),
       fetchBookings(),
+      fetchDogProfiles(),
     ]);
     setIsRefreshing(false);
     showToast('All caught up!');
@@ -370,6 +400,35 @@ export function DashboardPage() {
     return '\u{1F43E}';
   };
 
+  // --- Service reminders ---
+
+  const expiringVaccinations = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const results: { dogName: string; vaccinationName: string; expiresAt: string }[] = [];
+    for (const dog of dogProfiles) {
+      for (const vax of dog.vaccinations ?? []) {
+        if (!vax.expiresAt) continue;
+        const expiry = new Date(vax.expiresAt);
+        if (expiry > now && expiry <= thirtyDaysFromNow) {
+          results.push({ dogName: dog.name, vaccinationName: vax.name, expiresAt: vax.expiresAt });
+        }
+      }
+    }
+    return results;
+  }, [dogProfiles]);
+
+  const groomingOverdue = useMemo(() => {
+    if (visits.length === 0) return false;
+    const groomVisits = visits.filter((v) => v.service_type.toLowerCase().includes('groom'));
+    if (groomVisits.length === 0) return false;
+    const lastGroom = new Date(groomVisits[0].visit_date);
+    const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1000);
+    return lastGroom < sixWeeksAgo;
+  }, [visits]);
+
+  const hasReminders = expiringVaccinations.length > 0 || groomingOverdue;
+
   if (!customer) return null;
 
   // --- Render ---
@@ -519,7 +578,68 @@ export function DashboardPage() {
         )}
 
         {/* ============================================================
-            SECTION 2.5: Next Badge Progress
+            SECTION 2.5: Service Reminders
+            ============================================================ */}
+        {hasReminders && (
+          <section className="animate-slide-up space-y-3">
+            {expiringVaccinations.length > 0 && (
+              <button
+                onClick={() => {
+                  const firstDog = dogProfiles.find((d) =>
+                    d.vaccinations?.some((v) => v.expiresAt && new Date(v.expiresAt) > new Date() && new Date(v.expiresAt) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                  );
+                  if (firstDog) navigate(`/dogs/${firstDog.id}`);
+                }}
+                className="w-full flex items-center gap-3.5 p-4 bg-brand-amber/8 border border-brand-amber/25 rounded-2xl text-left min-h-[44px] active:scale-[0.98] transition-transform"
+              >
+                <div className="w-10 h-10 rounded-xl bg-brand-amber/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-brand-amber-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-body text-sm font-semibold text-brand-forest">
+                    Vaccination due soon
+                  </p>
+                  <p className="font-body text-xs text-brand-forest-muted mt-0.5 truncate">
+                    {expiringVaccinations[0].dogName}&apos;s {expiringVaccinations[0].vaccinationName} expires {formatDate(expiringVaccinations[0].expiresAt)}
+                    {expiringVaccinations.length > 1 && ` (+${expiringVaccinations.length - 1} more)`}
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-brand-forest-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+
+            {groomingOverdue && (
+              <button
+                onClick={() => navigate('/book')}
+                className="w-full flex items-center gap-3.5 p-4 bg-brand-primary/8 border border-brand-primary/25 rounded-2xl text-left min-h-[44px] active:scale-[0.98] transition-transform"
+              >
+                <div className="w-10 h-10 rounded-xl bg-brand-primary/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-brand-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-body text-sm font-semibold text-brand-forest">
+                    Time for a grooming visit?
+                  </p>
+                  <p className="font-body text-xs text-brand-forest-muted mt-0.5">
+                    It&apos;s been a while since the last groom
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-brand-forest-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================
+            SECTION 2.75: Next Badge Progress
             ============================================================ */}
         <section className="animate-slide-up">
           <NextBadgeProgress />
@@ -1090,6 +1210,9 @@ export function DashboardPage() {
           }}
         />
       )}
+
+      {/* Welcome Modal (first-time user) */}
+      {showWelcome && <WelcomeModal onContinue={handleWelcomeDismiss} />}
 
       {/* Toast */}
       <Toast
