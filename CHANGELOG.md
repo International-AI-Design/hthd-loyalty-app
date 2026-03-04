@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.0] - 2026-03-04 — Sprint 5b: Pet Profile UI Enrichment
+
+### Added
+- **Pet ID Card modal** — Slide-up bottom-sheet displaying pet info, owner, vet, emergency contacts, emergency vet authorization, and verified vaccination records with "Send ID Card" share button
+- **Tabbed pet profile** — Profile / Appointments / Reminders tabs on dog profile page
+- **All 16 enriched fields in UI** — Vet info, microchip, color, feeding details, altered status, emergency contact, emergency vet cost limit, and goodWith all visible and editable
+- **Appointments tab** — Shows upcoming and past bookings filtered to the specific dog
+- **Reminders tab** — Vaccination expiry warnings (30-day window) and grooming overdue alerts (6 weeks)
+- **Edit mode for all new fields** — Organized sections: Basic Info, Health & Safety, Primary Vet, Emergency Vet, Emergency Contact, Feeding
+
+### Technical
+- `PetIdCardModal` component at `customer-app/src/components/PetIdCardModal.tsx`
+- `DogProfilePage` fully rewritten with tab navigation and enriched field support
+- Emergency vet cost limit converts between cents (API) and dollars (UI)
+- Uses `navigator.share` API for Pet ID Card sharing on mobile
+
 ## [3.4.0] - 2026-03-03 — Sprint 5a: Dog Model Enrichment + Pet ID Card API
 
 ### Added
