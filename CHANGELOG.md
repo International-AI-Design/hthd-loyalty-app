@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.0] - 2026-03-03 — Sprint 5a: Dog Model Enrichment + Pet ID Card API
+
+### Added
+- **16 new fields on Dog model** — vet info (name, phone, address, email), microchip number, color, feeding details (method, food type, notes), altered status with date, emergency agent (name, relationship, phone), emergency vet cost limit, and goodWith text
+- **Pet ID Card endpoint** — `GET /api/v2/dogs/:dogId/id-card` returns structured card with pet, owner, vet, emergency contacts, and verified vaccination records
+- **Data migration** — Backfills `alteredStatus` from existing `isNeutered` boolean (neutered/intact)
+- **Enriched seed data** — 3 dog templates (Buddy, Luna, Max) with full vet/feeding/emergency data
+- **Admin dog detail** — All 16 new fields returned in `GET /api/admin/customers/:id` dog response
+
+### Technical
+- Prisma migration `20260303233300_dog_model_enrichment` — all fields nullable for backward compat
+- Zod validators for `alteredStatus`, `feedingMethod`, `foodType` enums + `vetEmail` email validation
+- `PetIdCard` TypeScript interface added to customer-app API layer
+- `isNeutered` marked deprecated in schema comment — use `alteredStatus` going forward
+
+## [3.3.2] - 2026-03-03 — Sprint 3B: Welcome Modal + Service Reminders
+
+### Added
+- **Welcome onboarding modal** — Otto-style first-launch popup with "Hello!", feature list, and terms acceptance. Shows once per device via localStorage flag. Bottom-sheet on mobile, centered card on desktop.
+- **Service reminders on dashboard** — Vaccination expiring within 30 days (taps to dog profile) and grooming overdue > 6 weeks (taps to booking page). Uses existing V2 dog profile API for vaccination data.
+
+### Technical
+- `WelcomeModal` component at `customer-app/src/components/WelcomeModal.tsx`
+- Dashboard fetches V2 dog profiles for vaccination expiry data
+- Safari private browsing safe — localStorage wrapped in try/catch
+- Brand-consistent styling (Playfair headings, Open Sans body, #62A2C3 blue, #1B365D navy)
+
 ## [3.3.1] - 2026-03-03 — Sprint 3A: Pet Profile Crash Fix
 
 ### Fixed

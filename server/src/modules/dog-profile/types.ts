@@ -16,6 +16,23 @@ export const DogProfileUpdateSchema = z.object({
   emergencyVetName: z.string().optional(),
   emergencyVetPhone: z.string().optional(),
   lastGroomDate: z.string().optional(),
+  // Sprint 5a: Dog Model Enrichment
+  vetName: z.string().optional(),
+  vetPhone: z.string().optional(),
+  vetAddress: z.string().optional(),
+  vetEmail: z.string().email().optional(),
+  microchipNumber: z.string().optional(),
+  color: z.string().optional(),
+  feedingMethod: z.enum(['free_feed', 'scheduled', 'measured']).optional(),
+  foodType: z.enum(['dry', 'wet', 'raw', 'mixed']).optional(),
+  feedingNotes: z.string().optional(),
+  alteredStatus: z.enum(['intact', 'spayed', 'neutered']).optional(),
+  alteredDate: z.string().optional(),
+  emergencyAgent: z.string().optional(),
+  emergencyAgentRelationship: z.string().optional(),
+  emergencyAgentPhone: z.string().optional(),
+  emergencyVetCostLimit: z.number().int().min(0).optional(),
+  goodWith: z.string().optional(),
 });
 
 export const VaccinationCreateSchema = z.object({

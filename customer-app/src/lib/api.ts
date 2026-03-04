@@ -294,9 +294,70 @@ export interface DogProfile {
   emergencyVetPhone: string | null;
   lastGroomDate: string | null;
   notes: string | null;
+  // Sprint 5a: Dog Model Enrichment
+  vetName: string | null;
+  vetPhone: string | null;
+  vetAddress: string | null;
+  vetEmail: string | null;
+  microchipNumber: string | null;
+  color: string | null;
+  feedingMethod: string | null;
+  foodType: string | null;
+  feedingNotes: string | null;
+  alteredStatus: string | null;
+  alteredDate: string | null;
+  emergencyAgent: string | null;
+  emergencyAgentRelationship: string | null;
+  emergencyAgentPhone: string | null;
+  emergencyVetCostLimit: number | null;
+  goodWith: string | null;
   vaccinations: VaccinationRecord[];
   medications: MedicationRecord[];
   behaviorNotes?: BehaviorNote[];
+}
+
+export interface PetIdCard {
+  pet: {
+    name: string;
+    breed: string | null;
+    color: string | null;
+    birthDate: string | null;
+    weight: number | null;
+    sizeCategory: string | null;
+    microchipNumber: string | null;
+    alteredStatus: string | null;
+    photoUrl: string | null;
+    allergies: string | null;
+    specialNeeds: string | null;
+    goodWith: string | null;
+  };
+  owner: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  vet: {
+    name: string | null;
+    phone: string | null;
+    address: string | null;
+    email: string | null;
+  };
+  emergencyVet: {
+    name: string | null;
+    phone: string | null;
+    costLimit: number | null;
+  };
+  emergencyAgent: {
+    name: string | null;
+    relationship: string | null;
+    phone: string | null;
+  };
+  vaccinations: Array<{
+    name: string;
+    dateGiven: string;
+    goodUntil: string | null;
+    vetName: string | null;
+  }>;
 }
 
 export interface VaccinationRecord {
@@ -484,6 +545,7 @@ export const dogProfileApi = {
   deleteMedication: (dogId: string, medicationId: string) =>
     api.delete<{ success: boolean }>(`/v2/dogs/${dogId}/medications/${medicationId}`),
   getCompliance: (dogId: string) => api.get<{ dogId: string; isFullyCompliant: boolean; compliance: Array<{ requirement: string; description: string; status: string; lastGiven: string | null; expiresAt: string | null }> }>(`/v2/dogs/${dogId}/compliance`),
+  getIdCard: (dogId: string) => api.get<{ idCard: PetIdCard }>(`/v2/dogs/${dogId}/id-card`),
   uploadPhoto: async (file: File): Promise<ApiResponse<UploadResponse>> => {
     const formData = new FormData();
     formData.append('photo', file);

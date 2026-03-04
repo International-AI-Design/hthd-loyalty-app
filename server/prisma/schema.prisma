@@ -59,7 +59,7 @@ model Dog {
   weight           Decimal?  @db.Decimal(5, 1) // pounds
   temperament      String? // 'calm', 'energetic', 'anxious', 'friendly', 'reactive'
   careInstructions String?   @map("care_instructions")
-  isNeutered       Boolean   @default(false) @map("is_neutered")
+  isNeutered       Boolean   @default(false) @map("is_neutered") // @deprecated — use alteredStatus
   photoUrl         String?   @map("photo_url")
   socialNotes      String?   @map("social_notes") // plays well with others, prefers small dogs, etc.
   allergies          String?
@@ -67,6 +67,24 @@ model Dog {
   emergencyVetName   String?   @map("emergency_vet_name")
   emergencyVetPhone  String?   @map("emergency_vet_phone")
   lastGroomDate      DateTime? @map("last_groom_date") @db.Date
+
+  // Sprint 5a: Dog Model Enrichment
+  vetName                    String?   @map("vet_name")
+  vetPhone                   String?   @map("vet_phone")
+  vetAddress                 String?   @map("vet_address")
+  vetEmail                   String?   @map("vet_email")
+  microchipNumber            String?   @map("microchip_number")
+  color                      String?
+  feedingMethod              String?   @map("feeding_method") // 'free_feed' | 'scheduled' | 'measured'
+  foodType                   String?   @map("food_type") // 'dry' | 'wet' | 'raw' | 'mixed'
+  feedingNotes               String?   @map("feeding_notes")
+  alteredStatus              String?   @map("altered_status") // 'intact' | 'spayed' | 'neutered'
+  alteredDate                DateTime? @map("altered_date") @db.Date
+  emergencyAgent             String?   @map("emergency_agent")
+  emergencyAgentRelationship String?   @map("emergency_agent_relationship")
+  emergencyAgentPhone        String?   @map("emergency_agent_phone")
+  emergencyVetCostLimit      Int?      @map("emergency_vet_cost_limit") // cents
+  goodWith                   String?   @map("good_with") // text description
   customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // v2 relations

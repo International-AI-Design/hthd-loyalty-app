@@ -356,6 +356,107 @@ async function main() {
     }
   }
 
+  // 5. Create sample dogs with enriched fields
+  console.log('Creating dogs with enriched profiles...');
+  const dogTemplates = [
+    {
+      name: 'Buddy',
+      breed: 'Golden Retriever',
+      sizeCategory: 'large',
+      weight: 72,
+      temperament: 'friendly',
+      color: 'Golden',
+      isNeutered: true,
+      alteredStatus: 'neutered',
+      alteredDate: new Date('2023-06-15'),
+      birthDate: new Date('2022-03-10'),
+      microchipNumber: '985112345678901',
+      vetName: 'Dr. Sarah Mitchell',
+      vetPhone: '5559876543',
+      vetAddress: '123 Pet Care Ave, Scottsdale, AZ 85251',
+      vetEmail: 'info@scottsdalevet.com',
+      feedingMethod: 'scheduled',
+      foodType: 'dry',
+      feedingNotes: '2 cups twice daily, morning and evening',
+      emergencyAgent: 'Jane Smith',
+      emergencyAgentRelationship: 'Spouse',
+      emergencyAgentPhone: '5551234568',
+      emergencyVetCostLimit: 300000, // $3,000
+      goodWith: 'Great with kids and other dogs. Loves to play fetch.',
+      allergies: 'Chicken',
+      socialNotes: 'Loves all dogs, very social at daycare',
+    },
+    {
+      name: 'Luna',
+      breed: 'French Bulldog',
+      sizeCategory: 'small',
+      weight: 24,
+      temperament: 'calm',
+      color: 'Brindle',
+      isNeutered: true,
+      alteredStatus: 'spayed',
+      alteredDate: new Date('2024-01-20'),
+      birthDate: new Date('2023-05-22'),
+      microchipNumber: '985198765432101',
+      vetName: 'Dr. James Wilson',
+      vetPhone: '5558765432',
+      vetAddress: '456 Animal Hospital Rd, Tempe, AZ 85281',
+      feedingMethod: 'measured',
+      foodType: 'mixed',
+      feedingNotes: '1/2 cup dry + 2oz wet food, twice daily',
+      emergencyAgent: 'Maria Garcia',
+      emergencyAgentRelationship: 'Mother',
+      emergencyAgentPhone: '5552345679',
+      emergencyVetCostLimit: 200000, // $2,000
+      goodWith: 'Good with small dogs. Can be shy with large breeds.',
+      specialNeeds: 'Brachycephalic — monitor for overheating',
+    },
+    {
+      name: 'Max',
+      breed: 'German Shepherd',
+      sizeCategory: 'large',
+      weight: 85,
+      temperament: 'energetic',
+      color: 'Black and Tan',
+      isNeutered: false,
+      alteredStatus: 'intact',
+      birthDate: new Date('2024-01-15'),
+      vetName: 'Dr. Sarah Mitchell',
+      vetPhone: '5559876543',
+      vetAddress: '123 Pet Care Ave, Scottsdale, AZ 85251',
+      vetEmail: 'info@scottsdalevet.com',
+      feedingMethod: 'scheduled',
+      foodType: 'raw',
+      feedingNotes: '1.5 lbs raw food twice daily',
+      emergencyVetCostLimit: 500000, // $5,000
+      goodWith: 'Good with dogs he knows. Needs slow introductions.',
+      careInstructions: 'High energy — needs extra play time',
+    },
+  ];
+
+  // Assign dogs to the first 3 customers
+  for (let i = 0; i < dogTemplates.length && i < createdCustomers.length; i++) {
+    const template = dogTemplates[i];
+    const customerId = createdCustomers[i].id;
+
+    // Check if this dog already exists for this customer
+    const existing = await prisma.dog.findFirst({
+      where: { customerId, name: template.name },
+    });
+
+    if (!existing) {
+      await prisma.dog.create({
+        data: {
+          customerId,
+          ...template,
+        },
+      });
+      console.log(`  ✓ Dog: ${template.name} (${template.breed}) → ${createdCustomers[i].email}`);
+    } else {
+      console.log(`  - Dog: ${template.name} already exists, skipping`);
+    }
+  }
+
   console.log(`\n✅ Seed complete!`);
   console.log(`   Staff users: ${createdStaff.length}`);
   console.log(`   Customers: ${createdCustomers.length}`);

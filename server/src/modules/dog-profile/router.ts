@@ -227,6 +227,23 @@ router.delete('/:dogId/medications/:medicationId', async (req: Request, res: Res
   }
 });
 
+// GET /:dogId/id-card — Pet ID Card
+router.get('/:dogId/id-card', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const dogId = req.params.dogId as string;
+    const idCard = await dogProfileService.getPetIdCard(dogId, customerReq.customer.id);
+    res.json({ idCard });
+  } catch (error) {
+    if (error instanceof DogProfileError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    console.error('Get pet ID card error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /:dogId/compliance — vaccination compliance check
 router.get('/:dogId/compliance', async (req: Request, res: Response): Promise<void> => {
   try {

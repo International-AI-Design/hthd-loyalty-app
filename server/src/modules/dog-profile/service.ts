@@ -49,6 +49,7 @@ export class DogProfileService {
       temperament: dog.temperament,
       sizeCategory: dog.sizeCategory,
       isNeutered: dog.isNeutered,
+      alteredStatus: dog.alteredStatus,
       photoUrl: dog.photoUrl,
       vaccinationCount: (dog._count as any).vaccinations,
       activeMedicationCount: (dog._count as any).medications,
@@ -108,6 +109,23 @@ export class DogProfileService {
     if (data.emergencyVetName !== undefined) updateData.emergencyVetName = data.emergencyVetName;
     if (data.emergencyVetPhone !== undefined) updateData.emergencyVetPhone = data.emergencyVetPhone;
     if (data.lastGroomDate !== undefined) updateData.lastGroomDate = new Date(data.lastGroomDate);
+    // Sprint 5a: new enrichment fields
+    if (data.vetName !== undefined) updateData.vetName = data.vetName;
+    if (data.vetPhone !== undefined) updateData.vetPhone = data.vetPhone;
+    if (data.vetAddress !== undefined) updateData.vetAddress = data.vetAddress;
+    if (data.vetEmail !== undefined) updateData.vetEmail = data.vetEmail;
+    if (data.microchipNumber !== undefined) updateData.microchipNumber = data.microchipNumber;
+    if (data.color !== undefined) updateData.color = data.color;
+    if (data.feedingMethod !== undefined) updateData.feedingMethod = data.feedingMethod;
+    if (data.foodType !== undefined) updateData.foodType = data.foodType;
+    if (data.feedingNotes !== undefined) updateData.feedingNotes = data.feedingNotes;
+    if (data.alteredStatus !== undefined) updateData.alteredStatus = data.alteredStatus;
+    if (data.alteredDate !== undefined) updateData.alteredDate = new Date(data.alteredDate);
+    if (data.emergencyAgent !== undefined) updateData.emergencyAgent = data.emergencyAgent;
+    if (data.emergencyAgentRelationship !== undefined) updateData.emergencyAgentRelationship = data.emergencyAgentRelationship;
+    if (data.emergencyAgentPhone !== undefined) updateData.emergencyAgentPhone = data.emergencyAgentPhone;
+    if (data.emergencyVetCostLimit !== undefined) updateData.emergencyVetCostLimit = data.emergencyVetCostLimit;
+    if (data.goodWith !== undefined) updateData.goodWith = data.goodWith;
 
     const dog = await prisma.dog.update({
       where: { id: dogId },
@@ -411,6 +429,75 @@ export class DogProfileService {
     }
 
     return dog;
+  }
+
+  /**
+   * Get a structured Pet ID Card for a dog. Includes pet info, owner, vet, emergency agent,
+   * and verified vaccination records.
+   */
+  async getPetIdCard(dogId: string, customerId: string) {
+    await this.verifyDogOwnership(dogId, customerId);
+
+    const dog = await prisma.dog.findUnique({
+      where: { id: dogId },
+      include: {
+        customer: {
+          select: { firstName: true, lastName: true, phone: true, email: true },
+        },
+        vaccinations: {
+          where: { verified: true },
+          orderBy: { dateGiven: 'desc' },
+        },
+      },
+    });
+
+    if (!dog) {
+      throw new DogProfileError('Dog not found', 404);
+    }
+
+    return {
+      pet: {
+        name: dog.name,
+        breed: dog.breed,
+        color: dog.color,
+        birthDate: dog.birthDate,
+        weight: dog.weight ? Number(dog.weight) : null,
+        sizeCategory: dog.sizeCategory,
+        microchipNumber: dog.microchipNumber,
+        alteredStatus: dog.alteredStatus,
+        photoUrl: dog.photoUrl,
+        allergies: dog.allergies,
+        specialNeeds: dog.specialNeeds,
+        goodWith: dog.goodWith,
+      },
+      owner: {
+        name: `${dog.customer.firstName} ${dog.customer.lastName}`,
+        phone: dog.customer.phone,
+        email: dog.customer.email,
+      },
+      vet: {
+        name: dog.vetName,
+        phone: dog.vetPhone,
+        address: dog.vetAddress,
+        email: dog.vetEmail,
+      },
+      emergencyVet: {
+        name: dog.emergencyVetName,
+        phone: dog.emergencyVetPhone,
+        costLimit: dog.emergencyVetCostLimit,
+      },
+      emergencyAgent: {
+        name: dog.emergencyAgent,
+        relationship: dog.emergencyAgentRelationship,
+        phone: dog.emergencyAgentPhone,
+      },
+      vaccinations: (dog.vaccinations as any[]).map((v) => ({
+        name: v.name,
+        dateGiven: v.dateGiven,
+        goodUntil: v.expiresAt,
+        vetName: v.vetName,
+      })),
+    };
   }
 
   /**
