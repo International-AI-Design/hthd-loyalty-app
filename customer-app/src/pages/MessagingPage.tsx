@@ -49,6 +49,36 @@ if (typeof document !== 'undefined' && !document.getElementById('hthd-anim')) {
   document.head.appendChild(el);
 }
 
+// ─── Simple markdown renderer ─────────────────────────────────────────────────
+function renderMarkdown(text: string) {
+  const parts: React.ReactNode[] = [];
+  // Split by **bold** and *italic* patterns
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[2]) {
+      // **bold**
+      parts.push(<strong key={key++} className="font-semibold">{match[2]}</strong>);
+    } else if (match[3]) {
+      // *italic*
+      parts.push(<em key={key++}>{match[3]}</em>);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? parts : text;
+}
+
 // ─── Puppy thinking messages ───────────────────────────────────────────────────
 const THINKING_MESSAGES = [
   'Sniffing for answers…',
@@ -664,7 +694,7 @@ export function MessagingPage() {
                             {msg.photoUrl && (
                               <img src={msg.photoUrl} alt="" className="rounded-xl mb-2 max-w-full" />
                             )}
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">{renderMarkdown(msg.content)}</p>
                           </div>
 
                           <div className={`flex items-center gap-1.5 mt-1 ${isCustomer ? 'justify-end' : 'justify-start'}`}>
