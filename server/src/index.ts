@@ -163,8 +163,24 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
+
+  // Sync admin password from env if set (allows reset via SEED_ADMIN_PASSWORD)
+  const seedAdminPw = process.env.SEED_ADMIN_PASSWORD;
+  if (seedAdminPw) {
+    try {
+      const bcrypt = await import('bcrypt');
+      const hash = await bcrypt.hash(seedAdminPw, 10);
+      await pool.query(
+        `UPDATE staff_users SET password_hash = $1 WHERE username = 'admin'`,
+        [hash]
+      );
+      logger.info('Admin password synced from SEED_ADMIN_PASSWORD');
+    } catch (e) {
+      logger.warn('Failed to sync admin password', { error: e instanceof Error ? e.message : 'unknown' });
+    }
+  }
 
   // Start the Gingr auto-sync job
   startGingrAutoSync();
