@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { DashboardService } from '../dashboard/service';
 import { BookingService } from '../booking/service';
 import { prisma } from '../../lib/prisma';
@@ -7,158 +7,182 @@ import { logger } from '../../middleware/security';
 const dashboardService = new DashboardService();
 const bookingService = new BookingService();
 
-export const AIM_TOOL_DEFINITIONS: Anthropic.Tool[] = [
+export const AIM_TOOL_DEFINITIONS: OpenAI.ChatCompletionTool[] = [
   {
-    name: 'get_today_summary',
-    description:
-      "Get today's full facility overview: dogs on-site, arrivals/departures, staff, and compliance flags.",
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        date: {
-          type: 'string',
-          description:
-            'Date in YYYY-MM-DD format. Defaults to today if not provided.',
+    type: 'function' as const,
+    function: {
+      name: 'get_today_summary',
+      description:
+        "Get today's full facility overview: dogs on-site, arrivals/departures, staff, and compliance flags.",
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          date: {
+            type: 'string',
+            description:
+              'Date in YYYY-MM-DD format. Defaults to today if not provided.',
+          },
         },
+        required: [],
       },
-      required: [],
     },
   },
   {
-    name: 'search_customer',
-    description:
-      'Search customers by name, phone number, or email. Returns matching customer records with their dogs.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        query: {
-          type: 'string',
-          description:
-            'Search term — customer name, phone number, or email address.',
+    type: 'function' as const,
+    function: {
+      name: 'search_customer',
+      description:
+        'Search customers by name, phone number, or email. Returns matching customer records with their dogs.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description:
+              'Search term — customer name, phone number, or email address.',
+          },
         },
+        required: ['query'],
       },
-      required: ['query'],
     },
   },
   {
-    name: 'search_dog',
-    description:
-      'Search dogs by name. Returns matching dogs with their owner information.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        name: {
-          type: 'string',
-          description: 'Dog name to search for.',
+    type: 'function' as const,
+    function: {
+      name: 'search_dog',
+      description:
+        'Search dogs by name. Returns matching dogs with their owner information.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Dog name to search for.',
+          },
         },
+        required: ['name'],
       },
-      required: ['name'],
     },
   },
   {
-    name: 'check_schedule',
-    description:
-      'View bookings for a date or date range. Optionally filter by service type.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        start_date: {
-          type: 'string',
-          description: 'Start date in YYYY-MM-DD format.',
+    type: 'function' as const,
+    function: {
+      name: 'check_schedule',
+      description:
+        'View bookings for a date or date range. Optionally filter by service type.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          start_date: {
+            type: 'string',
+            description: 'Start date in YYYY-MM-DD format.',
+          },
+          end_date: {
+            type: 'string',
+            description:
+              'End date in YYYY-MM-DD format. Same as start_date for a single day.',
+          },
+          service_type: {
+            type: 'string',
+            description: 'Optional service filter.',
+            enum: ['daycare', 'boarding', 'grooming'],
+          },
         },
-        end_date: {
-          type: 'string',
-          description:
-            'End date in YYYY-MM-DD format. Same as start_date for a single day.',
-        },
-        service_type: {
-          type: 'string',
-          description: 'Optional service filter.',
-          enum: ['daycare', 'boarding', 'grooming'],
-        },
+        required: ['start_date'],
       },
-      required: ['start_date'],
     },
   },
   {
-    name: 'get_staff_schedule',
-    description:
-      'View staff schedules for a specific date. Shows who is working and their shifts.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        date: {
-          type: 'string',
-          description: 'Date in YYYY-MM-DD format.',
+    type: 'function' as const,
+    function: {
+      name: 'get_staff_schedule',
+      description:
+        'View staff schedules for a specific date. Shows who is working and their shifts.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          date: {
+            type: 'string',
+            description: 'Date in YYYY-MM-DD format.',
+          },
         },
+        required: ['date'],
       },
-      required: ['date'],
     },
   },
   {
-    name: 'create_booking',
-    description:
-      'Create a booking for a customer. Always check availability first.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        customer_id: {
-          type: 'string',
-          description: 'Customer UUID.',
+    type: 'function' as const,
+    function: {
+      name: 'create_booking',
+      description:
+        'Create a booking for a customer. Always check availability first.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          customer_id: {
+            type: 'string',
+            description: 'Customer UUID.',
+          },
+          service_type: {
+            type: 'string',
+            description: 'Service type.',
+            enum: ['daycare', 'boarding', 'grooming'],
+          },
+          start_date: {
+            type: 'string',
+            description: 'Start date in YYYY-MM-DD format.',
+          },
+          end_date: {
+            type: 'string',
+            description:
+              'End date in YYYY-MM-DD format. Same as start_date for single-day.',
+          },
+          dog_ids: {
+            type: 'array',
+            description: 'Array of dog UUIDs to book.',
+            items: { type: 'string' },
+          },
+          notes: {
+            type: 'string',
+            description: 'Optional booking notes.',
+          },
         },
-        service_type: {
-          type: 'string',
-          description: 'Service type.',
-          enum: ['daycare', 'boarding', 'grooming'],
-        },
-        start_date: {
-          type: 'string',
-          description: 'Start date in YYYY-MM-DD format.',
-        },
-        end_date: {
-          type: 'string',
-          description:
-            'End date in YYYY-MM-DD format. Same as start_date for single-day.',
-        },
-        dog_ids: {
-          type: 'array',
-          description: 'Array of dog UUIDs to book.',
-          items: { type: 'string' },
-        },
-        notes: {
-          type: 'string',
-          description: 'Optional booking notes.',
-        },
+        required: ['customer_id', 'service_type', 'start_date', 'dog_ids'],
       },
-      required: ['customer_id', 'service_type', 'start_date', 'dog_ids'],
     },
   },
   {
-    name: 'check_compliance',
-    description:
-      'Check vaccination and compliance status for dogs with upcoming bookings.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
+    type: 'function' as const,
+    function: {
+      name: 'check_compliance',
+      description:
+        'Check vaccination and compliance status for dogs with upcoming bookings.',
+      parameters: {
+        type: 'object' as const,
+        properties: {},
+        required: [],
+      },
     },
   },
   {
-    name: 'get_revenue_summary',
-    description: 'Get basic revenue stats — total payments and points transactions for a date range.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        start_date: {
-          type: 'string',
-          description: 'Start date in YYYY-MM-DD format.',
+    type: 'function' as const,
+    function: {
+      name: 'get_revenue_summary',
+      description: 'Get basic revenue stats — total payments and points transactions for a date range.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          start_date: {
+            type: 'string',
+            description: 'Start date in YYYY-MM-DD format.',
+          },
+          end_date: {
+            type: 'string',
+            description: 'End date in YYYY-MM-DD format.',
+          },
         },
-        end_date: {
-          type: 'string',
-          description: 'End date in YYYY-MM-DD format.',
-        },
+        required: ['start_date', 'end_date'],
       },
-      required: ['start_date', 'end_date'],
     },
   },
 ];

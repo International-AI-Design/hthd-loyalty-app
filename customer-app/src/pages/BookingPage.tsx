@@ -151,17 +151,23 @@ export function BookingPage() {
   useEffect(() => {
     if (step === 1.5 && groomingSubServices.length === 0) {
       setIsLoadingSubServices(true);
-      bookingApi.getGroomingSubServices().then(({ data }) => {
-        if (data) setGroomingSubServices(data.subServices);
+      bookingApi.getGroomingSubServices().then(({ data, error }) => {
+        if (data?.subServices) {
+          setGroomingSubServices(data.subServices);
+        } else if (error) {
+          console.error('[BookingPage] grooming sub-services error:', error);
+          setError('Unable to load grooming services. Please try again.');
+        }
         setIsLoadingSubServices(false);
-      }).catch(() => {
+      }).catch((err) => {
+        console.error('[BookingPage] grooming sub-services fetch failed:', err);
         setIsLoadingSubServices(false);
         setError('Unable to load grooming services. Please try again.');
       });
     }
     if (step === 1.5 && groomingAddOns.length === 0) {
       groomingApi.getAddOns().then(({ data }) => {
-        if (data) setGroomingAddOns(data.addOns);
+        if (data?.addOns) setGroomingAddOns(data.addOns);
       }).catch(() => { /* non-critical */ });
     }
   }, [step, groomingSubServices.length, groomingAddOns.length]);

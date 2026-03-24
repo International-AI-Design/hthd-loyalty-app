@@ -85,7 +85,7 @@ export function AimActivity() {
           type: 'escalation',
           description: `Message escalated: ${name}`,
           timestamp: conv.lastMessageAt ?? conv.updatedAt ?? conv.createdAt ?? new Date().toISOString(),
-          link: `/messages?filter=escalated`,
+          link: `/messages?conv=${conv.id}`,
         });
       }
     }

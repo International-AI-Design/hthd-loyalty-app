@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { OrchestratorInput, OrchestratorOutput } from './types';
 import { buildContext, findOrCreateConversation, storeMessage } from './context';
 import { buildSystemPrompt } from './prompts';
@@ -6,7 +6,7 @@ import { TOOL_DEFINITIONS, executeTool } from './tools';
 import { logger } from '../../middleware/security';
 
 const MAX_TOOL_ROUNDS = 5;
-const MODEL = 'claude-sonnet-4-5-20250929';
+const MODEL = 'gpt-4o';
 const MAX_TOKENS = 1024;
 
 const FALLBACK_RESPONSE =
@@ -23,19 +23,16 @@ const ERROR_RESPONSE =
   'You can also visit https://hthd.internationalaidesign.com';
 
 /**
- * Creates the Anthropic client. Returns null if the API key is missing so the
+ * Creates the OpenAI client. Returns null if the API key is missing so the
  * orchestrator can fall back to a static reply.
  */
-function getClient(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+function getClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    logger.warn('ANTHROPIC_API_KEY not set — AI orchestrator disabled');
+    logger.warn('OPENAI_API_KEY not set — AI orchestrator disabled');
     return null;
   }
-  return new Anthropic({
-    apiKey,
-    ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
-  });
+  return new OpenAI({ apiKey });
 }
 
 /**
@@ -44,7 +41,7 @@ function getClient(): Anthropic | null {
  * 1. Loads customer context (dogs, bookings, wallet, history).
  * 2. Finds or creates a conversation record.
  * 3. Stores the inbound message.
- * 4. Calls Claude in a tool-use loop (max 5 rounds).
+ * 4. Calls GPT-4o in a tool-use loop (max 5 rounds).
  * 5. Stores the AI response and returns it.
  */
 export async function processMessage(
@@ -91,26 +88,31 @@ export async function processMessage(
   // ── 6. Build message history ──────────────────────────────────────────
   //   Recent messages from DB (already in chronological order) +
   //   the new inbound message at the end.
-  const messages: Anthropic.MessageParam[] = [];
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = [];
 
   for (const msg of context.recentMessages) {
     if (msg.role === 'customer') {
-      messages.push({ role: 'user', content: msg.content });
+      historyMessages.push({ role: 'user', content: msg.content });
     } else if (msg.role === 'assistant') {
-      messages.push({ role: 'assistant', content: msg.content });
+      historyMessages.push({ role: 'assistant', content: msg.content });
     }
     // Skip system/tool messages — they aren't part of the
-    // conversational history sent to Claude.
+    // conversational history sent to the model.
   }
 
   // Append the new inbound message
-  messages.push({ role: 'user', content: messageBody });
+  historyMessages.push({ role: 'user', content: messageBody });
 
-  // Claude requires strict user/assistant alternation and the first
-  // message must be from the user role.
-  const cleanedMessages = enforceAlternation(messages);
+  // Clean up consecutive same-role messages for best results.
+  const cleanedHistory = enforceAlternation(historyMessages);
 
-  // ── 7. Call Claude in a tool-use loop ─────────────────────────────────
+  // Prepend the system message
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...cleanedHistory,
+  ];
+
+  // ── 7. Call GPT-4o in a tool-use loop ─────────────────────────────────
   const toolsUsed: string[] = [];
   let rounds = 0;
 
@@ -118,35 +120,39 @@ export async function processMessage(
     while (rounds < MAX_TOOL_ROUNDS) {
       rounds++;
 
-      logger.info('AI orchestrator: calling Claude', {
+      logger.info('AI orchestrator: calling GPT-4o', {
         conversationId,
         round: rounds,
-        messageCount: cleanedMessages.length,
+        messageCount: messages.length,
       });
 
-      const response = await client.messages.create({
+      const response = await client.chat.completions.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: systemPrompt,
         tools: TOOL_DEFINITIONS,
-        messages: cleanedMessages,
+        messages,
       });
 
-      logger.info('AI orchestrator: Claude responded', {
+      const choice = response.choices[0];
+      const assistantMessage = choice.message;
+
+      logger.info('AI orchestrator: GPT-4o responded', {
         conversationId,
         round: rounds,
-        stopReason: response.stop_reason,
-        contentBlocks: response.content.length,
-        inputTokens: response.usage?.input_tokens,
-        outputTokens: response.usage?.output_tokens,
+        finishReason: choice.finish_reason,
+        toolCallCount: assistantMessage.tool_calls?.length ?? 0,
+        inputTokens: response.usage?.prompt_tokens,
+        outputTokens: response.usage?.completion_tokens,
       });
 
       // ── Final response (no more tools) ──────────────────────────────
       if (
-        response.stop_reason === 'end_turn' ||
-        response.stop_reason === 'max_tokens'
+        choice.finish_reason === 'stop' ||
+        choice.finish_reason === 'length'
       ) {
-        const responseText = extractText(response.content);
+        const responseText =
+          assistantMessage.content ||
+          "I'm sorry, I couldn't process that. Please try again or call us directly.";
         await storeMessage(conversationId, 'assistant', responseText, {
           modelUsed: MODEL,
           intent:
@@ -171,38 +177,44 @@ export async function processMessage(
       }
 
       // ── Tool use — execute tools and loop ───────────────────────────
-      if (response.stop_reason === 'tool_use') {
-        // Push the assistant's full response (text + tool_use blocks)
-        // into the conversation so Claude sees it on the next round.
-        cleanedMessages.push({
-          role: 'assistant',
-          content: response.content,
-        });
+      if (choice.finish_reason === 'tool_calls' && assistantMessage.tool_calls) {
+        // Push the assistant's full response (with tool_calls)
+        // into the conversation so the model sees it on the next round.
+        messages.push(assistantMessage);
 
-        // Execute every tool_use block and collect results
-        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+        // Execute every tool call and collect results
+        const toolCallNames: string[] = [];
 
-        for (const block of response.content) {
-          if (block.type !== 'tool_use') continue;
+        for (const toolCall of assistantMessage.tool_calls) {
+          if (toolCall.type !== 'function') continue;
 
-          toolsUsed.push(block.name);
+          const toolName = toolCall.function.name;
+          toolsUsed.push(toolName);
+          toolCallNames.push(toolName);
+
+          let toolInput: Record<string, unknown> = {};
+          try {
+            toolInput = JSON.parse(toolCall.function.arguments);
+          } catch {
+            // If argument parsing fails, pass empty object
+          }
 
           logger.info('AI orchestrator: executing tool', {
             conversationId,
-            tool: block.name,
-            input: block.input,
+            tool: toolName,
+            input: toolInput,
           });
 
           try {
             const result = await executeTool(
-              block.name,
-              block.input as Record<string, unknown>,
+              toolName,
+              toolInput,
               customerId,
               conversationId
             );
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
               content: JSON.stringify(result),
             });
           } catch (error: unknown) {
@@ -212,14 +224,13 @@ export async function processMessage(
                 : 'Tool execution failed';
             logger.error('AI orchestrator: tool execution error', {
               conversationId,
-              tool: block.name,
+              tool: toolName,
               error: errMsg,
             });
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
               content: JSON.stringify({ error: errMsg }),
-              is_error: true,
             });
           }
         }
@@ -228,12 +239,9 @@ export async function processMessage(
         await storeMessage(
           conversationId,
           'system',
-          `Tool calls: ${toolsUsed.join(', ')}`,
-          { toolCalls: toolResults, modelUsed: MODEL }
+          `Tool calls: ${toolCallNames.join(', ')}`,
+          { modelUsed: MODEL }
         );
-
-        // Feed tool results back so Claude can continue
-        cleanedMessages.push({ role: 'user', content: toolResults });
       }
     }
 
@@ -279,38 +287,18 @@ export async function processMessage(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Extract the final text from Claude's response content blocks.
- * If no text block is found, returns a graceful default.
- */
-function extractText(content: Anthropic.ContentBlock[]): string {
-  const parts: string[] = [];
-  for (const block of content) {
-    if (block.type === 'text' && block.text.length > 0) {
-      parts.push(block.text);
-    }
-  }
-  return (
-    parts.join('\n') ||
-    "I'm sorry, I couldn't process that. Please try again or call us directly."
-  );
-}
-
-/**
- * Enforce Claude's message history constraints:
+ * Enforce message history constraints:
  * - The first message must be from the `user` role.
- * - Messages must strictly alternate between `user` and `assistant`.
  * - Consecutive same-role text messages are merged with a newline.
  *
- * NOTE: This only applies to the initial history we build from the DB.
- * During the tool-use loop the messages will contain content block arrays
- * (tool_use / tool_result) that naturally satisfy the alternation rule.
+ * NOTE: The system message is added separately before this list.
  */
 function enforceAlternation(
-  messages: Anthropic.MessageParam[]
-): Anthropic.MessageParam[] {
+  messages: OpenAI.ChatCompletionMessageParam[]
+): OpenAI.ChatCompletionMessageParam[] {
   if (messages.length === 0) return [];
 
-  const cleaned: Anthropic.MessageParam[] = [];
+  const cleaned: OpenAI.ChatCompletionMessageParam[] = [];
 
   for (const msg of messages) {
     const last = cleaned[cleaned.length - 1];
@@ -322,11 +310,12 @@ function enforceAlternation(
       typeof last.content === 'string' &&
       typeof msg.content === 'string'
     ) {
-      last.content = last.content + '\n' + msg.content;
+      (last as { role: string; content: string }).content =
+        last.content + '\n' + msg.content;
       continue;
     }
 
-    cleaned.push({ role: msg.role, content: msg.content });
+    cleaned.push({ ...msg });
   }
 
   // Drop any leading assistant messages

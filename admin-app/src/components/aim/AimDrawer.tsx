@@ -1,9 +1,46 @@
-import { useEffect } from 'react';
+import { Component, useEffect } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { useAim } from '../../contexts/AimContext';
 import type { AimTab } from '../../contexts/AimContext';
 import { AimChat } from './AimChat';
 import { AimActivity } from './AimActivity';
 import { AimAlerts } from './AimAlerts';
+
+class AimErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[AIM] Drawer content error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <p className="text-sm font-medium text-[#1B365D]">Something went wrong</p>
+          <p className="text-xs text-gray-400 mt-1">Try closing and reopening AIM.</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-[#1B365D] rounded-lg hover:bg-[#1B365D]/90 transition-colors min-h-[32px]"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TABS: { key: AimTab; label: string }[] = [
   { key: 'chat', label: 'Chat' },
@@ -93,9 +130,11 @@ export function AimDrawer() {
 
         {/* Tab content */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {activeTab === 'chat' && <AimChat />}
-          {activeTab === 'activity' && <AimActivity />}
-          {activeTab === 'alerts' && <AimAlerts />}
+          <AimErrorBoundary>
+            {activeTab === 'chat' && <AimChat />}
+            {activeTab === 'activity' && <AimActivity />}
+            {activeTab === 'alerts' && <AimAlerts />}
+          </AimErrorBoundary>
         </div>
       </div>
     </>

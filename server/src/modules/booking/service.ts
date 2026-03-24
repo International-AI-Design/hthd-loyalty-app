@@ -193,6 +193,13 @@ export class BookingService {
 
     const bookingDate = new Date(date + 'T00:00:00Z');
 
+    // Validate booking date is not in the past
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (bookingDate < today) {
+      throw new BookingError('Booking date must be today or in the future', 400);
+    }
+
     // Calculate price outside transaction (read-only, no race risk)
     const totalCents = await this.calculatePrice(serviceType, dogIds.length, bookingDate);
 
@@ -302,6 +309,13 @@ export class BookingService {
 
     const start = new Date(startDate + 'T00:00:00Z');
     const end = new Date(endDate + 'T00:00:00Z');
+
+    // Validate start date is not in the past
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (start < today) {
+      throw new BookingError('Booking date must be today or in the future', 400);
+    }
 
     // Validate date range is reasonable (max 30 days)
     const daysDiff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -523,6 +537,10 @@ export class BookingService {
     if (booking.status === 'cancelled') {
       throw new BookingError('Booking is already cancelled', 400);
     }
+
+    // TODO: If points were earned for this booking, reverse them.
+    // Look up PointsTransaction records linked to this booking and create
+    // a negative adjustment transaction to claw back the points.
 
     return (prisma as any).booking.update({
       where: { id: bookingId },

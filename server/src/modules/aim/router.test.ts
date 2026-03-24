@@ -39,7 +39,7 @@ describe.skipIf(!canRun)('AIM Router — /api/v2/admin/aim', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ message: 'test' });
 
-    // Route exists — 200 if ANTHROPIC_API_KEY set, 500 if not, never 404
+    // Route exists — 200 if OPENAI_API_KEY set, 500 if not, never 404
     expect(res.status).not.toBe(404);
     expect([200, 500]).toContain(res.status);
   });

@@ -64,8 +64,11 @@ export function AimAlerts() {
   const fetchAlerts = useCallback(async () => {
     const result = await adminAimApi.getAlerts();
     if (result.data) {
-      // Show unread alerts (no readAt)
-      setAlerts((result.data.alerts ?? []).filter((a) => !a.readAt));
+      const SEVERITY_ORDER: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+      // Show unread alerts (no readAt), sorted by severity: critical > warning > info
+      const filtered = (result.data.alerts ?? []).filter((a) => !a.readAt);
+      filtered.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3));
+      setAlerts(filtered);
     }
     setIsLoading(false);
   }, []);
@@ -77,7 +80,7 @@ export function AimAlerts() {
   }, [fetchAlerts]);
 
   const handleDismiss = async (id: string) => {
-    await adminAimApi.markAlertRead(id);
+    await Promise.all([adminAimApi.markAlertRead(id), adminAimApi.resolveAlert(id)]);
     setAlerts((prev) => prev.filter((a) => a.id !== id));
     refreshAlertCount();
   };

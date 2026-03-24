@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { BookingService } from '../booking/service';
 import { WalletService } from '../wallet/service';
 import { prisma } from '../../lib/prisma';
@@ -7,125 +7,146 @@ import { logger } from '../../middleware/security';
 const bookingService = new BookingService();
 const walletService = new WalletService();
 
-// Tool definitions for Claude API
-export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
+// Tool definitions for OpenAI API
+export const TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
-    name: 'check_availability',
-    description: 'Check if a service (daycare, boarding, grooming) is available on specific dates. Always check before creating a booking.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        service_name: {
-          type: 'string',
-          description: 'The service type: daycare, boarding, or grooming',
-          enum: ['daycare', 'boarding', 'grooming'],
+    type: 'function',
+    function: {
+      name: 'check_availability',
+      description: 'Check if a service (daycare, boarding, grooming) is available on specific dates. Always check before creating a booking.',
+      parameters: {
+        type: 'object',
+        properties: {
+          service_name: {
+            type: 'string',
+            description: 'The service type: daycare, boarding, or grooming',
+            enum: ['daycare', 'boarding', 'grooming'],
+          },
+          start_date: {
+            type: 'string',
+            description: 'Start date in YYYY-MM-DD format',
+          },
+          end_date: {
+            type: 'string',
+            description: 'End date in YYYY-MM-DD format. Same as start_date for single-day bookings.',
+          },
         },
-        start_date: {
-          type: 'string',
-          description: 'Start date in YYYY-MM-DD format',
-        },
-        end_date: {
-          type: 'string',
-          description: 'End date in YYYY-MM-DD format. Same as start_date for single-day bookings.',
-        },
+        required: ['service_name', 'start_date', 'end_date'],
       },
-      required: ['service_name', 'start_date', 'end_date'],
     },
   },
   {
-    name: 'create_booking',
-    description: 'Create a booking for the customer. For boarding (multi-day), use start_date and end_date. For daycare/grooming, start_date and end_date should be the same. Always check availability first.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        service_name: {
-          type: 'string',
-          description: 'The service type: daycare, boarding, or grooming',
-          enum: ['daycare', 'boarding', 'grooming'],
+    type: 'function',
+    function: {
+      name: 'create_booking',
+      description: 'Create a booking for the customer. For boarding (multi-day), use start_date and end_date. For daycare/grooming, start_date and end_date should be the same. Always check availability first.',
+      parameters: {
+        type: 'object',
+        properties: {
+          service_name: {
+            type: 'string',
+            description: 'The service type: daycare, boarding, or grooming',
+            enum: ['daycare', 'boarding', 'grooming'],
+          },
+          start_date: {
+            type: 'string',
+            description: 'Start date in YYYY-MM-DD format',
+          },
+          end_date: {
+            type: 'string',
+            description: 'End date in YYYY-MM-DD format',
+          },
+          dog_names: {
+            type: 'array',
+            description: 'Names of the dogs to book for. Must match dogs on file.',
+            items: { type: 'string' },
+          },
+          notes: {
+            type: 'string',
+            description: 'Optional notes for the booking',
+          },
         },
-        start_date: {
-          type: 'string',
-          description: 'Start date in YYYY-MM-DD format',
-        },
-        end_date: {
-          type: 'string',
-          description: 'End date in YYYY-MM-DD format',
-        },
-        dog_names: {
-          type: 'array',
-          description: 'Names of the dogs to book for. Must match dogs on file.',
-          items: { type: 'string' },
-        },
-        notes: {
-          type: 'string',
-          description: 'Optional notes for the booking',
-        },
+        required: ['service_name', 'start_date', 'end_date', 'dog_names'],
       },
-      required: ['service_name', 'start_date', 'end_date', 'dog_names'],
     },
   },
   {
-    name: 'get_my_bookings',
-    description: 'Get the customer\'s upcoming bookings.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        include_past: {
-          type: 'boolean',
-          description: 'Whether to include past/completed bookings. Defaults to false (upcoming only).',
+    type: 'function',
+    function: {
+      name: 'get_my_bookings',
+      description: 'Get the customer\'s upcoming bookings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          include_past: {
+            type: 'boolean',
+            description: 'Whether to include past/completed bookings. Defaults to false (upcoming only).',
+          },
         },
+        required: [],
       },
-      required: [],
     },
   },
   {
-    name: 'cancel_booking',
-    description: 'Cancel a booking by ID. Remind the customer about the 24-hour cancellation policy.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        booking_id: {
-          type: 'string',
-          description: 'The booking ID to cancel',
+    type: 'function',
+    function: {
+      name: 'cancel_booking',
+      description: 'Cancel a booking by ID. Remind the customer about the 24-hour cancellation policy.',
+      parameters: {
+        type: 'object',
+        properties: {
+          booking_id: {
+            type: 'string',
+            description: 'The booking ID to cancel',
+          },
+          reason: {
+            type: 'string',
+            description: 'Reason for cancellation',
+          },
         },
-        reason: {
-          type: 'string',
-          description: 'Reason for cancellation',
-        },
+        required: ['booking_id'],
       },
-      required: ['booking_id'],
     },
   },
   {
-    name: 'get_wallet_balance',
-    description: 'Check the customer\'s wallet balance and loyalty points.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'get_services_and_pricing',
-    description: 'Get the list of available services and their base pricing.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'escalate_to_staff',
-    description: 'Escalate the conversation to a human staff member. Use this when the customer asks to speak to a person, manager, or staff member, or when you cannot resolve their issue and they need human help. This flags the conversation for immediate staff attention.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        reason: {
-          type: 'string',
-          description: 'Brief reason for escalation',
-        },
+    type: 'function',
+    function: {
+      name: 'get_wallet_balance',
+      description: 'Check the customer\'s wallet balance and loyalty points.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
       },
-      required: ['reason'],
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_services_and_pricing',
+      description: 'Get the list of available services and their base pricing.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'escalate_to_staff',
+      description: 'Escalate the conversation to a human staff member. Use this when the customer asks to speak to a person, manager, or staff member, or when you cannot resolve their issue and they need human help. This flags the conversation for immediate staff attention.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: {
+            type: 'string',
+            description: 'Brief reason for escalation',
+          },
+        },
+        required: ['reason'],
+      },
     },
   },
 ];

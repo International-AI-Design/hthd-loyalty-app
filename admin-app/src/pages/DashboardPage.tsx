@@ -208,10 +208,12 @@ export function DashboardPage() {
     setSelectedDate(formatDate(new Date()));
   };
 
-  const capacityPct = facility && facility.capacity > 0 ? Math.round((facility.totalDogs / facility.capacity) * 100) : 0;
+  const totalDogs = Number(facility?.totalDogs) || 0;
+  const capacity = Number(facility?.capacity) || 0;
+  const capacityPct = capacity > 0 ? Math.round((totalDogs / capacity) * 100) : 0;
 
   const staffDogRatio = facility && staffOnDuty.length > 0
-    ? `1:${Math.round(facility.totalDogs / staffOnDuty.length)}`
+    ? `1:${Math.round(totalDogs / staffOnDuty.length)}`
     : '--';
 
   // Role breakdown

@@ -200,6 +200,7 @@ export function MessagingPage() {
   const [isCreating, setIsCreating]                 = useState(false);
   const [messageInput, setMessageInput]             = useState('');
   const [error, setError]                           = useState<string | null>(null);
+  const [lastFailedMessage, setLastFailedMessage]   = useState<string | null>(null);
   const [isAiTyping, setIsAiTyping]                 = useState(false);
   const [showQuickReplies, setShowQuickReplies]     = useState(true);
   /** Float-away paw flair on send */
@@ -222,9 +223,16 @@ export function MessagingPage() {
     } else if (data) {
       const convos = Array.isArray(data) ? data : (data as any).conversations || [];
       setConversations(convos);
-      const active = convos.find((c: Conversation) => c.status === 'active' || c.status === 'escalated');
-      if (active && !activeConversationId) {
-        setActiveConversationId(active.id);
+      if (!activeConversationId) {
+        if (convos.length === 1) {
+          // Auto-select when there's only one conversation
+          setActiveConversationId(convos[0].id);
+        } else {
+          const active = convos.find((c: Conversation) => c.status === 'active' || c.status === 'escalated');
+          if (active) {
+            setActiveConversationId(active.id);
+          }
+        }
       }
     }
     setIsLoadingConversations(false);
@@ -239,7 +247,9 @@ export function MessagingPage() {
       const rawMsgs = Array.isArray(data) ? data : (data as any).messages || [];
       const msgs = rawMsgs.map(normalizeMessage);
       setMessages(msgs);
-      if (msgs.length > 0) setShowQuickReplies(false);
+      // Hide quick replies once the customer has sent 2+ messages
+      const customerMsgCount = msgs.filter((m: Message) => m.senderType === 'customer').length;
+      if (customerMsgCount >= 2) setShowQuickReplies(false);
     }
     setIsLoadingMessages(false);
   }, []);
@@ -354,6 +364,7 @@ export function MessagingPage() {
       setError(sendErr === 'Conversation is closed'
         ? 'This conversation has been closed. Tap "Start New Conversation" to continue.'
         : sendErr);
+      setLastFailedMessage(text);
       setIsAiTyping(false);
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     } else {
@@ -681,7 +692,7 @@ export function MessagingPage() {
       </div>
 
       {/* ── Quick replies ── */}
-      {showQuickReplies && messages.length <= 4 && (
+      {showQuickReplies && messages.filter(m => m.senderType === 'customer').length < 2 && (
         <div className="bg-white/80 backdrop-blur-sm border-t border-brand-sand/30 px-4 py-3 flex-shrink-0">
           <div className="max-w-lg mx-auto">
             <p className="text-xs text-brand-forest-muted mb-2 font-medium">🐾 Quick replies</p>
@@ -710,15 +721,30 @@ export function MessagingPage() {
       {error && (
         <div className="bg-brand-error/10 border-t border-brand-error/20 px-4 py-2 flex-shrink-0">
           <div className="max-w-lg mx-auto flex items-center justify-between">
-            <p className="text-sm text-brand-error">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="text-brand-error min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <p className="text-sm text-brand-error flex-1">{error}</p>
+            <div className="flex items-center gap-1">
+              {lastFailedMessage && (
+                <button
+                  onClick={() => {
+                    const msg = lastFailedMessage;
+                    setLastFailedMessage(null);
+                    setError(null);
+                    handleSendMessage(msg);
+                  }}
+                  className="text-brand-error font-medium text-sm min-h-[44px] px-3 flex items-center justify-center hover:bg-brand-error/10 rounded-lg transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                onClick={() => { setError(null); setLastFailedMessage(null); }}
+                className="text-brand-error min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}

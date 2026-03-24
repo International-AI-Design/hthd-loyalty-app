@@ -148,7 +148,7 @@ router.post('/me/dogs', authenticateCustomer, async (req, res: Response): Promis
   try {
     const customerReq = req as AuthenticatedCustomerRequest;
     const customerId = customerReq.customer.id;
-    const { name, breed, birthDate, notes, sizeCategory } = req.body;
+    const { name, breed, birthDate, notes, sizeCategory, weight, temperament, isNeutered } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       res.status(400).json({ error: 'name is required' });
@@ -156,6 +156,7 @@ router.post('/me/dogs', authenticateCustomer, async (req, res: Response): Promis
     }
 
     const validSizes = ['small', 'medium', 'large', 'xl'];
+    const validTemperaments = ['calm', 'energetic', 'anxious', 'friendly', 'reactive'];
     const data: Record<string, unknown> = {
       name: name.trim(),
       breed: breed || null,
@@ -165,6 +166,15 @@ router.post('/me/dogs', authenticateCustomer, async (req, res: Response): Promis
     };
     if (sizeCategory && validSizes.includes(sizeCategory)) {
       data.sizeCategory = sizeCategory;
+    }
+    if (weight !== undefined && weight !== null && typeof weight === 'number' && weight > 0) {
+      data.weight = weight;
+    }
+    if (temperament && validTemperaments.includes(temperament)) {
+      data.temperament = temperament;
+    }
+    if (typeof isNeutered === 'boolean') {
+      data.isNeutered = isNeutered;
     }
 
     const dog = await prisma.dog.create({ data: data as any });
@@ -176,9 +186,96 @@ router.post('/me/dogs', authenticateCustomer, async (req, res: Response): Promis
       birth_date: dog.birthDate?.toISOString() || null,
       notes: dog.notes,
       size_category: dog.sizeCategory || null,
+      weight: dog.weight ? Number(dog.weight) : null,
+      temperament: dog.temperament || null,
+      is_neutered: dog.isNeutered,
     });
   } catch (error) {
     console.error('Create dog error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/customers/me/dogs/:id - Update a dog
+router.patch('/me/dogs/:id', authenticateCustomer, async (req, res: Response): Promise<void> => {
+  try {
+    const customerReq = req as AuthenticatedCustomerRequest;
+    const customerId = customerReq.customer.id;
+    const dogId = req.params.id as string;
+
+    // Verify ownership
+    const existing = await prisma.dog.findFirst({
+      where: { id: dogId, customerId },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Dog not found' });
+      return;
+    }
+
+    const { name, breed, birthDate, weight, temperament, sizeCategory, isNeutered, notes } = req.body;
+
+    const validSizes = ['small', 'medium', 'large', 'xl'];
+    const validTemperaments = ['calm', 'energetic', 'anxious', 'friendly', 'reactive'];
+    const updateData: Record<string, unknown> = {};
+
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        res.status(400).json({ error: 'name must be a non-empty string' });
+        return;
+      }
+      updateData.name = name.trim();
+    }
+    if (breed !== undefined) updateData.breed = breed || null;
+    if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null;
+    if (notes !== undefined) updateData.notes = notes || null;
+    if (sizeCategory !== undefined) {
+      if (sizeCategory !== null && !validSizes.includes(sizeCategory)) {
+        res.status(400).json({ error: `sizeCategory must be one of: ${validSizes.join(', ')}` });
+        return;
+      }
+      updateData.sizeCategory = sizeCategory;
+    }
+    if (weight !== undefined) {
+      if (weight !== null && (typeof weight !== 'number' || weight <= 0)) {
+        res.status(400).json({ error: 'weight must be a positive number' });
+        return;
+      }
+      updateData.weight = weight;
+    }
+    if (temperament !== undefined) {
+      if (temperament !== null && !validTemperaments.includes(temperament)) {
+        res.status(400).json({ error: `temperament must be one of: ${validTemperaments.join(', ')}` });
+        return;
+      }
+      updateData.temperament = temperament;
+    }
+    if (typeof isNeutered === 'boolean') {
+      updateData.isNeutered = isNeutered;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
+    const dog = await prisma.dog.update({
+      where: { id: dogId },
+      data: updateData as any,
+    });
+
+    res.status(200).json({
+      id: dog.id,
+      name: dog.name,
+      breed: dog.breed,
+      birth_date: dog.birthDate?.toISOString() || null,
+      notes: dog.notes,
+      size_category: dog.sizeCategory || null,
+      weight: dog.weight ? Number(dog.weight) : null,
+      temperament: dog.temperament || null,
+      is_neutered: dog.isNeutered,
+    });
+  } catch (error) {
+    console.error('Update dog error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { AimChatInput, AimChatOutput } from './types';
 import { buildAimSystemPrompt } from './prompts';
 import { AIM_TOOL_DEFINITIONS, executeAimTool } from './tools';
@@ -7,11 +7,11 @@ import { prisma } from '../../lib/prisma';
 import { logger } from '../../middleware/security';
 
 const MAX_TOOL_ROUNDS = 5;
-const MODEL = 'claude-sonnet-4-5-20250929';
+const MODEL = 'gpt-4o';
 const MAX_TOKENS = 2048;
 
 const FALLBACK_RESPONSE =
-  'AIM is currently offline — the ANTHROPIC_API_KEY is not configured. ' +
+  'AIM is currently offline — the OPENAI_API_KEY is not configured. ' +
   'Please contact your system administrator.';
 
 const MAX_ROUNDS_RESPONSE =
@@ -23,18 +23,13 @@ const ERROR_RESPONSE =
 
 const dashboardService = new DashboardService();
 
-function getClient(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+function getClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    logger.warn('ANTHROPIC_API_KEY not set — AIM disabled');
+    logger.warn('OPENAI_API_KEY not set — AIM disabled');
     return null;
   }
-  return new Anthropic({
-    apiKey,
-    ...(process.env.DATASOV_ADAPTER_URL && {
-      baseURL: process.env.DATASOV_ADAPTER_URL,
-    }),
-  });
+  return new OpenAI({ apiKey });
 }
 
 /**
@@ -123,18 +118,24 @@ export async function processAimMessage(
     take: 40,
   });
 
-  const messages: Anthropic.MessageParam[] = [];
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = [];
   for (const msg of recentMessages) {
     if (msg.role === 'user') {
-      messages.push({ role: 'user', content: msg.content });
+      historyMessages.push({ role: 'user', content: msg.content });
     } else if (msg.role === 'assistant') {
-      messages.push({ role: 'assistant', content: msg.content });
+      historyMessages.push({ role: 'assistant', content: msg.content });
     }
   }
 
-  const cleanedMessages = enforceAlternation(messages);
+  const cleanedHistory = enforceAlternation(historyMessages);
 
-  // ── 7. Call Claude in a tool-use loop ───────────────────────────────
+  // Prepend the system message
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...cleanedHistory,
+  ];
+
+  // ── 7. Call GPT-4o in a tool-use loop ─────────────────────────────
   const toolsUsed: string[] = [];
   let rounds = 0;
 
@@ -142,34 +143,38 @@ export async function processAimMessage(
     while (rounds < MAX_TOOL_ROUNDS) {
       rounds++;
 
-      logger.info('AIM: calling Claude', {
+      logger.info('AIM: calling GPT-4o', {
         conversationId,
         round: rounds,
-        messageCount: cleanedMessages.length,
+        messageCount: messages.length,
       });
 
-      const response = await client.messages.create({
+      const response = await client.chat.completions.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: systemPrompt,
         tools: AIM_TOOL_DEFINITIONS,
-        messages: cleanedMessages,
+        messages,
       });
 
-      logger.info('AIM: Claude responded', {
+      const choice = response.choices[0];
+      const assistantMessage = choice.message;
+
+      logger.info('AIM: GPT-4o responded', {
         conversationId,
         round: rounds,
-        stopReason: response.stop_reason,
-        inputTokens: response.usage?.input_tokens,
-        outputTokens: response.usage?.output_tokens,
+        finishReason: choice.finish_reason,
+        inputTokens: response.usage?.prompt_tokens,
+        outputTokens: response.usage?.completion_tokens,
       });
 
       // ── Final response (no more tools) ────────────────────────────
       if (
-        response.stop_reason === 'end_turn' ||
-        response.stop_reason === 'max_tokens'
+        choice.finish_reason === 'stop' ||
+        choice.finish_reason === 'length'
       ) {
-        const responseText = extractText(response.content);
+        const responseText =
+          assistantMessage.content ||
+          "I couldn't generate a response. Please try again.";
         await storeAimResponse(conversationId, responseText, MODEL, toolsUsed);
 
         const elapsed = Date.now() - startTime;
@@ -190,33 +195,33 @@ export async function processAimMessage(
       }
 
       // ── Tool use — execute tools and loop ─────────────────────────
-      if (response.stop_reason === 'tool_use') {
-        cleanedMessages.push({
-          role: 'assistant',
-          content: response.content,
-        });
+      if (choice.finish_reason === 'tool_calls' && assistantMessage.tool_calls) {
+        // Push the assistant message (with tool_calls) into conversation
+        messages.push(assistantMessage);
 
-        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+        for (const toolCall of assistantMessage.tool_calls) {
+          if (toolCall.type !== 'function') continue;
+          const toolName = toolCall.function.name;
+          toolsUsed.push(toolName);
 
-        for (const block of response.content) {
-          if (block.type !== 'tool_use') continue;
-
-          toolsUsed.push(block.name);
+          let toolInput: Record<string, unknown> = {};
+          try {
+            toolInput = JSON.parse(toolCall.function.arguments);
+          } catch {
+            // If argument parsing fails, pass empty object
+          }
 
           logger.info('AIM: executing tool', {
             conversationId,
-            tool: block.name,
-            input: block.input,
+            tool: toolName,
+            input: toolInput,
           });
 
           try {
-            const result = await executeAimTool(
-              block.name,
-              block.input as Record<string, unknown>
-            );
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+            const result = await executeAimTool(toolName, toolInput);
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
               content: JSON.stringify(result),
             });
           } catch (error: unknown) {
@@ -226,19 +231,16 @@ export async function processAimMessage(
                 : 'Tool execution failed';
             logger.error('AIM: tool execution error', {
               conversationId,
-              tool: block.name,
+              tool: toolName,
               error: errMsg,
             });
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
               content: JSON.stringify({ error: errMsg }),
-              is_error: true,
             });
           }
         }
-
-        cleanedMessages.push({ role: 'user', content: toolResults });
       }
     }
 
@@ -306,25 +308,19 @@ async function storeAimResponse(
   });
 }
 
-function extractText(content: Anthropic.ContentBlock[]): string {
-  const parts: string[] = [];
-  for (const block of content) {
-    if (block.type === 'text' && block.text.length > 0) {
-      parts.push(block.text);
-    }
-  }
-  return (
-    parts.join('\n') ||
-    "I couldn't generate a response. Please try again."
-  );
-}
-
+/**
+ * Enforce message history constraints for OpenAI:
+ * - Messages must start with a user message.
+ * - Consecutive same-role text messages are merged.
+ *
+ * NOTE: The system message is added separately before this list.
+ */
 function enforceAlternation(
-  messages: Anthropic.MessageParam[]
-): Anthropic.MessageParam[] {
+  messages: OpenAI.ChatCompletionMessageParam[]
+): OpenAI.ChatCompletionMessageParam[] {
   if (messages.length === 0) return [];
 
-  const cleaned: Anthropic.MessageParam[] = [];
+  const cleaned: OpenAI.ChatCompletionMessageParam[] = [];
 
   for (const msg of messages) {
     const last = cleaned[cleaned.length - 1];
@@ -335,13 +331,15 @@ function enforceAlternation(
       typeof last.content === 'string' &&
       typeof msg.content === 'string'
     ) {
-      last.content = last.content + '\n' + msg.content;
+      (last as { role: string; content: string }).content =
+        last.content + '\n' + msg.content;
       continue;
     }
 
-    cleaned.push({ role: msg.role, content: msg.content });
+    cleaned.push({ ...msg });
   }
 
+  // Drop any leading assistant messages
   while (cleaned.length > 0 && cleaned[0].role !== 'user') {
     cleaned.shift();
   }

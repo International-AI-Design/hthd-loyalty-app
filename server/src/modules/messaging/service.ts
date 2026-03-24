@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { prisma } from '../../lib/prisma';
 import { ConversationFilter, MessageListParams } from './types';
 import { TOOL_DEFINITIONS, executeTool } from '../ai/tools';
@@ -41,6 +41,25 @@ export class MessagingService {
         messages: true,
       },
     });
+
+    // Add an automatic welcome message so the customer doesn't see an empty chat
+    const greeting = await (prisma as any).message.create({
+      data: {
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: "Hi! \u{1F44B} I'm Happy Tail's assistant. How can I help you today? I can answer questions about your bookings, services, or account.",
+        channel: 'web_chat',
+        modelUsed: 'system',
+      },
+    });
+
+    await (prisma as any).conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: new Date() },
+    });
+
+    // Return conversation with the greeting message included
+    conversation.messages = [greeting];
 
     return conversation;
   }
@@ -93,7 +112,7 @@ export class MessagingService {
 
   /**
    * Background AI generation — runs after sendMessage returns.
-   * Always resolves (never throws): worst case saves the fallback message.
+   * Always resolves (never throws): worst case saves an intelligent fallback message.
    * Hard 45-second timeout ensures a response is ALWAYS saved.
    */
   private async generateAndSaveAIResponse(
@@ -101,9 +120,9 @@ export class MessagingService {
     customerId: string
   ): Promise<void> {
     const HARD_TIMEOUT_MS = 45_000;
-    const FALLBACK = "Thanks for your message! A team member will be with you shortly.";
 
     let aiContent: string;
+    let modelUsed = 'gpt-4o-mini';
     try {
       logger.info('[AI Background] Starting generation', { conversationId, customerId });
 
@@ -116,11 +135,12 @@ export class MessagingService {
 
       logger.info('[AI Background] Generation complete', { conversationId, length: aiContent.length });
     } catch (err) {
-      logger.error('[AI Background] Generation failed, saving fallback', {
+      logger.error('[AI Background] Generation failed, building smart fallback', {
         conversationId,
         error: err instanceof Error ? err.message : String(err),
       });
-      aiContent = FALLBACK;
+      aiContent = await this.buildSmartFallback(conversationId, customerId);
+      modelUsed = 'fallback';
     }
 
     try {
@@ -130,7 +150,7 @@ export class MessagingService {
           role: 'assistant',
           content: aiContent,
           channel: 'web_chat',
-          modelUsed: 'haiku',
+          modelUsed,
         },
       });
       await (prisma as any).conversation.update({
@@ -409,10 +429,10 @@ export class MessagingService {
   }
 
   /**
-   * Generate an AI response using Claude Haiku with tool access.
+   * Generate an AI response using OpenAI GPT-4o-mini with tool access.
    * Builds full customer context, uses the web chat system prompt,
-   * and loops on tool_use responses (max 3 rounds).
-   * Falls back to a polite message if API key is missing or call fails.
+   * and loops on tool_calls responses (max 3 rounds).
+   * Throws on failure so generateAndSaveAIResponse can use the smart fallback.
    */
   private async getAIResponse(
     conversationId: string,
@@ -420,114 +440,249 @@ export class MessagingService {
   ): Promise<string> {
     const MAX_TOOL_ROUNDS = 3;
 
-    try {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        logger.warn('[WebChat AI] No ANTHROPIC_API_KEY set', { conversationId });
-        return "Thanks for your message! A team member will be with you shortly.";
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      logger.error(
+        '[WebChat AI] OPENAI_API_KEY is NOT set. Customer chat AI is disabled. ' +
+        'Set this env var in Railway (production) or .env (local) to enable AI responses.',
+        { conversationId }
+      );
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+
+    // Build full customer context and system prompt
+    logger.info('[WebChat AI] Building context', { conversationId, customerId });
+    const context = await buildContextForCustomerId(customerId);
+    const systemPrompt = buildWebChatSystemPrompt(context);
+
+    // Load conversation history from DB
+    const history = await (prisma as any).message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+      select: { role: true, content: true },
+    });
+
+    // Build messages array for OpenAI format
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    for (const msg of history) {
+      const role = msg.role === 'customer' ? 'user' as const : 'assistant' as const;
+      const last = messages[messages.length - 1];
+      if (last && last.role === role && typeof last.content === 'string' && typeof msg.content === 'string') {
+        last.content = last.content + '\n' + msg.content;
+      } else {
+        messages.push({ role, content: msg.content });
       }
+    }
 
-      // Build full customer context and system prompt
-      logger.info('[WebChat AI] Building context', { conversationId, customerId });
-      const context = await buildContextForCustomerId(customerId);
-      const systemPrompt = buildWebChatSystemPrompt(context);
+    // Check if there are any user messages (beyond the system message)
+    const hasUserMessage = messages.some(m => m.role === 'user');
+    if (!hasUserMessage) {
+      return "Hi there! How can I help you today?";
+    }
 
-      // Load conversation history from DB
-      const history = await (prisma as any).message.findMany({
-        where: { conversationId },
-        orderBy: { createdAt: 'asc' },
-        select: { role: true, content: true },
+    logger.info('[WebChat AI] Calling OpenAI API', { conversationId, historyLength: messages.length });
+
+    const client = new OpenAI({
+      apiKey,
+      timeout: 20_000, // 20 second max per API call
+    });
+    let rounds = 0;
+
+    while (rounds < MAX_TOOL_ROUNDS) {
+      rounds++;
+
+      const response = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 800,
+        messages,
+        tools: TOOL_DEFINITIONS,
       });
 
-      // Build messages array with user/assistant alternation
-      const messages: Anthropic.MessageParam[] = [];
-      for (const msg of history) {
-        const role = msg.role === 'customer' ? 'user' as const : 'assistant' as const;
-        const last = messages[messages.length - 1];
-        if (last && last.role === role && typeof last.content === 'string' && typeof msg.content === 'string') {
-          last.content = last.content + '\n' + msg.content;
-        } else {
-          messages.push({ role, content: msg.content });
-        }
+      const choice = response.choices[0];
+      const finishReason = choice.finish_reason;
+
+      logger.info('[WebChat AI] API response received', { conversationId, round: rounds, finishReason });
+
+      // Final text response
+      if (finishReason === 'stop' || finishReason === 'length') {
+        return choice.message.content || "I'll connect you with a team member.";
       }
 
-      // Ensure first message is from user
-      while (messages.length > 0 && messages[0].role !== 'user') {
-        messages.shift();
-      }
+      // Tool calls — execute and loop
+      if (finishReason === 'tool_calls' && choice.message.tool_calls) {
+        // Push the assistant message (contains tool_calls)
+        messages.push(choice.message);
 
-      if (messages.length === 0) {
-        return "Hi there! How can I help you today?";
-      }
-
-      logger.info('[WebChat AI] Calling Anthropic API', { conversationId, historyLength: messages.length });
-
-      const client = new Anthropic({
-        apiKey,
-        timeout: 20_000, // 20 second max per API call
-        ...(process.env.DATASOV_ADAPTER_URL && { baseURL: process.env.DATASOV_ADAPTER_URL }),
-      });
-      let rounds = 0;
-
-      while (rounds < MAX_TOOL_ROUNDS) {
-        rounds++;
-
-        const response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 800,
-          system: systemPrompt,
-          tools: TOOL_DEFINITIONS,
-          messages,
-        });
-
-        logger.info('[WebChat AI] API response received', { conversationId, round: rounds, stopReason: response.stop_reason });
-
-        // Final text response
-        if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
-          const textBlocks = response.content.filter((b): b is Anthropic.TextBlock => b.type === 'text');
-          return textBlocks.map(b => b.text).join('\n') || "I'll connect you with a team member.";
-        }
-
-        // Tool use — execute and loop
-        if (response.stop_reason === 'tool_use') {
-          messages.push({ role: 'assistant', content: response.content });
-
-          const toolResults: Anthropic.ToolResultBlockParam[] = [];
-          for (const block of response.content) {
-            if (block.type !== 'tool_use') continue;
-
-            try {
-              const result = await executeTool(
-                block.name,
-                block.input as Record<string, unknown>,
-                customerId,
-                conversationId
-              );
-              toolResults.push({
-                type: 'tool_result',
-                tool_use_id: block.id,
-                content: JSON.stringify(result),
-              });
-            } catch (error: unknown) {
-              const errMsg = error instanceof Error ? error.message : 'Tool execution failed';
-              toolResults.push({
-                type: 'tool_result',
-                tool_use_id: block.id,
-                content: JSON.stringify({ error: errMsg }),
-                is_error: true,
-              });
-            }
+        for (const toolCall of choice.message.tool_calls) {
+          if (toolCall.type !== 'function') continue;
+          const toolName = toolCall.function.name;
+          let toolInput: Record<string, unknown>;
+          try {
+            toolInput = JSON.parse(toolCall.function.arguments);
+          } catch {
+            toolInput = {};
           }
 
-          messages.push({ role: 'user', content: toolResults });
+          try {
+            const result = await executeTool(
+              toolName,
+              toolInput,
+              customerId,
+              conversationId
+            );
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify(result),
+            });
+          } catch (error: unknown) {
+            const errMsg = error instanceof Error ? error.message : 'Tool execution failed';
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ error: errMsg }),
+            });
+          }
         }
       }
+    }
 
-      // Exceeded max rounds
-      return "I'm working on that but it's taking a bit longer than expected. Let me connect you with our team for help.";
+    // Exceeded max rounds
+    return "I'm working on that but it's taking a bit longer than expected. Let me connect you with our team for help.";
+  }
+
+  /**
+   * Build a context-aware fallback message when the AI is unavailable.
+   * Instead of a generic "A team member will be with you shortly", this
+   * analyzes the customer's last message and provides a helpful response
+   * with relevant info (hours, phone, services) based on simple keyword matching.
+   */
+  private async buildSmartFallback(
+    conversationId: string,
+    customerId: string
+  ): Promise<string> {
+    try {
+      // Get the customer's last message to understand intent
+      const lastMessage = await (prisma as any).message.findFirst({
+        where: { conversationId, role: 'customer' },
+        orderBy: { createdAt: 'desc' },
+        select: { content: true },
+      });
+
+      const msgText = (lastMessage?.content ?? '').toLowerCase();
+
+      // Get customer name for personalization
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { firstName: true },
+      });
+      const name = customer?.firstName ?? '';
+      const greeting = name ? `Hi ${name}! ` : 'Hi there! ';
+
+      // Keyword-based intent detection for contextual fallback
+      if (/book|reserv|appoint|schedul|daycare|boarding|groom/i.test(msgText)) {
+        return (
+          greeting +
+          "I'd love to help you with a booking! Our team is reviewing your request now. " +
+          'In the meantime, you can also book directly through the app or call us at **(720) 654-8384**.\n\n' +
+          '**Hours:** Mon-Fri 7 AM - 7 PM, Sat-Sun 7 AM - 6:30 PM\n' +
+          '**Grooming:** Tue-Sat 9 AM - 4 PM'
+        );
+      }
+
+      if (/cancel/i.test(msgText)) {
+        return (
+          greeting +
+          'I see you have a question about cancellations. A team member will review this shortly. ' +
+          'For urgent cancellations, please call us directly at **(720) 654-8384**.\n\n' +
+          '**Cancellation policy:** Boarding deposits are non-refundable unless cancelled 48+ hours ahead.'
+        );
+      }
+
+      if (/price|pric|cost|how much|rate|fee/i.test(msgText)) {
+        return (
+          greeting +
+          "Great question about pricing! Here's a quick overview:\n\n" +
+          '- **Daycare:** $47/day (packages available)\n' +
+          '- **Boarding:** $70/night\n' +
+          '- **Grooming:** Starting at $48 (varies by size)\n\n' +
+          'For detailed pricing or package deals, call us at **(720) 654-8384** or check the app!'
+        );
+      }
+
+      if (/hour|open|close|when/i.test(msgText)) {
+        return (
+          greeting +
+          "Here are our hours:\n\n" +
+          '- **Mon-Fri:** 7:00 AM - 7:00 PM\n' +
+          '- **Sat-Sun:** 7:00 AM - 6:30 PM\n' +
+          '- **Grooming:** Tue-Sat 9:00 AM - 4:00 PM\n\n' +
+          '**Address:** 4352 Cherokee St, Denver, CO 80216\n' +
+          '**Phone:** (720) 654-8384'
+        );
+      }
+
+      if (/point|reward|loyal|wallet|balance/i.test(msgText)) {
+        return (
+          greeting +
+          'You can check your loyalty points and wallet balance in the **Wallet** section of the app. ' +
+          "If you're having trouble, a team member will be with you shortly to help!\n\n" +
+          '**Loyalty program:** Earn 1 point per $1 spent (1.5x for grooming). Redeem at 100, 250, or 500 points.'
+        );
+      }
+
+      if (/vacc|shot|record|rabies|bordetella/i.test(msgText)) {
+        return (
+          greeting +
+          "For vaccination questions, here's what we require:\n\n" +
+          '- **Rabies** (must be current)\n' +
+          '- **Bordetella** (every 6 months)\n' +
+          '- **DHLPP** (must be current)\n\n' +
+          'Records must be uploaded before your first visit. Need help? Call us at **(720) 654-8384**.'
+        );
+      }
+
+      if (/help|human|staff|person|manager|speak|talk/i.test(msgText)) {
+        // Escalate the conversation so staff sees it
+        try {
+          await (prisma as any).conversation.update({
+            where: { id: conversationId },
+            data: { status: 'escalated' },
+          });
+        } catch {
+          // Non-critical — continue with the response
+        }
+        return (
+          greeting +
+          "I've flagged your conversation for our team. A staff member will be with you shortly!\n\n" +
+          'For immediate help, you can also call us at **(720) 654-8384**.\n' +
+          '**Hours:** Mon-Fri 7 AM - 7 PM, Sat-Sun 7 AM - 6:30 PM'
+        );
+      }
+
+      // Default fallback — still better than the old static message
+      return (
+        greeting +
+        "Thanks for reaching out! Our AI assistant is temporarily unavailable, " +
+        'but a team member has been notified and will respond shortly.\n\n' +
+        'In the meantime, here are some quick links:\n' +
+        '- **Book a service** through the app\n' +
+        '- **Call us:** (720) 654-8384\n' +
+        '- **Hours:** Mon-Fri 7 AM - 7 PM, Sat-Sun 7 AM - 6:30 PM'
+      );
     } catch (err) {
-      logger.error('[WebChat AI Error]', { conversationId, error: err instanceof Error ? err.message : String(err) });
-      return "Thanks for your message! A team member will be with you shortly.";
+      logger.error('[SmartFallback] Failed to build smart fallback', {
+        conversationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Ultimate fallback — still better than the old one
+      return (
+        "Thanks for reaching out to Happy Tail Happy Dog! Our AI assistant is temporarily " +
+        "unavailable, but a team member has been notified. You can also call us at (720) 654-8384."
+      );
     }
   }
 }

@@ -15,7 +15,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "seed:grooming": "npx tsx prisma/seed-grooming.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -39,6 +40,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "neverthrow": "^8.2.0",
+    "openai": "^6.32.0",
     "pg": "^8.16.3",
     "resend": "^6.8.0",
     "stripe": "^20.4.0",

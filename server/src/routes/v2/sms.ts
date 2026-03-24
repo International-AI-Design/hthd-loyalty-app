@@ -87,7 +87,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
 // Health check for SMS system
 router.get('/status', (req: Request, res: Response) => {
-  const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+  const hasApiKey = !!process.env.OPENAI_API_KEY;
   const hasTwilio = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
 
   res.json({
