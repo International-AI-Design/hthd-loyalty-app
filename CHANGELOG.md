@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2026-03-24 — QA Sprint: Demo Readiness + OpenAI Migration
+
+### Fixed
+- Dashboard NaN% capacity calculation (null-coalescing on facility stats)
+- Grooming sub-service cards defensive fixes (handles empty/null API responses)
+- AIM escalation routing now links to specific conversation (was `/messages?filter=escalated`)
+- AIM alert severity sort (critical → warning → info, was alphabetical)
+- AIM dismiss now resolves alerts (was mark-read only)
+- AIM button visible on all pages (was hidden on /messages)
+- Past date validation on bookings (rejects dates before today)
+- Dog creation now persists weight, temperament, isNeutered (were silently dropped)
+- AI chat markdown rendering (**bold** and *italic* now render properly)
+- Anti-hallucination rules in AI prompts (directs to happytailhappydog.com for unknown info)
+
+### Added
+- Dog update endpoint (`PATCH /api/customers/me/dogs/:id`)
+- Messaging welcome greeting on new conversations
+- Messaging retry button on send failures
+- Messaging quick replies auto-hide after 2 customer messages
+- Messaging auto-select single conversation on load
+- Smart context-aware fallback messages when AI is unavailable
+- AIM drawer error boundary (prevents silent crashes)
+- Admin diagnostics API (`/api/v2/admin/diagnostics/` — conversations, ai-stats, health, errors)
+- Admin password auto-sync from `SEED_ADMIN_PASSWORD` env var on startup
+- Grooming seed script (`server/prisma/seed-grooming.ts` — 5 services, size-based pricing, 4 add-ons)
+- Evaluation function document (`docs/EVALUATION.md` — 95 acceptance criteria)
+
+### Changed
+- **All AI switched from Anthropic Claude to OpenAI** — Customer chat: GPT-4o-mini, AIM: GPT-4o, Orchestrator: GPT-4o
+- Admin app title: "admin-app" → "HTHD Admin"
+- Customer app title and OG meta tags updated to reflect full app scope (not just loyalty)
+- `.env.example` updated: `ANTHROPIC_API_KEY` → `OPENAI_API_KEY`
+
+### Infrastructure
+- Sentinel monitoring URLs corrected (was checking stale Railway endpoints)
+- Atlas ↔ Sentinel S3 comms channel (`ferroai/scripts/comms.sh`)
+- Railway staging environment created (pending root directory config)
+- Playwright + Chromium installed on Sentinel for visual QA
+
 ## [3.5.0] - 2026-03-04 — Sprint 5b: Pet Profile UI Enrichment
 
 ### Added
