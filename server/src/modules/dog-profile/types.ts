@@ -5,7 +5,7 @@ export const DogProfileUpdateSchema = z.object({
   breed: z.string().nullish(),
   birthDate: z.string().nullish(),
   weight: z.number().positive().nullish(),
-  temperament: z.enum(['calm', 'energetic', 'anxious', 'friendly', 'reactive']).nullish(),
+  temperament: z.string().nullish(),
   careInstructions: z.string().nullish(),
   isNeutered: z.boolean().nullish(),
   photoUrl: z.string().url().nullish(),
