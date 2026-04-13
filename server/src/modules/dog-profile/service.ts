@@ -96,7 +96,7 @@ export class DogProfileService {
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.breed !== undefined) updateData.breed = data.breed;
-    if (data.birthDate !== undefined) updateData.birthDate = new Date(data.birthDate);
+    if (data.birthDate !== undefined) updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;
     if (data.weight !== undefined) updateData.weight = data.weight;
     if (data.temperament !== undefined) updateData.temperament = data.temperament;
     if (data.careInstructions !== undefined) updateData.careInstructions = data.careInstructions;
@@ -108,7 +108,7 @@ export class DogProfileService {
     if (data.specialNeeds !== undefined) updateData.specialNeeds = data.specialNeeds;
     if (data.emergencyVetName !== undefined) updateData.emergencyVetName = data.emergencyVetName;
     if (data.emergencyVetPhone !== undefined) updateData.emergencyVetPhone = data.emergencyVetPhone;
-    if (data.lastGroomDate !== undefined) updateData.lastGroomDate = new Date(data.lastGroomDate);
+    if (data.lastGroomDate !== undefined) updateData.lastGroomDate = data.lastGroomDate ? new Date(data.lastGroomDate) : null;
     // Sprint 5a: new enrichment fields
     if (data.vetName !== undefined) updateData.vetName = data.vetName;
     if (data.vetPhone !== undefined) updateData.vetPhone = data.vetPhone;
@@ -120,7 +120,7 @@ export class DogProfileService {
     if (data.foodType !== undefined) updateData.foodType = data.foodType;
     if (data.feedingNotes !== undefined) updateData.feedingNotes = data.feedingNotes;
     if (data.alteredStatus !== undefined) updateData.alteredStatus = data.alteredStatus;
-    if (data.alteredDate !== undefined) updateData.alteredDate = new Date(data.alteredDate);
+    if (data.alteredDate !== undefined) updateData.alteredDate = data.alteredDate ? new Date(data.alteredDate) : null;
     if (data.emergencyAgent !== undefined) updateData.emergencyAgent = data.emergencyAgent;
     if (data.emergencyAgentRelationship !== undefined) updateData.emergencyAgentRelationship = data.emergencyAgentRelationship;
     if (data.emergencyAgentPhone !== undefined) updateData.emergencyAgentPhone = data.emergencyAgentPhone;
