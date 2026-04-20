@@ -113,15 +113,49 @@ export function StaffSchedulePage() {
     setIsLoading(true);
     setError(null);
     const startDate = formatDateISO(weekStart);
-    const result = await adminScheduleApi.getWeekView(startDate);
+    const sevenDates = Array.from({ length: 7 }, (_, i) => formatDateISO(addDays(weekStart, i)));
+
+    const [weekResult, ...coverageResults] = await Promise.all([
+      adminScheduleApi.getWeekView(startDate),
+      ...sevenDates.map((d) => adminScheduleApi.getCoverage(d)),
+    ]);
     setIsLoading(false);
-    if (result.error) {
-      setError(result.error);
+
+    if (weekResult.error) {
+      setError(weekResult.error);
       setShifts([]);
-    } else if (result.data) {
-      setShifts(result.data.shifts || []);
-      setCoverage(result.data.coverage || []);
+      setCoverage([]);
+      return;
     }
+
+    const week = (weekResult.data?.week ?? {}) as Record<string, any[]>;
+    const flat: ScheduleShift[] = [];
+    for (const [date, dayShifts] of Object.entries(week)) {
+      for (const s of dayShifts) {
+        flat.push({
+          id: s.id,
+          staffUserId: s.staff.id,
+          staffName: `${s.staff.firstName} ${s.staff.lastName}`,
+          date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          role: s.role,
+          breaks: s.breaks || [],
+        });
+      }
+    }
+    setShifts(flat);
+
+    const cov: CoverageData[] = coverageResults.map((r, i) => {
+      const data = r.data?.coverage;
+      return {
+        date: sevenDates[i],
+        staffCount: data?.staffCount ?? 0,
+        expectedDogs: data?.dogsBooked ?? 0,
+        ratio: data?.ratio != null && isFinite(data.ratio) ? String(data.ratio) : '—',
+      };
+    });
+    setCoverage(cov);
   }, [weekStart]);
 
   const fetchStaff = useCallback(async () => {

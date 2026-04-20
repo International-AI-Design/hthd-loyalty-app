@@ -842,10 +842,12 @@ export const adminCheckoutApi = {
     api.get<WalletBalanceResponse>(`/v2/admin/checkout/wallet-balance/${customerId}`),
 
   processPayment: (data: {
+    customerId: string;
     bookingIds: string[];
     paymentMethod: string;
-    walletAmount?: number;
-    cashReceived?: number;
+    walletAmountCents?: number;
+    pointsToRedeem?: number;
+    tipCents?: number;
   }) =>
     api.post<CheckoutResponse>('/v2/admin/checkout/process', data),
 };

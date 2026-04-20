@@ -112,16 +112,17 @@ export function PaymentModal({ isOpen, onClose, booking, onPaymentComplete }: Pa
     setIsProcessing(true);
     setError(null);
     const data: {
+      customerId: string;
       bookingIds: string[];
       paymentMethod: PaymentMethod;
-      walletAmount?: number;
-      cashReceived?: number;
-    } = { bookingIds: [booking.id], paymentMethod };
-    if (paymentMethod === 'cash') {
-      data.cashReceived = Math.round(parseFloat(cashReceived) * 100);
-    }
+      walletAmountCents?: number;
+    } = {
+      customerId: booking.customerId,
+      bookingIds: [booking.id],
+      paymentMethod,
+    };
     if (paymentMethod === 'split') {
-      data.walletAmount = Math.round(parseFloat(walletSplitAmount) * 100);
+      data.walletAmountCents = Math.round(parseFloat(walletSplitAmount) * 100);
     }
     const result = await adminCheckoutApi.processPayment(data);
     setIsProcessing(false);

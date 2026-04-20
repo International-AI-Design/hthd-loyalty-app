@@ -40,8 +40,37 @@ export function ReportCardsPage() {
     if (fetchErr) {
       setError(fetchErr);
     } else if (data) {
-      const cards = Array.isArray(data) ? data : (data as any).reportCards || [];
-      setReportCards(cards);
+      const raw = Array.isArray(data) ? data : (data as any).reportCards || [];
+      // Server returns Prisma-shaped rows (`booking.date`, `dog.name`,
+      // `mood`, `photoUrls`, `staffUser.firstName`); the UI's ReportCard
+      // interface is flat. Map once here so the render path stays simple and
+      // null-safe. Any missing nested field collapses to null, not a crash.
+      const mapped: ReportCard[] = raw.map((r: any): ReportCard => ({
+        id: r.id,
+        dogId: r.dogId,
+        dogName: r.dog?.name ?? r.dogName ?? 'Unknown',
+        date: r.booking?.date ?? r.createdAt ?? r.date ?? new Date().toISOString(),
+        moodEmoji: r.moodEmoji ?? r.mood ?? null,
+        rating: typeof r.rating === 'number' ? r.rating : null,
+        activities: Array.isArray(r.activities)
+          ? r.activities
+          : typeof r.activities === 'string'
+            ? r.activities.split(/\s*,\s*/).filter(Boolean)
+            : [],
+        meals: r.meals ?? null,
+        socialBehavior: r.socialBehavior ?? null,
+        notes: r.notes ?? null,
+        staffName: r.staffName
+          ?? (r.staffUser
+              ? [r.staffUser.firstName, r.staffUser.lastName].filter(Boolean).join(' ').trim() || null
+              : null),
+        photos: Array.isArray(r.photos)
+          ? r.photos
+          : Array.isArray(r.photoUrls)
+            ? r.photoUrls.map((url: string, i: number) => ({ id: `${r.id}-${i}`, url, caption: null }))
+            : [],
+      }));
+      setReportCards(mapped);
     }
     setIsLoading(false);
   }, []);
