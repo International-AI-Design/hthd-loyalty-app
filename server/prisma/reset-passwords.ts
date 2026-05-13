@@ -1,6 +1,6 @@
 /**
  * One-time password reset script.
- * Runs on deploy if RESET_ADMIN_PASSWORD env var is set.
+ * Runs on deploy if any of the RESET_*_PASSWORD env vars is set.
  * After successful rotation, remove the RESET_* env vars from Railway.
  */
 import 'dotenv/config';
@@ -11,10 +11,19 @@ import pg from 'pg';
 
 const SALT_ROUNDS = 10;
 
-const resets = [
-  { username: 'admin', envVar: 'RESET_ADMIN_PASSWORD' },
-  { username: 'staff1', envVar: 'RESET_STAFF_PASSWORD' },
-  { username: 'groomer1', envVar: 'RESET_GROOMER_PASSWORD' },
+type StaffDefault = {
+  username: string;
+  envVar: string;
+  role: 'owner' | 'manager' | 'admin' | 'staff' | 'groomer';
+  firstName: string;
+  lastName: string;
+};
+
+const resets: StaffDefault[] = [
+  { username: 'admin',   envVar: 'RESET_ADMIN_PASSWORD',   role: 'owner',   firstName: 'Sarah', lastName: 'Manager' },
+  { username: 'staff1',  envVar: 'RESET_STAFF_PASSWORD',   role: 'staff',   firstName: 'Mike',  lastName: 'Receptionist' },
+  { username: 'groomer1',envVar: 'RESET_GROOMER_PASSWORD', role: 'groomer', firstName: 'Emma',  lastName: 'Groomer' },
+  { username: 'becky',   envVar: 'RESET_BECKY_PASSWORD',   role: 'owner',   firstName: 'Becky', lastName: 'HTHD' },
 ];
 
 async function main() {
@@ -30,26 +39,18 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   try {
-    for (const { username, envVar } of toReset) {
+    for (const { username, envVar, role, firstName, lastName } of toReset) {
       const newPassword = process.env[envVar]!;
+      const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
       const user = await prisma.staffUser.findUnique({ where: { username } });
       if (!user) {
         console.log(`Password reset: User '${username}' not found — creating...`);
-        const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
         await prisma.staffUser.create({
-          data: {
-            username,
-            passwordHash,
-            role: username === 'admin' ? 'owner' : username === 'groomer1' ? 'groomer' : 'staff',
-            firstName: username === 'admin' ? 'Sarah' : username === 'staff1' ? 'Mike' : 'Emma',
-            lastName: username === 'admin' ? 'Manager' : username === 'staff1' ? 'Receptionist' : 'Groomer',
-            isActive: true,
-          },
+          data: { username, passwordHash, role, firstName, lastName, isActive: true },
         });
-        console.log(`Password reset: Created '${username}' with new password.`);
+        console.log(`Password reset: Created '${username}' (role=${role}).`);
       } else {
-        const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
         await prisma.staffUser.update({
           where: { username },
           data: { passwordHash },
